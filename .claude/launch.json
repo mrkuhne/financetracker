@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "finance-dev", "runtimeExecutable": "base44", "runtimeArgs": ["dev"], "port": 5173 }
+  ]
+}

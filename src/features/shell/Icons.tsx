@@ -90,7 +90,7 @@ export type IconName =
   | 'sofa'
   | 'edit';
 
-export function Icon({ name, className = '', ...rest }: { name: IconName | (string & {}) } & Omit<SVGProps<SVGSVGElement>, 'name'>) {
+export function Icon({ name, className = '', ...rest }: { name: IconName } & Omit<SVGProps<SVGSVGElement>, 'name'>) {
   return (
     <svg className={`i ${className}`} aria-hidden="true" {...rest}>
       <use href={`#i-${name}`} />
