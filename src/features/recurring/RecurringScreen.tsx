@@ -13,7 +13,7 @@ import { todayInTz } from '@/domain/dates';
 import { formatMoney, toHufMinor } from '@/domain/money';
 import type { Account, RecurringRule } from '@/domain/types';
 import { RecurringSheet, type RuleDraft } from './RecurringSheet';
-import { frequencyLabel, monthlyHufMinor } from './recurringMath';
+import { frequencyLabel, monthlyHufMinor, rulePatchForEdit, rulePatchForToggle } from './recurringMath';
 
 type Editing = { rule?: RecurringRule } | null;
 
@@ -48,8 +48,7 @@ export function RecurringScreen() {
     const fields = { ...draft, amount_huf_minor: toHufMinor(draft.amount_minor, rate) };
     try {
       if (existing) {
-        const reset = existing.start_date !== draft.start_date || existing.frequency !== draft.frequency;
-        await updateRule(existing.id, reset ? { ...fields, last_materialized_date: null } : fields);
+        await updateRule(existing.id, rulePatchForEdit(fields));
       } else {
         await createRule({ ...fields, last_materialized_date: null, active: true });
       }
@@ -71,7 +70,7 @@ export function RecurringScreen() {
 
   async function toggle(r: RecurringRule) {
     try {
-      await updateRule(r.id, { active: !r.active });
+      await updateRule(r.id, rulePatchForToggle(r, todayInTz((await getSettings()).timezone)));
     } finally {
       await load();
     }
