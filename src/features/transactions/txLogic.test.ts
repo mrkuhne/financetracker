@@ -28,6 +28,27 @@ describe('applyKey', () => {
   });
 });
 
+describe('applyKey decimals', () => {
+  it('adds a comma once, max 2 decimals', () => {
+    expect(applyKey('', ',', true)).toBe('0,');
+    expect(applyKey('12', ',', true)).toBe('12,');
+    expect(applyKey('12,', ',', true)).toBe('12,');
+    expect(applyKey('12,5', '5', true)).toBe('12,55');
+    expect(applyKey('12,55', '1', true)).toBe('12,55');
+    expect(applyKey('0,', '0', true)).toBe('0,0');
+    expect(applyKey('12,', '000', true)).toBe('12,');
+  });
+  it('ignores comma for integer currencies', () => expect(applyKey('12', ',')).toBe('12'));
+});
+
+describe('recentCategoryIds default order', () => {
+  it('pads in canonical order, custom last', () => {
+    const named = (id: string, name: string): Category => ({ ...cat(id), name });
+    const cats = [named('1', 'Entertainment'), named('2', 'Custom'), named('3', 'Groceries'), named('4', 'Dining out')];
+    expect(recentCategoryIds([], cats, 4)).toEqual(['3', '4', '1', '2']);
+  });
+});
+
 describe('recentCategoryIds', () => {
   const cats = [cat('a'), cat('b'), cat('c'), cat('d'), cat('i1', 'income')];
   it('orders by recency, dedupes, pads with defaults', () => {

@@ -22,5 +22,6 @@ export function formatMoney(minor: number, currency: string): string {
     currency,
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
-  }).format(fromMinor(minor));
+    useGrouping: 'always',
+  } as Intl.NumberFormatOptions).format(fromMinor(minor));
 }

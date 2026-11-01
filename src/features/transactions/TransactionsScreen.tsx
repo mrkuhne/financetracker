@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Screen } from '@/features/shell/Screen';
 import { Icon } from '@/features/shell/Icons';
@@ -31,20 +31,23 @@ export function TransactionsScreen() {
     }).catch(() => setFailed(true));
   }, []);
 
+  const reqId = useRef(0);
   const load = useCallback(async () => {
     if (!month) return;
+    const id = ++reqId.current;
     try {
       const [t, a, c] = await Promise.all([
         listTransactions({ from: firstDay(month), to: lastDay(month) }),
         listAccounts(),
         listCategories(),
       ]);
+      if (id !== reqId.current) return;
       setTxns(t);
       setAccounts(a);
       setCategories(c);
       setFailed(false);
     } catch {
-      setFailed(true);
+      if (id === reqId.current) setFailed(true);
     }
   }, [month]);
 

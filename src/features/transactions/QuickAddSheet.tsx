@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Icon } from '@/features/shell/Icons';
 import { listAccounts } from '@/data/accounts';
 import { listCategories, type Category } from '@/data/categories';
@@ -6,10 +6,11 @@ import { createTransaction, createTransfer, listTransactions } from '@/data/tran
 import { getHufPerUnit } from '@/data/fx';
 import { getSettings } from '@/data/settings';
 import { addDays, todayInTz } from '@/domain/dates';
-import { toHufMinor, toMinor } from '@/domain/money';
+import { toHufMinor } from '@/domain/money';
+import { parseAmountInput } from '@/lib/amountInput';
 import type { Account, ISODate, Txn } from '@/domain/types';
 import { notifyTxnsChanged } from './events';
-import { applyKey, categoryColor, KEYS, recentCategoryIds } from './txLogic';
+import { applyKey, categoryColor, formatTyped, keysFor, recentCategoryIds } from './txLogic';
 
 type Mode = 'expense' | 'income' | 'transfer';
 
@@ -36,6 +37,7 @@ function Sheet({ onClose }: { onClose: () => void }) {
   const [more, setMore] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const inFlight = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -72,23 +74,28 @@ function Sheet({ onClose }: { onClose: () => void }) {
   const currency = account?.currency ?? 'HUF';
   const kind = mode === 'income' ? 'income' : 'expense';
   const chipIds = useMemo(() => {
-    if (more) return categories.filter((c) => c.kind === kind).map((c) => c.id);
-    return recentCategoryIds(recent, categories, kind === 'expense' ? 6 : 3, kind);
+    const all = categories.filter((c) => c.kind === kind);
+    if (more || all.length <= 6) return recentCategoryIds(recent, categories, all.length, kind);
+    return recentCategoryIds(recent, categories, 6, kind);
   }, [more, recent, categories, kind]);
   const byId = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
-  const shown = amount ? Number(amount).toLocaleString('hu-HU').replace(/\s/g, ' ') : '0';
+  const decimals = currency !== 'HUF';
+  const shown = formatTyped(amount);
+  const hasMore = categories.filter((c) => c.kind === kind).length > 6;
   const unit = currency === 'HUF' ? 'Ft' : currency;
   const acctName = account?.name ?? 'No account';
   const dateLabel = date === today ? 'Today' : date;
 
   async function saveExpenseOrIncome(categoryId: string) {
-    if (!amount) return setError('Type an amount first.');
+    if (inFlight.current) return;
+    const amountMinor = parseAmountInput(amount);
+    if (!amountMinor) return setError('Type an amount first.');
     if (!account) return setError('Add an account first.');
+    inFlight.current = true;
     setBusy(true);
     setError('');
     try {
-      const amountMinor = toMinor(Number(amount));
       const rate = await getHufPerUnit(currency, date);
       await createTransaction({
         account_id: account.id,
@@ -108,23 +115,27 @@ function Sheet({ onClose }: { onClose: () => void }) {
       onClose();
     } catch {
       setError('Could not save. Try again.');
+      inFlight.current = false;
       setBusy(false);
     }
   }
 
   async function saveTransfer() {
     const to = accounts.find((a) => a.id === toAccountId);
-    if (!amount) return setError('Type an amount first.');
+    if (inFlight.current) return;
+    const amountMinor = parseAmountInput(amount);
+    if (!amountMinor) return setError('Type an amount first.');
     if (!account || !to) return setError('Pick both accounts.');
     if (account.id === to.id) return setError('Pick two different accounts.');
     if (account.currency !== to.currency) return setError('Transfers between different currencies are not supported yet.');
+    inFlight.current = true;
     setBusy(true);
     setError('');
     try {
       await createTransfer({
         fromAccountId: account.id,
         toAccountId: to.id,
-        amountMinor: toMinor(Number(amount)),
+        amountMinor,
         currency,
         date,
         note: note.trim() || undefined,
@@ -133,6 +144,7 @@ function Sheet({ onClose }: { onClose: () => void }) {
       onClose();
     } catch {
       setError('Could not save. Try again.');
+      inFlight.current = false;
       setBusy(false);
     }
   }
@@ -163,7 +175,7 @@ function Sheet({ onClose }: { onClose: () => void }) {
           <>
             <div className="seg">
               {(['expense', 'income', 'transfer'] as Mode[]).map((m) => (
-                <button key={m} type="button" className={mode === m ? 'on' : ''} onClick={() => { setMode(m); setMore(false); setError(''); }}>
+                <button key={m} type="button" disabled={busy} className={mode === m ? 'on' : ''} onClick={() => { setMode(m); setMore(false); setError(''); }}>
                   {m[0].toUpperCase() + m.slice(1)}
                 </button>
               ))}
@@ -193,7 +205,7 @@ function Sheet({ onClose }: { onClose: () => void }) {
                     </button>
                   );
                 })}
-                {mode === 'expense' && (
+                {hasMore && (
                   <button type="button" className="chip" onClick={() => setMore((v) => !v)}>
                     <Icon name="dots" />
                     {more ? 'Fewer' : 'More'}
@@ -203,8 +215,8 @@ function Sheet({ onClose }: { onClose: () => void }) {
             )}
 
             <div className="keys">
-              {KEYS.map((k) => (
-                <button key={k} type="button" aria-label={k === '⌫' ? 'Backspace' : k} onClick={() => setAmount((a) => applyKey(a, k))}>
+              {keysFor(decimals).map((k) => (
+                <button key={k} type="button" disabled={busy} aria-label={k === '⌫' ? 'Backspace' : k} onClick={() => setAmount((a) => applyKey(a, k, decimals))}>
                   {k}
                 </button>
               ))}

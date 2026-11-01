@@ -1,16 +1,30 @@
-import type { Category } from '@/data/categories';
+import { DEFAULT_ORDER, type Category } from '@/data/categories';
 import type { ISODate, Txn } from '@/domain/types';
 
-export type Key = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '000' | '⌫';
-export const KEYS: Key[] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '000', '0', '⌫'];
+export type Key = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '000' | ',' | '⌫';
+const BASE: Key[] = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
+/** Keypad layout: HUF gets "000", currencies with cents get ",". */
+export const keysFor = (decimals: boolean): Key[] => [...BASE, decimals ? ',' : '000', '0', '⌫'];
+export const KEYS = keysFor(false);
 export const MAX_DIGITS = 9;
 
-/** Keypad reducer: digits only, max 9, no leading zeros, ⌫ deletes, '000' adds three zeros if they fit. */
-export function applyKey(amount: string, key: Key): string {
+/** Keypad reducer: max 9 integer digits, no leading zeros, ⌫, '000' (integers), ',' + max 2 decimals (when `decimals`). */
+export function applyKey(amount: string, key: Key, decimals = false): string {
   if (key === '⌫') return amount.slice(0, -1);
+  const [int, frac] = amount.split(',');
+  if (key === ',') return decimals && frac === undefined ? (amount === '' ? '0,' : amount + ',') : amount;
+  if (frac !== undefined) return key === '000' || frac.length >= 2 ? amount : amount + key;
   if (amount === '' && key.startsWith('0')) return '';
-  if (amount.length + key.length > MAX_DIGITS) return amount;
+  if (int.length + key.length > MAX_DIGITS) return amount;
   return amount + key;
+}
+
+/** Display "12 500,5" style text for the in-progress amount. */
+export function formatTyped(amount: string): string {
+  if (!amount) return '0';
+  const [int, frac] = amount.split(',');
+  const head = Number(int).toLocaleString('hu-HU', { useGrouping: 'always' } as Intl.NumberFormatOptions).replace(/\s/g, ' ');
+  return frac === undefined ? head : `${head},${frac}`;
 }
 
 /** Most recently used category ids of `kind` (by txn date, newest first), padded from the default order. */
@@ -27,7 +41,11 @@ export function recentCategoryIds(
     if (out.length >= n) break;
     if (t.category_id && valid.has(t.category_id) && !out.includes(t.category_id)) out.push(t.category_id);
   }
-  for (const c of categories) {
+  const rank = (c: Category) => {
+    const i = DEFAULT_ORDER.indexOf(c.name);
+    return i < 0 ? DEFAULT_ORDER.length : i;
+  };
+  for (const c of [...categories].sort((a, b) => rank(a) - rank(b))) {
     if (out.length >= n) break;
     if (c.kind === kind && !out.includes(c.id)) out.push(c.id);
   }

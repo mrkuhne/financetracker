@@ -12,6 +12,11 @@ export interface Category {
 const toCategory = (r: Record<string, unknown>): Category =>
   pick<Category>(r, ['name', 'kind', 'icon', 'monthly_budget_minor'], ['monthly_budget_minor']);
 
+export const DEFAULT_ORDER = [
+  'Groceries', 'Dining out', 'Transport', 'Housing', 'Utilities', 'Subscriptions', 'Health', 'Shopping',
+  'Entertainment', 'Travel', 'Gifts', 'Other', 'Salary', 'Bonus', 'Other income',
+];
+
 const DEFAULTS: Omit<Category, 'id'>[] = [
   ...[
     ['Groceries', 'cart'], ['Dining out', 'fork'], ['Transport', 'bus'], ['Housing', 'house'],
