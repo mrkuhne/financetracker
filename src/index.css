@@ -202,3 +202,4 @@ svg.i { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-widt
 .eq div.tot{border-bottom:0;padding-top:12px}
 .eq div.tot span{color:var(--ink);font-weight:600}
 .eq div.tot b{font-family:var(--display);font-size:28px;font-weight:400}
+.wb.past { opacity: .45; }

@@ -29,6 +29,8 @@ export function HomeScreen() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [dismissed, setDismissed] = useState(false);
   const [open, setOpen] = useState(false);
+  // Transfer already written for a month whose MonthClose is not saved yet; survives sheet unmount.
+  const [transfers, setTransfers] = useState<Record<string, string>>({});
   useEffect(() => { void listCategories().then(setCategories).catch(() => {}); }, []);
   const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
@@ -79,7 +81,7 @@ export function HomeScreen() {
           <span className="bi"><Icon name="piggy" /></span>
           <div>
             <strong>{monthLabel(summary.month).split(' ')[0]} is ready to close</strong>
-            <span>{summary.deficitMinor > 0 ? `You overspent ${huf(summary.deficitMinor)}.` : `You had ${huf(summary.leftoverMinor)} left. Move it to Savings?`}</span>
+            <span>{summary.deficitMinor > 0 ? `You overspent ${huf(summary.deficitMinor)}.` : summary.leftoverMinor === 0 ? 'You spent exactly your allowance.' : `You had ${huf(summary.leftoverMinor)} left. Move it to Savings?`}</span>
           </div>
           <Icon name="chev" />
         </button>
@@ -93,10 +95,10 @@ export function HomeScreen() {
         <div className="sub">of {huf(wk.budgetMinor)} this week · about {huf(m.perDayLeftMinor)} a day for the {m.daysLeftInWeek} day{m.daysLeftInWeek === 1 ? '' : 's'} left</div>
         <div className="weekbars">
           {m.bars.map((b, i) => (
-            <div key={b.date} className={`wb${b.today ? ' today' : ''}${b.future ? ' future' : ''}`}>
+            <div key={b.date} className={`wb${b.past ? ' past' : ''}${b.today ? ' today' : ''}${b.future ? ' future' : ''}`}>
               <i>
                 {!b.future && <b className={b.over ? 'over' : ''} style={{ height: `${Math.min(100, (b.spentMinor / max) * 100)}%` }} />}
-                <s style={{ bottom: `${(m.dailyShareMinor / max) * 100}%` }} />
+                {!b.past && <s style={{ bottom: `${(m.dailyShareMinor / max) * 100}%` }} />}
               </i>
               <em>{WEEKDAYS[i]}</em>
             </div>
@@ -142,6 +144,8 @@ export function HomeScreen() {
           key={summary.month}
           summary={summary}
           accounts={data.accounts}
+          transferPairId={transfers[summary.month] ?? null}
+          onTransferred={(id) => setTransfers((t) => ({ ...t, [summary.month]: id }))}
           onClosed={async () => { await reload(); }}
           onDismiss={() => { setDismissed(true); setOpen(false); }}
         />

@@ -12,6 +12,7 @@ const NULLABLE = ['category_id', 'recurring_rule_id', 'transfer_pair_id'];
 const toTxn = (r: Record<string, unknown>): Txn => ({
   ...pick<Txn>(r, KEYS, NULLABLE),
   needs_review: !!r.needs_review,
+  created_date: r.created_date as string | undefined,
 });
 
 const MAX = 5000;

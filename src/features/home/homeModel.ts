@@ -1,13 +1,13 @@
 import { computeMonthlyAllowance, computeWeeklyAllowance, type MonthlyAllowance, type WeeklyAllowance } from '@/domain/allowance';
 import { accountBalanceMinor } from '@/domain/balances';
-import { addDays, compareDates, daysBetweenInclusive, firstDay, lastDay, monthOf, weekStart } from '@/domain/dates';
+import { addDays, compareDates, daysBetweenInclusive, lastDay, monthOf } from '@/domain/dates';
 import { closeOutcome, previousDeficit } from '@/domain/monthClose';
 import type { Account, ISODate, MonthClose, RecurringRule, Settings, Txn, YearMonth } from '@/domain/types';
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 const isSpend = (t: Txn) => t.kind === 'expense' && t.recurring_rule_id === null;
 
-export interface DayBar { date: ISODate; spentMinor: number; future: boolean; today: boolean; over: boolean }
+export interface DayBar { date: ISODate; spentMinor: number; future: boolean; today: boolean; over: boolean; past: boolean /* before the current month: not budgeted */ }
 export interface AccountView { account: Account; balanceMinor: number; balanceHufMinor: number }
 
 export interface HomeModel {
@@ -19,8 +19,6 @@ export interface HomeModel {
   perDayLeftMinor: number; // max(0, week remaining) / days left in week
   dailyShareMinor: number; // week budget / 7
   bars: DayBar[];
-  /** Week breakdown terms for the month containing today (the week may start in the previous month). */
-  weekTerms: { leftOnMondayMinor: number; daysToMonthEnd: number };
   accounts: AccountView[];
   totalBalanceHufMinor: number;
   needsReview: Txn[];
@@ -46,14 +44,12 @@ export function buildHomeModel(i: {
   const bars: DayBar[] = Array.from({ length: 7 }, (_, n) => {
     const date = addDays(weekly.weekStart, n);
     const spentMinor = sum(i.txns.filter((t) => isSpend(t) && t.date === date).map((t) => t.amount_huf_minor));
-    return { date, spentMinor, future: compareDates(date, i.today) > 0, today: date === i.today, over: spentMinor > dailyShareMinor };
+    const past = compareDates(date, weekly.countedFrom) < 0;
+    return { date, spentMinor, past, future: compareDates(date, i.today) > 0, today: date === i.today, over: !past && spentMinor > dailyShareMinor };
   });
 
   const daysLeftInMonth = daysBetweenInclusive(i.today, lastDay(month));
   const daysLeftInWeek = daysBetweenInclusive(i.today, weekly.weekEnd);
-
-  const from = compareDates(weekStart(i.today), firstDay(month)) > 0 ? weekStart(i.today) : firstDay(month);
-  const spentBefore = sum(i.txns.filter((t) => monthOf(t.date) === month && isSpend(t) && compareDates(t.date, from) < 0).map((t) => t.amount_huf_minor));
 
   const rates = i.rates ?? {};
   const accounts: AccountView[] = i.accounts
@@ -64,12 +60,12 @@ export function buildHomeModel(i: {
       return { account, balanceMinor, balanceHufMinor: Math.round(balanceMinor * rate) };
     });
 
-  const byDateDesc = (a: Txn, b: Txn) => compareDates(b.date, a.date);
+  const byDateDesc = (a: Txn, b: Txn) =>
+    compareDates(b.date, a.date) || (b.created_date ?? '').localeCompare(a.created_date ?? '') || b.id.localeCompare(a.id);
   return {
     month, monthly, weekly, daysLeftInMonth, daysLeftInWeek,
     perDayLeftMinor: Math.max(0, weekly.remainingMinor) / daysLeftInWeek,
     dailyShareMinor, bars,
-    weekTerms: { leftOnMondayMinor: monthly.freeMinor - spentBefore, daysToMonthEnd: daysBetweenInclusive(from, lastDay(month)) },
     accounts,
     totalBalanceHufMinor: sum(accounts.map((a) => a.balanceHufMinor)),
     needsReview: i.txns.filter((t) => t.needs_review),
@@ -99,12 +95,12 @@ export function summarizeClose(i: {
 export function closeRecord(
   s: CloseSummary, choice: 'move' | 'keep' | 'ok', transferPairId: string | null,
 ): Omit<MonthClose, 'id'> {
-  if (s.deficitMinor > 0) {
+  if (s.deficitMinor > 0 || s.leftoverMinor === 0) {
     return { month: s.month, final_remaining_minor: s.allowance.remainingMinor, deficit_minor: s.deficitMinor, leftover_action: 'none', transfer_pair_id: null };
   }
   return {
     month: s.month, final_remaining_minor: s.allowance.remainingMinor, deficit_minor: 0,
-    leftover_action: choice === 'move' && s.leftoverMinor > 0 ? 'transferred' : 'kept',
-    transfer_pair_id: choice === 'move' && s.leftoverMinor > 0 ? transferPairId : null,
+    leftover_action: choice === 'move' ? 'transferred' : 'kept',
+    transfer_pair_id: choice === 'move' ? transferPairId : null,
   };
 }

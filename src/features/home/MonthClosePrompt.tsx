@@ -12,8 +12,8 @@ import { huf, hufNum } from './fmt';
 import { closeRecord, type CloseSummary } from './homeModel';
 
 /** Bottom sheet for ONE pending month (the caller passes the oldest first and re-renders with the next after `onClosed`). */
-export function MonthClosePrompt({ summary, accounts, onClosed, onDismiss }: {
-  summary: CloseSummary; accounts: Account[]; onClosed: () => void | Promise<void>; onDismiss: () => void;
+export function MonthClosePrompt({ summary, accounts, transferPairId, onTransferred, onClosed, onDismiss }: {
+  summary: CloseSummary; accounts: Account[]; transferPairId: string | null; onTransferred: (pairId: string) => void; onClosed: () => void | Promise<void>; onDismiss: () => void;
 }) {
   const active = accounts.filter((a) => !a.archived);
   const from = active.find((a) => a.is_default);
@@ -22,10 +22,12 @@ export function MonthClosePrompt({ summary, accounts, onClosed, onDismiss }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const inFlight = useRef(false);
-  // If the transfer succeeded but saving the close failed, a retry must not transfer twice.
-  const pairId = useRef<string | null>(null);
+  // If the transfer succeeded but saving the close failed, a retry must not transfer twice
+  // (the parent keeps the pair id across sheet unmounts).
+  const pairId = useRef<string | null>(transferPairId);
 
-  async function act(choice: 'move' | 'keep' | 'ok') {
+  async function act(picked: 'move' | 'keep' | 'ok') {
+    const choice = pairId.current ? 'move' : picked; // a written transfer can only be finished, not undone
     if (inFlight.current) return;
     inFlight.current = true;
     setBusy(true);
@@ -40,10 +42,10 @@ export function MonthClosePrompt({ summary, accounts, onClosed, onDismiss }: {
           amountMinor: from.currency === 'HUF' ? leftoverMinor : Math.round(leftoverMinor / rate),
           note: `${monthLabel(month)} leftover`,
         });
+        onTransferred(pairId.current);
         notifyTxnsChanged();
       }
       await createMonthClose(closeRecord(summary, choice, pairId.current));
-      pairId.current = null;
       await onClosed();
     } catch {
       setError('Could not save. Try again.');
@@ -56,7 +58,7 @@ export function MonthClosePrompt({ summary, accounts, onClosed, onDismiss }: {
   const label = monthLabel(month);
   return (
     <>
-      <div className="scrim" onClick={() => !busy && onDismiss()} />
+      <div className="scrim" onClick={() => !busy && !pairId.current && onDismiss()} />
       <div className="sheet" role="dialog" aria-label={`Close ${label}`}>
         <span className="grab" />
         <div style={{ display: 'grid', gap: 6, textAlign: 'center', padding: '6px 0' }}>
@@ -76,10 +78,12 @@ export function MonthClosePrompt({ summary, accounts, onClosed, onDismiss }: {
             </>
           )}
         </div>
-        {deficitMinor > 0 ? (
+        {deficitMinor > 0 || leftoverMinor === 0 ? (
           <>
             <p className="sub" style={{ textAlign: 'center' }}>
-              You overspent {huf(deficitMinor)}. Next month starts with {huf(deficitMinor)} less.
+              {deficitMinor > 0
+                ? `You overspent ${huf(deficitMinor)}. Next month starts with ${huf(deficitMinor)} less.`
+                : `You spent exactly your allowance in ${label.split(' ')[0]}.`}
             </p>
             <button className="btn" disabled={busy} onClick={() => void act('ok')}>OK</button>
           </>

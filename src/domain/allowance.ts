@@ -11,7 +11,7 @@ export interface MonthlyAllowance {
   freeMinor: number; spentMinor: number; remainingMinor: number;
 }
 export interface WeeklyAllowance {
-  weekStart: ISODate; weekEnd: ISODate; budgetMinor: number; spentMinor: number; remainingMinor: number;
+  weekStart: ISODate; weekEnd: ISODate; countedFrom: ISODate; portions: WeekPortion[]; budgetMinor: number; spentMinor: number; remainingMinor: number;
 }
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
@@ -47,34 +47,45 @@ export function computeMonthlyAllowance(i: {
   };
 }
 
+export interface WeekPortion {
+  month: YearMonth; from: ISODate; daysInWeek: number; daysToMonthEnd: number;
+  remainingAtFromMinor: number; portionMinor: number;
+}
+
 export function computeWeeklyAllowance(i: {
-  // previousDeficitMinor is the deficit carried into monthOf(today); any other touched month uses 0.
+  // previousDeficitMinor is the deficit carried into monthOf(today); any later touched month uses 0.
   today: ISODate; rules: RecurringRule[]; txns: Txn[]; settings: Settings; previousDeficitMinor: number;
 }): WeeklyAllowance {
   const ws = weekStart(i.today);
   const we = addDays(ws, 6);
-  const months: YearMonth[] = [monthOf(ws)];
-  if (monthOf(we) !== months[0]) months.push(nextMonth(months[0]));
+  const todayMonth = monthOf(i.today);
+  // Days before today's month belong to a month that closes to Savings: excluded from budget and spent.
+  const counted = compareDates(ws, firstDay(todayMonth)) > 0 ? ws : firstDay(todayMonth);
+  const months: YearMonth[] = [todayMonth];
+  if (monthOf(we) !== todayMonth) months.push(nextMonth(todayMonth));
 
-  let budgetMinor = 0;
-  months.forEach((m) => {
-    const from = compareDates(ws, firstDay(m)) > 0 ? ws : firstDay(m);
+  const portions: WeekPortion[] = months.map((m) => {
+    const from = compareDates(counted, firstDay(m)) > 0 ? counted : firstDay(m);
     const weekEndInM = compareDates(we, lastDay(m)) < 0 ? we : lastDay(m);
-    const daysOfWeekInM = daysBetweenInclusive(from, weekEndInM);
-    const daysToEnd = daysBetweenInclusive(from, lastDay(m));
+    const daysInWeek = daysBetweenInclusive(from, weekEndInM);
+    const daysToMonthEnd = daysBetweenInclusive(from, lastDay(m));
     const a = computeMonthlyAllowance({
       month: m, rules: i.rules, txns: i.txns, settings: i.settings,
-      previousDeficitMinor: m === monthOf(i.today) ? i.previousDeficitMinor : 0,
+      previousDeficitMinor: m === todayMonth ? i.previousDeficitMinor : 0,
     });
     const spentBefore = sum(
       i.txns.filter((t) => monthOf(t.date) === m && isSpend(t) && compareDates(t.date, from) < 0).map((t) => t.amount_huf_minor),
     );
-    const remainingAtStart = a.freeMinor - spentBefore;
-    budgetMinor += Math.max(0, Math.floor((remainingAtStart * daysOfWeekInM) / daysToEnd));
+    const remainingAtFromMinor = a.freeMinor - spentBefore;
+    return {
+      month: m, from, daysInWeek, daysToMonthEnd, remainingAtFromMinor,
+      portionMinor: Math.max(0, Math.floor((remainingAtFromMinor * daysInWeek) / daysToMonthEnd)),
+    };
   });
 
+  const budgetMinor = sum(portions.map((p) => p.portionMinor));
   const spentMinor = sum(
-    i.txns.filter((t) => isSpend(t) && compareDates(t.date, ws) >= 0 && compareDates(t.date, we) <= 0).map((t) => t.amount_huf_minor),
+    i.txns.filter((t) => isSpend(t) && compareDates(t.date, counted) >= 0 && compareDates(t.date, we) <= 0).map((t) => t.amount_huf_minor),
   );
-  return { weekStart: ws, weekEnd: we, budgetMinor, spentMinor, remainingMinor: budgetMinor - spentMinor };
+  return { weekStart: ws, weekEnd: we, countedFrom: counted, portions, budgetMinor, spentMinor, remainingMinor: budgetMinor - spentMinor };
 }

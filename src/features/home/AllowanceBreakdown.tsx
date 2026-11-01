@@ -10,7 +10,7 @@ const dayName = (d: string, opts: Intl.DateTimeFormatOptions) =>
 
 /** Every term of the allowance formula, labelled as in the prototype. */
 export function AllowanceBreakdown({ model, rules }: { model: HomeModel; rules: RecurringRule[] }) {
-  const { monthly: m, weekly: w, weekTerms } = model;
+  const { monthly: m, weekly: w } = model;
   const expenseRules = rules.filter((r) => r.active && r.kind === 'expense').length;
   const prevName = monthLabel(prevMonthOf(m.month)).split(' ')[0];
   const range = `${dayName(w.weekStart, { weekday: 'short', day: 'numeric' })} – ${dayName(w.weekEnd, { weekday: 'short', day: 'numeric' })}`;
@@ -33,8 +33,14 @@ export function AllowanceBreakdown({ model, rules }: { model: HomeModel; rules: 
       <div className="sec">
         <span className="ov">This week · {range}</span>
         <div className="card eq">
-          <div><span>Left on Monday morning</span><b className="num">{huf(weekTerms.leftOnMondayMinor)}</b></div>
-          <div><span>Days from Monday to month end</span><b className="num">{weekTerms.daysToMonthEnd}</b></div>
+          {w.portions.map((p) => (
+            <div key={p.month}>
+              <span>
+                {monthLabel(p.month).split(' ')[0]}: {huf(p.remainingAtFromMinor)} left on {dayName(p.from, { weekday: 'short', day: 'numeric' })} × {p.daysInWeek} of {p.daysToMonthEnd} days
+              </span>
+              <b className="num">{huf(p.portionMinor)}</b>
+            </div>
+          ))}
           <div><span>Daily share × 7 days</span><b className="num">{huf(model.dailyShareMinor)} × 7</b></div>
           <div className="tot"><span>Week budget</span><b className="num">{huf(w.budgetMinor)}</b></div>
           <div><span>Spent this week</span><b className="num">{huf(-w.spentMinor)}</b></div>
@@ -42,7 +48,7 @@ export function AllowanceBreakdown({ model, rules }: { model: HomeModel; rules: 
         </div>
         <p className="note">
           <Icon name="info" />
-          Overspend in one week makes the following weeks smaller. Leftover at month end goes to Savings, overspend comes off next month.
+          {w.countedFrom !== w.weekStart && 'Days before this month are not counted: that money closes out to Savings. '}Overspend in one week makes the following weeks smaller. Leftover at month end goes to Savings, overspend comes off next month.
         </p>
       </div>
     </Screen>

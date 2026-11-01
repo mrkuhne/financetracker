@@ -49,8 +49,9 @@ describe('allowance', () => {
 
   it('weekly', () => {
     const wk = computeWeeklyAllowance({ today: '2026-11-04', rules, txns, settings, previousDeficitMinor: 0 });
-    expect(wk).toEqual({ weekStart: '2026-11-02', weekEnd: '2026-11-08',
+    expect(wk).toMatchObject({ weekStart: '2026-11-02', weekEnd: '2026-11-08', countedFrom: '2026-11-02',
       budgetMinor: 6_879_310, spentMinor: 26_000_00, remainingMinor: 6_879_310 - 26_000_00 });
+    expect(wk.portions).toHaveLength(1);
   });
 
   it('cross-month week', () => {
@@ -61,7 +62,21 @@ describe('allowance', () => {
   it('deficit belongs to the month containing today', () => {
     const dec = computeWeeklyAllowance({ today: '2026-12-02', rules, txns, settings, previousDeficitMinor: 40_000_00 });
     expect(dec.weekStart).toBe('2026-11-30');
-    expect(dec.budgetMinor).toBe(25_900_000 + 4_354_838);
+    expect(dec.budgetMinor).toBe(4_354_838);
+    expect(dec.countedFrom).toBe('2026-12-01');
+    expect(dec.spentMinor).toBe(0);
+    expect(dec.portions.map((p) => p.month)).toEqual(['2026-12']);
+  });
+
+  it('excludes days before the current month (closes to Savings)', () => {
+    const r = [rule('salary', 'income', 650_000_00, '2026-09-10')];
+    const s2: Settings = { ...settings, monthly_savings_target_minor: 20_000_00, monthly_investment_amount_minor: null };
+    const t = [expense('2026-11-01', 2_400_00), expense('2026-10-28', 5_000_00)];
+    const wk = computeWeeklyAllowance({ today: '2026-11-01', rules: r, txns: t, settings: s2, previousDeficitMinor: 0 });
+    expect(wk.weekStart).toBe('2026-10-26');
+    expect(wk.budgetMinor).toBe(21_000_00);
+    expect(wk.spentMinor).toBe(2_400_00);
+    expect(wk.remainingMinor).toBe(18_600_00);
   });
 
   it('overspent clamps', () => {

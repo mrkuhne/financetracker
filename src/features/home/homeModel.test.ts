@@ -53,8 +53,16 @@ describe('buildHomeModel', () => {
     expect(m.bars.map((b) => b.over)).toEqual([true, true, false, false, false, false, false]);
   });
 
-  it('week terms', () => {
-    expect(m.weekTerms).toEqual({ leftOnMondayMinor: 285_000_00, daysToMonthEnd: 29 });
+  it('week portions', () => {
+    expect(m.weekly.portions).toHaveLength(1);
+    expect(m.weekly.portions[0]).toMatchObject({ from: '2026-11-02', daysInWeek: 7, daysToMonthEnd: 29, remainingAtFromMinor: 285_000_00 });
+  });
+
+  it('recent tiebreak by created_date then id', () => {
+    const a = mk('expense', '2026-11-20', 1, { id: 'a', created_date: '2026-11-20T10:00:00' });
+    const b = mk('expense', '2026-11-20', 1, { id: 'b', created_date: '2026-11-20T11:00:00' });
+    const r = buildHomeModel({ today: '2026-11-21', rules: [], txns: [a, b], settings, closes: [], accounts: [] });
+    expect(r.recent.map((t) => t.id)).toEqual(['b', 'a']);
   });
 
   it('balances skip archived and convert foreign currency', () => {
@@ -84,6 +92,11 @@ describe('summarizeClose / closeRecord', () => {
     expect(s.leftoverMinor).toBe(259_000_00);
     expect(closeRecord(s, 'move', 'p1')).toEqual({ month: '2026-11', final_remaining_minor: 259_000_00, deficit_minor: 0, leftover_action: 'transferred', transfer_pair_id: 'p1' });
     expect(closeRecord(s, 'keep', null).leftover_action).toBe('kept');
+  });
+  it('exactly zero', () => {
+    const s = summarizeClose({ month: '2026-11', rules, txns: [...txns, mk('expense', '2026-11-10', 259_000_00)], settings, closes });
+    expect(s.leftoverMinor).toBe(0);
+    expect(closeRecord(s, 'move', 'p')).toMatchObject({ leftover_action: 'none', deficit_minor: 0, transfer_pair_id: null });
   });
   it('deficit', () => {
     const big = [...txns, mk('expense', '2026-11-10', 300_000_00)];

@@ -16,6 +16,8 @@ export interface Txn {
   needs_review: boolean;
   recurring_rule_id: string | null;
   transfer_pair_id: string | null;
+  /** Server creation timestamp; read-only, used only as a sort tiebreak. */
+  created_date?: string;
 }
 
 export interface RecurringRule {
