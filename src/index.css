@@ -143,3 +143,27 @@ svg.i { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-widt
 .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--surf2); border-radius: 12px; padding: 3px; }
 .seg button { height: 32px; border-radius: 10px; font-size: 13px; font-weight: 600; color: var(--sub); }
 .seg button.on { background: var(--surf); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+
+/* Transactions: FAB, quick-add keypad, day groups (ported from the prototype) */
+.fab { position: fixed; right: max(18px, calc(50% - 262px)); bottom: calc(78px + env(safe-area-inset-bottom, 0px)); width: 58px; height: 58px; border-radius: 20px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; z-index: 21; box-shadow: 0 10px 24px -8px color-mix(in srgb, var(--accent) 70%, transparent); }
+.fab svg { width: 28px; height: 28px; stroke-width: 2.2; }
+.big { font-family: var(--display); font-size: 66px; line-height: .95; letter-spacing: -1.5px; font-weight: 400; }
+.big small { font-family: var(--body); font-size: 20px; letter-spacing: 0; font-weight: 500; color: var(--sub); margin-left: 4px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 999px; background: var(--surf); font-size: 13px; font-weight: 500; box-shadow: inset 0 0 0 1px var(--hair); }
+.chip svg { width: 17px; height: 17px; color: var(--c, var(--sub)); }
+.chip.on { background: color-mix(in srgb, var(--accent) 16%, var(--surf)); box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--ink); }
+.amtin { text-align: center; display: grid; gap: 4px; padding: 6px 0; }
+.amtin .big { font-size: 58px; }
+.amtin .big.zero { color: var(--faint); }
+.keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.keys button { height: 48px; border-radius: 14px; background: var(--surf); font-size: 21px; font-weight: 500; }
+.li.rev { background: color-mix(in srgb, var(--warn) 9%, transparent); }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); display: inline-block; }
+.dayhd { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--faint); padding: 0 4px; margin-top: 4px; }
+.ci-lg .ci { width: 56px; height: 56px; border-radius: 18px; }
+.ci-lg .ci svg { width: 28px; height: 28px; }
+.li .amt small { display: block; font-size: 11px; font-weight: 400; color: var(--faint); }
+.monthnav { display: flex; align-items: center; justify-content: space-between; }
+.monthnav strong { font-size: 15px; font-weight: 600; }
+.ib.flip svg { transform: scaleX(-1); }
