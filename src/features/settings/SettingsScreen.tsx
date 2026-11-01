@@ -6,6 +6,8 @@ import { base44 } from '@/data/client';
 import { getSettings, updateSettings } from '@/data/settings';
 import { formatMoney } from '@/domain/money';
 import { parseAmountInput } from '@/lib/amountInput';
+import { exportAllJson, exportTransactionsCsv, saveBlob } from '@/data/export';
+import { todayInTz } from '@/domain/dates';
 import type { Settings } from '@/domain/types';
 
 const STEP = 1_000_000; // 10 000 Ft in minor units
@@ -49,6 +51,26 @@ export function SettingsScreen() {
           /* keep the optimistic value; the error message is already shown */
         }
       });
+  }
+
+  const [exportMsg, setExportMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  async function runExport(kind: 'json' | 'csv') {
+    if (!latest.current || exporting) return;
+    setExporting(true);
+    setExportMsg(null);
+    try {
+      const day = todayInTz(latest.current.timezone);
+      const name = kind === 'json' ? `finance-export-${day}.json` : `transactions-${day}.csv`;
+      const blob = await (kind === 'json' ? exportAllJson() : exportTransactionsCsv());
+      await saveBlob(blob, name);
+      setExportMsg({ ok: true, text: `Saved ${name}` });
+    } catch {
+      setExportMsg({ ok: false, text: 'Could not export. Try again.' });
+    } finally {
+      setExporting(false);
+    }
   }
 
   async function signOut() {
@@ -96,7 +118,20 @@ export function SettingsScreen() {
               </Link>
             </div>
           </div>
-          {/* Task 12 adds the Data (export) section here. */}
+          <div className="sec">
+            <span className="ov">Data</span>
+            <div className="list">
+              <button className="li" disabled={exporting} onClick={() => void runExport('json')}>
+                <span className="ci" style={{ ['--c' as string]: 'var(--good)' }}><Icon name="download" /></span>
+                <span className="tx"><strong>Export everything (JSON)</strong><span>Back up your data</span></span>
+              </button>
+              <button className="li" disabled={exporting} onClick={() => void runExport('csv')}>
+                <span className="ci" style={{ ['--c' as string]: 'var(--good)' }}><Icon name="download" /></span>
+                <span className="tx"><strong>Export transactions (CSV)</strong><span>For spreadsheets</span></span>
+              </button>
+            </div>
+            {exportMsg && (exportMsg.ok ? <p className="sub" role="status">{exportMsg.text}</p> : <p className="err" role="alert">{exportMsg.text}</p>)}
+          </div>
           <button className="btn ghost" onClick={() => void signOut()}>Sign out</button>
         </>
       )}
