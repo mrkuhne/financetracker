@@ -27,6 +27,7 @@
 - Week starts **Monday**.
 - Numbers come from deterministic code; nothing in this plan calls an LLM.
 - Mobile-first layout for iPhone; quick add must save an expense in 2–3 taps.
+- **Visual and interaction reference:** the approved prototype `docs/prototype/finance-tracker-prototype.html` (published at https://claude.ai/artifact/7Atb9n2cnkc5Te3M9BwyUJ). Screens, copy, navigation (bottom tabs Home / Activity / Plan / Invest / News, "+" quick add, "Ask" assistant button), palette (light + dark tokens) and type (Instrument Serif for big numbers, Schibsted Grotesk for UI) follow it. Where this plan and the prototype differ on behavior, this plan wins; on look and copy, the prototype wins. In Plan 1, tabs whose features come later (Plan, Invest, News, Ask) are hidden, not stubbed.
 - No secrets in git. `.superpowers/` stays ignored.
 - Node ≥ 20.19.0 (Base44 CLI requirement).
 
@@ -363,7 +364,7 @@ Entity notes: every user-owned entity carries the Global Constraints RLS block. 
 
 **Interfaces:**
 - Consumes: `ensureDefaultCategories`, `getSettings`.
-- Produces: routes `/` (Home), `/transactions`, `/recurring`, `/accounts`, `/settings`, rendered inside `AppShell` with a bottom `TabBar` (Home, Transactions, Recurring, Settings; Accounts reachable from Settings and Home). `runStartup(): Promise<StartupResult>` in `startup.ts`, extended in Tasks 10 and 11; in this task it only calls `ensureDefaultCategories()`.
+- Produces: routes `/` (Home), `/transactions`, `/recurring`, `/accounts`, `/settings`, rendered inside `AppShell` with a bottom `TabBar` matching the prototype (Plan 1 shows Home and Activity; Recurring opens from Activity, Settings from the avatar on Home, Accounts from Settings and the Home accounts strip). `runStartup(): Promise<StartupResult>` in `startup.ts`, extended in Tasks 10 and 11; in this task it only calls `ensureDefaultCategories()`.
 
 - [ ] **Step 1:** Enable auth methods: `base44 auth password-login` on and Google social login on (or edit `base44/auth/config.jsonc`), then `base44 auth push`.
 - [ ] **Step 2:** `AuthGate`: on mount `base44.auth.isAuthenticated()`; if false → `base44.auth.redirectToLogin(window.location.href)`; while checking, show a spinner; when authenticated, run `runStartup()` once, then render children. Logout lives in Settings.

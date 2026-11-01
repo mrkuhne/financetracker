@@ -168,7 +168,8 @@ Alapelv: **a számokat determinisztikus kód számolja, az AI csak értelmez és
 6. A Base44 backend béta. Pénzügyi adatokról van szó, ezért kell a teljes adatexport (3. pont).
 
 ## 9. A builderre bízva
-- A UI pontos megjelenése (mobile-first, iPhone-ra), a navigáció (javaslat: alsó tab bar: Home / Transactions / Plan / Invest / News, plus asszisztens), komponens-könyvtár (a template shadcn-stílusú `components/ui`-ja kézenfekvő), állapotkezelés, router.
+- **A UI megjelenése és szövegei a jóváhagyott prototípust követik** (2026-11-01): `docs/prototype/finance-tracker-prototype.html`, publikálva: https://claude.ai/artifact/7Atb9n2cnkc5Te3M9BwyUJ. Navigáció: alsó tab bar Home / Activity / Plan / Invest / News, „+” gyors felvitel, „Ask” asszisztens gomb.
+- A builderre marad: komponens-könyvtár (a template shadcn-stílusú `components/ui`-ja kézenfekvő), állapotkezelés, router.
 - A konkrét hír-, árfolyam- és deviza-API-k.
 - Az alap kategórialista és a hírforrások kezdő listája.
 - A pénzösszegek tárolási formája (5. pont).

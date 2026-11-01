@@ -1,0 +1,780 @@
+<meta charset="utf-8">
+<title>Finance Tracker prototípus</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: desktop = phone fixed on the left, Hungarian screen-list panel scrolling on the right;
+   phone width = the phone becomes the page, panel follows below. App UI English, panel Hungarian. */
+:root{
+  --page:#EEE9F0; --bg:#F8F5F9; --surf:#FFFFFF; --surf2:#F1ECF3; --ink:#1E1724; --sub:#655A6E; --faint:#958A9C;
+  --hair:rgba(30,23,36,.10); --bezel:#2A2230;
+  --accent:#B05F26; --accent-ink:#FFFFFF; --ai:#5B4BC4; --good:#2F8A5B; --warn:#A87A12; --bad:#C2453B;
+  --c-groceries:#2F8A5B; --c-dining:#B05F26; --c-transport:#3C72B8; --c-housing:#8A55A6; --c-utilities:#A87A12;
+  --c-subs:#5B4BC4; --c-health:#C2453B; --c-shopping:#B4507A; --c-fun:#C26A1E; --c-travel:#2A8C99; --c-gifts:#9A4FA8; --c-other:#7A7080; --c-income:#2F8A5B;
+  --display:"Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --body:"Schibsted Grotesk", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --ease:cubic-bezier(.2,.8,.2,1);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --page:#0D0A10; --bg:#16121A; --surf:#211B27; --surf2:#2A2331; --ink:#F3EEF5; --sub:#B5AABD; --faint:#857A8D;
+  --hair:rgba(243,238,245,.09); --bezel:#000000;
+  --accent:#E39A5B; --accent-ink:#1E1309; --ai:#A99BF0; --good:#7FC8A0; --warn:#E8C26A; --bad:#EF7D73;
+  --c-groceries:#7FC8A0; --c-dining:#E39A5B; --c-transport:#8DB6E8; --c-housing:#C9A0DC; --c-utilities:#E8C26A;
+  --c-subs:#A99BF0; --c-health:#EF7D73; --c-shopping:#E3A0B8; --c-fun:#F0A868; --c-travel:#7EC4CF; --c-gifts:#D9A6E0; --c-other:#A8A0AE; --c-income:#7FC8A0;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --page:#0D0A10; --bg:#16121A; --surf:#211B27; --surf2:#2A2331; --ink:#F3EEF5; --sub:#B5AABD; --faint:#857A8D;
+  --hair:rgba(243,238,245,.09); --bezel:#000000;
+  --accent:#E39A5B; --accent-ink:#1E1309; --ai:#A99BF0; --good:#7FC8A0; --warn:#E8C26A; --bad:#EF7D73;
+  --c-groceries:#7FC8A0; --c-dining:#E39A5B; --c-transport:#8DB6E8; --c-housing:#C9A0DC; --c-utilities:#E8C26A;
+  --c-subs:#A99BF0; --c-health:#EF7D73; --c-shopping:#E3A0B8; --c-fun:#F0A868; --c-travel:#7EC4CF; --c-gifts:#D9A6E0; --c-other:#A8A0AE; --c-income:#7FC8A0;
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--ink);font-family:var(--body);font-size:14px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+.num{font-variant-numeric:tabular-nums}
+svg.i{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+
+/* ── stage ── */
+.stage{display:flex;gap:36px;justify-content:center;align-items:flex-start;padding-block:24px;max-width:1100px;margin:0 auto}
+.phonewrap{flex:0 0 auto;position:sticky;top:24px}
+#phone{width:390px;height:844px;border-radius:52px;border:11px solid var(--bezel);background:var(--bg);position:relative;overflow:hidden;
+  box-shadow:0 30px 80px -20px rgba(20,10,30,.45)}
+.status{position:absolute;inset:0 0 auto;height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 28px 0 32px;font-weight:600;font-size:14.5px;z-index:30;background:var(--bg)}
+.status .isl{position:absolute;left:50%;top:9px;width:112px;height:30px;border-radius:20px;background:#000;transform:translateX(-50%)}
+.status span:last-child{display:flex;gap:5px;align-items:center}
+.status svg{width:17px;height:17px}
+.screen{position:absolute;top:46px;left:0;right:0;bottom:82px;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;overscroll-behavior:contain}
+.screen::-webkit-scrollbar{display:none}
+.screen.notab{bottom:0}
+.pad{padding:4px 18px 28px;display:grid;gap:18px}
+
+/* tab bar */
+.tabbar{position:absolute;inset:auto 0 0;height:82px;padding:8px 10px 22px;display:grid;grid-template-columns:repeat(5,1fr);background:color-mix(in srgb,var(--surf) 88%,transparent);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--hair);z-index:20}
+.tabbar button{display:grid;justify-items:center;gap:3px;font-size:10.5px;font-weight:500;color:var(--faint)}
+.tabbar button.on{color:var(--accent)}
+.tabbar button svg{width:24px;height:24px}
+.fab{position:absolute;right:18px;bottom:98px;width:58px;height:58px;border-radius:20px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;z-index:21;
+  box-shadow:0 10px 24px -8px color-mix(in srgb,var(--accent) 70%,transparent)}
+.fab svg{width:28px;height:28px;stroke-width:2.2}
+.askbtn{position:absolute;left:18px;bottom:98px;height:44px;padding:0 15px 0 12px;border-radius:999px;background:var(--surf);color:var(--ai);display:flex;align-items:center;gap:7px;font-weight:600;font-size:13px;z-index:21;
+  box-shadow:0 6px 18px -8px rgba(20,10,30,.4),inset 0 0 0 1px var(--hair)}
+
+/* headers */
+.hdr{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 18px 10px;display:flex;align-items:center;gap:10px;min-height:52px}
+.hdr h1{font-size:17px;font-weight:600;margin:0;flex:1;text-align:center}
+.hdr.big h1{font-size:28px;font-weight:700;text-align:left;letter-spacing:-.5px}
+.hdr .side{width:40px;display:flex}
+.hdr .side:last-child{justify-content:flex-end}
+.ib{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:var(--ink)}
+.ib.soft{background:var(--surf)}
+.av{width:38px;height:38px;border-radius:50%;background:color-mix(in srgb,var(--accent) 22%,var(--surf));color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:14px}
+
+/* type + blocks */
+.ov{font-size:11px;font-weight:600;letter-spacing:1.1px;text-transform:uppercase;color:var(--faint)}
+.big{font-family:var(--display);font-size:66px;line-height:.95;letter-spacing:-1.5px;font-weight:400}
+.big small{font-family:var(--body);font-size:20px;letter-spacing:0;font-weight:500;color:var(--sub);margin-left:4px}
+.mid{font-family:var(--display);font-size:34px;line-height:1;letter-spacing:-.5px}
+.sub{color:var(--sub);font-size:13px;line-height:1.45}
+.card{background:var(--surf);border-radius:22px;padding:16px}
+.card.flat{background:transparent;padding:0}
+.sec{display:grid;gap:10px}
+.sechd{display:flex;align-items:baseline;justify-content:space-between}
+.sechd h2{font-size:15px;font-weight:600;margin:0}
+.link{color:var(--accent);font-weight:600;font-size:13px}
+.neg{color:var(--bad)} .pos{color:var(--good)} .warnc{color:var(--warn)}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:11.5px;font-weight:600;background:var(--surf2);color:var(--sub)}
+.pill.ai{background:color-mix(in srgb,var(--ai) 16%,transparent);color:var(--ai)}
+.pill.good{background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--good)}
+.pill.warn{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.pill.bad{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;height:50px;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-weight:600;font-size:15px;width:100%}
+.btn.ghost{background:var(--surf2);color:var(--ink)}
+.btn.ai{background:var(--ai);color:var(--bg)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* hero */
+.hero{display:grid;gap:12px;padding-top:4px}
+.hero .meta{display:flex;justify-content:space-between;align-items:center}
+.weekbars{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;align-items:end;height:74px}
+.wb{display:grid;gap:5px;justify-items:center;align-self:stretch;grid-template-rows:1fr auto}
+.wb i{width:100%;border-radius:7px;background:var(--surf2);position:relative;align-self:stretch;overflow:hidden}
+.wb i b{position:absolute;inset:auto 0 0;background:var(--accent);border-radius:7px}
+.wb i b.over{background:var(--bad)}
+.wb i s{position:absolute;left:0;right:0;border-top:1.5px dashed color-mix(in srgb,var(--ink) 35%,transparent)}
+.wb em{font-style:normal;font-size:10.5px;color:var(--faint);font-weight:600}
+.wb.today em{color:var(--accent)}
+.wb.future i{background:repeating-linear-gradient(135deg,var(--surf2) 0 4px,transparent 4px 8px)}
+.monthcard{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center}
+.bar{height:8px;border-radius:5px;background:var(--surf2);overflow:hidden;grid-column:1/-1}
+.bar b{display:block;height:100%;border-radius:5px;background:var(--accent)}
+.banner{display:flex;gap:12px;align-items:center;background:color-mix(in srgb,var(--accent) 13%,var(--surf));border-radius:18px;padding:13px 14px;text-align:left;width:100%}
+.banner.ai{background:color-mix(in srgb,var(--ai) 13%,var(--surf))}
+.banner .bi{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--surf);color:var(--accent);flex:0 0 auto}
+.banner.ai .bi{color:var(--ai)}
+.banner div{flex:1;min-width:0}
+.banner strong{display:block;font-size:14px;font-weight:600}
+.banner span{font-size:12.5px;color:var(--sub)}
+
+/* accounts strip */
+.accts{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;margin:0 -18px;padding:0 18px}
+.accts::-webkit-scrollbar{display:none}
+.acct{flex:0 0 auto;min-width:132px;background:var(--surf);border-radius:18px;padding:12px 14px;display:grid;gap:4px;text-align:left}
+.acct span{font-size:12px;color:var(--sub);font-weight:500}
+.acct strong{font-size:16px;font-weight:600}
+
+/* lists */
+.list{background:var(--surf);border-radius:20px;overflow:hidden}
+.li{display:flex;align-items:center;gap:12px;padding:12px 14px;width:100%;text-align:left;position:relative}
+.li+.li::before{content:"";position:absolute;top:0;left:62px;right:0;border-top:1px solid var(--hair)}
+.ci{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;flex:0 0 auto;color:var(--c);background:color-mix(in srgb,var(--c) 15%,transparent)}
+.ci svg{width:19px;height:19px}
+.ci-lg .ci{width:56px;height:56px;border-radius:18px}.ci-lg .ci svg{width:28px;height:28px}
+.li .tx{flex:1;min-width:0;display:grid;gap:2px}
+.li .tx strong{font-size:14.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li .tx span{font-size:12px;color:var(--faint);display:flex;gap:6px;align-items:center}
+.li .amt{font-weight:600;font-size:14.5px;text-align:right;display:grid;gap:2px;justify-items:end}
+.li .amt small{font-size:11.5px;color:var(--faint);font-weight:500}
+.li.rev{background:color-mix(in srgb,var(--warn) 9%,transparent)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--warn);display:inline-block}
+.dayhd{display:flex;justify-content:space-between;font-size:12px;font-weight:600;color:var(--faint);padding:0 4px;margin-top:4px}
+
+/* breakdown */
+.eq{display:grid;gap:0}
+.eq div{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--hair);gap:12px}
+.eq div span{color:var(--sub);font-size:13.5px}
+.eq div b{font-weight:600}
+.eq div.tot{border-bottom:0;padding-top:12px}
+.eq div.tot span{color:var(--ink);font-weight:600}
+.eq div.tot b{font-family:var(--display);font-size:28px;font-weight:400}
+
+/* chips + forms */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:999px;background:var(--surf);font-size:13px;font-weight:500;box-shadow:inset 0 0 0 1px var(--hair)}
+.chip svg{width:17px;height:17px;color:var(--c,var(--sub))}
+.chip.on{background:color-mix(in srgb,var(--accent) 16%,var(--surf));box-shadow:inset 0 0 0 1.5px var(--accent);color:var(--ink)}
+.field{display:flex;justify-content:space-between;align-items:center;padding:13px 14px;gap:10px}
+.field+.field{border-top:1px solid var(--hair)}
+.field span{color:var(--sub)}
+.field b{font-weight:600}
+.stepper{display:flex;align-items:center;gap:10px}
+.stepper button{width:32px;height:32px;border-radius:10px;background:var(--surf2);font-size:18px;font-weight:600;display:grid;place-items:center}
+.sw{width:46px;height:28px;border-radius:999px;background:var(--surf2);position:relative;transition:background .2s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--surf);box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s var(--ease)}
+.sw.on{background:var(--good)}
+.sw.on::after{transform:translateX(18px)}
+
+/* planner */
+.opt{background:var(--surf);border-radius:20px;padding:14px;display:grid;gap:10px;text-align:left;width:100%;box-shadow:inset 0 0 0 1px var(--hair)}
+.opt.sel{box-shadow:inset 0 0 0 2px var(--accent)}
+.opt .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.opt .top strong{font-size:15px;font-weight:600}
+.opt .top b{font-size:15px;font-weight:600}
+.kv{display:grid;grid-template-columns:1fr auto;gap:6px 10px;font-size:13px}
+.kv span{color:var(--sub)}
+.kv b{font-weight:600;text-align:right}
+.aibox{background:color-mix(in srgb,var(--ai) 11%,var(--surf));border-radius:20px;padding:15px;display:grid;gap:10px}
+.aibox p{margin:0;line-height:1.5;font-size:14px}
+.aibox .who{display:flex;align-items:center;gap:7px;color:var(--ai);font-weight:600;font-size:12.5px}
+.change{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.change+.change{border-top:1px solid var(--hair)}
+.change div{flex:1;display:grid;gap:2px}
+.change strong{font-weight:500}
+.change span{font-size:12.5px;color:var(--sub)}
+.steps{display:flex;gap:6px}
+.steps i{height:4px;flex:1;border-radius:3px;background:var(--surf2)}
+.steps i.on{background:var(--accent)}
+.ladder{display:grid;gap:0}
+.rung{display:grid;grid-template-columns:34px 1fr;gap:12px;padding:12px 0;position:relative}
+.rung .n{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:700;background:var(--surf2);color:var(--sub);z-index:1}
+.rung.done .n{background:var(--good);color:var(--bg)}
+.rung.now .n{background:var(--accent);color:var(--accent-ink)}
+.rung:not(:last-child)::before{content:"";position:absolute;left:16.5px;top:46px;bottom:-10px;border-left:2px solid var(--hair)}
+.rung strong{display:block;font-weight:600;margin-top:6px}
+.rung p{margin:4px 0 0;font-size:13px;color:var(--sub);line-height:1.45}
+
+/* invest */
+.alloc{display:flex;height:14px;border-radius:7px;overflow:hidden;gap:2px}
+.alloc i{display:block;height:100%}
+.legend{display:grid;gap:8px}
+.legend div{display:flex;align-items:center;gap:10px;font-size:13.5px}
+.legend i{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+.legend span{flex:1}
+.spark{width:100%;height:90px;display:block}
+.note{font-size:11.5px;color:var(--faint);line-height:1.45;display:flex;gap:8px}
+.note svg{width:16px;height:16px;flex:0 0 auto}
+
+/* news */
+.news{display:grid;gap:6px;padding:14px;background:var(--surf);border-radius:20px;text-align:left;width:100%}
+.news .src{display:flex;gap:8px;align-items:center;font-size:11.5px;color:var(--faint);font-weight:500}
+.news strong{font-size:15px;font-weight:600;line-height:1.3}
+.news p{margin:0;font-size:13px;color:var(--sub);line-height:1.45}
+.tick{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;margin:0 -18px;padding:0 18px}
+.tick::-webkit-scrollbar{display:none}
+.tick div{flex:0 0 auto;background:var(--surf);border-radius:14px;padding:9px 12px;display:grid;gap:2px;min-width:104px}
+.tick span{font-size:11px;color:var(--faint);font-weight:600}
+.tick b{font-size:14.5px;font-weight:600}
+.tick em{font-style:normal;font-size:11.5px;font-weight:600}
+
+/* chat */
+.chat{display:grid;gap:10px;padding:6px 16px 140px}
+.msg{max-width:86%;padding:11px 14px;border-radius:20px;line-height:1.45;font-size:14px}
+.msg.me{justify-self:end;background:var(--accent);color:var(--accent-ink);border-bottom-right-radius:6px}
+.msg.bot{justify-self:start;background:var(--surf);border-bottom-left-radius:6px}
+.msg.bot .kv{margin-top:8px}
+.composer{position:absolute;left:0;right:0;bottom:0;padding:10px 14px 26px;background:var(--bg);display:grid;gap:8px;z-index:6;border-top:1px solid var(--hair)}
+.composer .chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+.composer .chip{flex:0 0 auto;color:var(--ai)}
+.cin{display:flex;gap:8px}
+.cin input{flex:1;height:44px;border-radius:22px;border:0;background:var(--surf);padding:0 16px;font:inherit;color:var(--ink)}
+.cin button{width:44px;height:44px;border-radius:50%;background:var(--ai);color:var(--bg);display:grid;place-items:center}
+
+/* sheet + toast + push */
+.veil{position:absolute;inset:0;background:rgba(10,6,14,.45);z-index:40;opacity:0;pointer-events:none;transition:opacity .25s}
+.veil.on{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:41;background:var(--bg);border-radius:28px 28px 0 0;padding:10px 18px 28px;transform:translateY(105%);transition:transform .32s var(--ease);max-height:92%;overflow-y:auto;display:grid;gap:14px}
+.sheet.on{transform:none}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--surf2);justify-self:center}
+.amtin{text-align:center;display:grid;gap:4px;padding:6px 0}
+.amtin .big{font-size:58px}
+.amtin .big.zero{color:var(--faint)}
+.seg{display:grid;grid-template-columns:1fr 1fr 1fr;background:var(--surf2);border-radius:12px;padding:3px}
+.seg button{height:32px;border-radius:10px;font-size:13px;font-weight:600;color:var(--sub)}
+.seg button.on{background:var(--surf);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.keys button{height:48px;border-radius:14px;background:var(--surf);font-size:21px;font-weight:500}
+.toast{position:absolute;left:50%;top:58px;transform:translate(-50%,-20px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:14px;font-size:13px;font-weight:500;z-index:60;opacity:0;pointer-events:none;transition:all .25s var(--ease);max-width:330px;text-align:center}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.push{position:absolute;left:10px;right:10px;top:52px;z-index:55;background:color-mix(in srgb,var(--surf) 92%,transparent);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:22px;padding:12px 14px;display:grid;grid-template-columns:38px 1fr;gap:10px;text-align:left;
+  box-shadow:0 14px 40px -10px rgba(0,0,0,.45);transform:translateY(calc(-100% - 80px));visibility:hidden;transition:transform .45s var(--ease),visibility 0s .45s}
+.push.on{transform:none;visibility:visible;transition:transform .45s var(--ease)}
+.push .appi{width:38px;height:38px;border-radius:10px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center}
+.push strong{font-size:13.5px;display:flex;justify-content:space-between}
+.push strong small{font-weight:400;color:var(--faint);font-size:12px}
+.push p{margin:2px 0 0;font-size:13px;line-height:1.4;color:var(--ink)}
+.smsraw{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12.5px;line-height:1.5;background:var(--surf2);border-radius:14px;padding:12px;color:var(--ink)}
+.code{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12px;background:var(--surf2);border-radius:10px;padding:10px 12px;word-break:break-all}
+
+/* ── side panel (Hungarian) ── */
+.notes{width:380px;flex:0 1 380px;min-width:0;display:grid;gap:14px;padding-bottom:40px}
+.notes h2{font-family:var(--display);font-weight:400;font-size:38px;line-height:1;margin:0;letter-spacing:-.5px;text-wrap:balance}
+.notes p{margin:0;color:var(--sub);font-size:13.5px;line-height:1.55}
+.now{background:var(--surf);border-radius:16px;padding:12px 14px;display:grid;gap:2px}
+.now strong{font-size:18px;font-weight:600}
+.try{background:color-mix(in srgb,var(--accent) 10%,var(--surf));border-radius:16px;padding:12px 14px 12px 32px;margin:0;display:grid;gap:6px;font-size:13px;line-height:1.5;color:var(--ink)}
+.grp{border-top:1px solid var(--hair)}
+.grp summary{display:flex;align-items:center;gap:10px;padding:12px 2px;cursor:pointer;list-style:none;font-weight:600;font-size:15px}
+.grp summary::-webkit-details-marker{display:none}
+.grp summary em{margin-left:auto;font-style:normal;font-size:12px;color:var(--faint);font-weight:500}
+.grp summary svg{color:var(--accent)}
+.grp.cur summary{color:var(--accent)}
+.grp nav{display:grid;gap:4px;padding:0 0 10px}
+.grp nav a{display:flex;justify-content:space-between;gap:10px;padding:8px 12px;border-radius:12px;color:var(--ink);text-decoration:none;font-size:13.5px;background:var(--surf)}
+.grp nav a small{color:var(--faint);font-size:12px;text-align:right}
+.grp nav a[aria-current="true"]{box-shadow:inset 0 0 0 2px var(--accent)}
+.grp ul{margin:0 0 14px;padding-left:18px;color:var(--sub);font-size:12.5px;line-height:1.55;display:grid;gap:3px}
+.pbtn{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:12px;background:var(--surf);font-size:13px;font-weight:500;width:100%}
+.legal{font-size:12px;color:var(--faint);line-height:1.5}
+
+@media (max-width:820px){
+  .stage{flex-direction:column;align-items:center;gap:28px;padding-block:12px}
+  .phonewrap{position:static;width:100%;display:flex;justify-content:center}
+  #phone{width:min(390px,100%);height:min(844px,calc(100svh - 24px));border-width:8px;border-radius:44px}
+  .notes{width:100%;flex:none;max-width:520px}
+}
+@media (max-width:420px){
+  #phone{border-width:0;border-radius:0;width:calc(100% + 32px);margin:0 -16px;box-shadow:none;height:calc(100svh - 24px)}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="home" viewBox="0 0 24 24"><path d="M3.5 10.5 12 4l8.5 6.5V20a1 1 0 0 1-1 1H15v-6H9v6H4.5a1 1 0 0 1-1-1z"/></symbol>
+<symbol id="list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" stroke-width="2.2"/></symbol>
+<symbol id="target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></symbol>
+<symbol id="chart" viewBox="0 0 24 24"><path d="M3.5 20h17M5.5 16l4.5-5.5 3.5 3.5 6-7M15.5 7h4v4"/></symbol>
+<symbol id="news" viewBox="0 0 24 24"><path d="M4 5h12.5v14H6a2 2 0 0 1-2-2zM16.5 9H20v8a2 2 0 0 1-2 2M7.5 9h5.5M7.5 12.5h5.5M7.5 16h3.5"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="spark" viewBox="0 0 24 24"><path d="M11 3.5l1.9 5.3 5.3 1.9-5.3 1.9L11 18l-1.9-5.4-5.3-1.9 5.3-1.9zM18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></symbol>
+<symbol id="sliders" viewBox="0 0 24 24"><path d="M4 7h8M18 7h2M4 17h2M12 17h8"/><circle cx="15" cy="7" r="2.5"/><circle cx="9" cy="17" r="2.5"/></symbol>
+<symbol id="back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+<symbol id="chev" viewBox="0 0 24 24"><path d="M9.5 5.5 16 12l-6.5 6.5"/></symbol>
+<symbol id="close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+<symbol id="cart" viewBox="0 0 24 24"><path d="M3 4h2.2l2.3 11h10.2L20 8H6.3"/><circle cx="9" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/></symbol>
+<symbol id="fork" viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 3c-2 1.5-3.2 4.2-3.2 7.5H17V21"/></symbol>
+<symbol id="bus" viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="14" rx="3"/><path d="M5 11h14M8 21v-3.5M16 21v-3.5M8.5 14.3h.01M15.5 14.3h.01" stroke-width="2"/></symbol>
+<symbol id="house" viewBox="0 0 24 24"><path d="M4 10.5 12 4.5l8 6V20H4zM10 20v-5.5h4V20"/></symbol>
+<symbol id="bolt" viewBox="0 0 24 24"><path d="M13 3 5.5 13H11l-1 8 7.5-10H12z"/></symbol>
+<symbol id="repeat" viewBox="0 0 24 24"><path d="M16.5 3 20 6.5 16.5 10M4 11.5v-1a4 4 0 0 1 4-4h12M7.5 21 4 17.5 7.5 14M20 12.5v1a4 4 0 0 1-4 4H4"/></symbol>
+<symbol id="heart" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.4a4.2 4.2 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z"/></symbol>
+<symbol id="bag" viewBox="0 0 24 24"><path d="M5 8h14l-1.1 13H6.1zM9 8V6.5a3 3 0 0 1 6 0V8"/></symbol>
+<symbol id="ticket" viewBox="0 0 24 24"><path d="M3.5 7h17v3a2 2 0 0 0 0 4v3h-17v-3a2 2 0 0 0 0-4zM14.5 7v10" /></symbol>
+<symbol id="plane" viewBox="0 0 24 24"><path d="M3 13.5 21 6l-4.5 13-4-5.5zM12.5 13.5 21 6"/></symbol>
+<symbol id="gift" viewBox="0 0 24 24"><path d="M4 9h16v4H4zM5.5 13v8h13v-8M12 9v12M12 9C10.5 5 6.5 5.5 7.5 8.3M12 9c1.5-4 5.5-3.5 4.5-.7"/></symbol>
+<symbol id="dots" viewBox="0 0 24 24"><path d="M6 12h.01M12 12h.01M18 12h.01" stroke-width="3"/></symbol>
+<symbol id="coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M14.6 9.4A2.8 2.3 0 0 0 9.5 10c0 2.6 5.2 1.3 5.2 4a2.8 2.3 0 0 1-5.2.6M12 6.5v11"/></symbol>
+<symbol id="swap" viewBox="0 0 24 24"><path d="M7 4 3.5 7.5 7 11M3.5 7.5H17M17 13l3.5 3.5L17 20M20.5 16.5H7"/></symbol>
+<symbol id="sms" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4zM8 9.5h8M8 12.5h5"/></symbol>
+<symbol id="bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15zM10 21h4"/></symbol>
+<symbol id="download" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
+<symbol id="shield" viewBox="0 0 24 24"><path d="M12 3.5 19.5 6v6c0 4.6-3.3 7.6-7.5 8.5-4.2-.9-7.5-3.9-7.5-8.5V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></symbol>
+<symbol id="wallet" viewBox="0 0 24 24"><path d="M4 7.5h15a1 1 0 0 1 1 1V19H5a1 1 0 0 1-1-1V6.5L15.5 4v3.5M16 13.5h.01" stroke-width="1.9"/></symbol>
+<symbol id="send" viewBox="0 0 24 24"><path d="M4 12 20 4l-6.5 16-2.8-6.7z"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+<symbol id="key" viewBox="0 0 24 24"><circle cx="8" cy="15.5" r="4"/><path d="M11 12.5 19.5 4M16.5 7l3 3"/></symbol>
+<symbol id="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c3 3.2 3 13.8 0 17M12 3.5c-3 3.2-3 13.8 0 17"/></symbol>
+<symbol id="piggy" viewBox="0 0 24 24"><path d="M5 11a6 5 0 0 1 6-4.5h2.5A6 5.5 0 0 1 19 9.5l1.5-.5v4l-1.6.6A6 6 0 0 1 16 17v2.5h-2.5V18h-3v1.5H8V17a5.5 5 0 0 1-3-4.5H3.5V10H5M15.5 10.5h.01" stroke-width="1.8"/></symbol>
+<symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01" stroke-width="2"/></symbol>
+<symbol id="sofa" viewBox="0 0 24 24"><path d="M5 11V8.5A2.5 2.5 0 0 1 7.5 6h9A2.5 2.5 0 0 1 19 8.5V11M3 12.5a1.5 1.5 0 0 1 3 0V14h12v-1.5a1.5 1.5 0 0 1 3 0V18H3zM5 18v2M19 18v2"/></symbol>
+<symbol id="edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></symbol>
+</defs></svg>
+
+<div class="stage">
+  <div class="phonewrap">
+    <div id="phone">
+      <div class="status"><span>9:41</span><i class="isl"></i><span><svg class="i" viewBox="0 0 24 24"><path d="M2 18h3v-3H2zM7 18h3v-6H7zM12 18h3V9h-3zM17 18h3V5h-3z" fill="currentColor" stroke="none"/></svg><svg class="i" viewBox="0 0 24 24"><rect x="2.5" y="7" width="17" height="10" rx="3"/><rect x="4.5" y="9" width="11" height="6" rx="1.5" fill="currentColor" stroke="none"/><path d="M21.5 10.5v3"/></svg></span></div>
+      <div class="screen" id="screen"></div>
+      <button class="askbtn" id="askbtn" aria-label="Ask the assistant"><svg class="i"><use href="#spark"/></svg>Ask</button>
+      <button class="fab" id="fab" aria-label="Add transaction"><svg class="i"><use href="#plus"/></svg></button>
+      <nav class="tabbar" id="tabbar"></nav>
+      <div class="veil" id="veil"></div>
+      <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+      <button class="push" id="push"><span class="appi"><svg class="i"><use href="#wallet"/></svg></span><span><strong>Finance <small>now</small></strong><p id="pushtxt"></p></span></button>
+      <div class="toast" id="toast" role="status"></div>
+    </div>
+  </div>
+
+  <aside class="notes" id="notes">
+    <div class="ov">Finance Tracker · kattintható prototípus</div>
+    <h2>Az app, mielőtt megépül</h2>
+    <p>Minden fő képernyő nyomkodható. A számok példaadatok, a „mai nap” 2026. november 11., szerda. Ha felviszel egy kiadást vagy átállítasz egy célt, a heti és havi keret azonnal újraszámolódik ugyanazzal a képlettel, amit a terv rögzít.</p>
+    <div class="now"><span class="ov">Most itt</span><strong id="nownm">Home</strong></div>
+    <ol class="try">
+      <li>Nyomd meg a <b>+</b> gombot, üss be egy összeget, és koppints egy kategóriára. A heti keret azonnal csökken.</li>
+      <li>A Home tetején zárd le az októbert: a maradék a megtakarításba kerül.</li>
+      <li>Nyisd meg a <b>Plan → Couch</b> tervet, és nézd végig a három lépést az AI-javaslatig.</li>
+      <li>A <b>Invest</b> fülön állítsd át a havi befektetést: a havi keret is változik.</li>
+    </ol>
+    <button class="pbtn" id="pushdemo"><svg class="i"><use href="#bell"/></svg>Reggeli push értesítés megjelenítése</button>
+
+    <div id="jump">
+      <details class="grp" data-grp="home"><summary><svg class="i"><use href="#home"/></svg>Home<em>kezdőlap</em></summary>
+        <nav><a href="#home">Home <small>heti és havi keret</small></a><a href="#breakdown">Allowance breakdown <small>miből jön ki</small></a><a href="#close">Month close <small>október lezárása</small></a><a href="#review">SMS review <small>ellenőrizendő tétel</small></a><a href="#accounts">Accounts <small>számlák</small></a></nav>
+        <ul><li>A heti oszlopok a napi költést mutatják, a szaggatott vonal a napi keret.</li><li>Negatív keretnél a szám piros, a heti rész 0-nál megáll.</li></ul></details>
+      <details class="grp" data-grp="activity"><summary><svg class="i"><use href="#list"/></svg>Activity<em>mozgások</em></summary>
+        <nav><a href="#activity">Transactions <small>napokra bontva</small></a><a href="#add">Quick add <small>2–3 koppintás</small></a><a href="#txn">Transaction detail <small>szerkesztés</small></a><a href="#recurring">Recurring <small>ismétlődő tételek</small></a><a href="#budgets">Category budgets <small>kategória keretek</small></a></nav>
+        <ul><li>A sárga pont az SMS-ből jött, még jóvá nem hagyott tétel.</li><li>Az ismétlődő tételek nem csökkentik újra a keretet.</li></ul></details>
+      <details class="grp" data-grp="plan"><summary><svg class="i"><use href="#target"/></svg>Plan<em>vásárlás, megtakarítás</em></summary>
+        <nav><a href="#plan">Plans <small>tervek és célok</small></a><a href="#couch-new">Couch · 1. opciók <small>felvitel</small></a><a href="#couch">Couch · 2. hatás <small>mennyi marad</small></a><a href="#couch-ai">Couch · 3. AI-javaslat <small>honnan vegyél el</small></a><a href="#savings">Savings <small>megtakarítás</small></a><a href="#guide">Smart money guide <small>útmutató</small></a></nav>
+        <ul><li>A számokat a kód számolja, az AI csak javasol.</li><li>Az „Apply changes” csak jóváhagyás után ír.</li></ul></details>
+      <details class="grp" data-grp="invest"><summary><svg class="i"><use href="#chart"/></svg>Invest<em>befektetés</em></summary>
+        <nav><a href="#invest">Portfolio <small>pár hónap múlva</small></a><a href="#invest-empty">Getting started <small>mai állapot, üres</small></a><a href="#allocation">Suggested split <small>AI-elosztás</small></a><a href="#holding">Holding <small>egy ETF részletei</small></a></nav>
+        <ul><li>Oktató jellegű javaslat, a döntés mindig a tiéd.</li></ul></details>
+      <details class="grp" data-grp="news"><summary><svg class="i"><use href="#news"/></svg>News<em>hírek</em></summary>
+        <nav><a href="#news">Feed <small>szűrhető</small></a><a href="#digest">Morning brief <small>reggeli összefoglaló</small></a><a href="#article">Article <small>AI-összefoglaló</small></a><a href="#sources">Sources <small>figyelt források</small></a></nav>
+        <ul><li>A day trading „tippek” itt piaci összefoglalóként jelennek meg.</li></ul></details>
+      <details class="grp" data-grp="more"><summary><svg class="i"><use href="#spark"/></svg>Asszisztens és beállítások</summary>
+        <nav><a href="#chat">Assistant <small>beszélgetés</small></a><a href="#settings">Settings <small>célok, export</small></a><a href="#sms">SMS automation <small>iOS Shortcut</small></a></nav>
+        <ul><li>A javasolt kérdések élő számokkal válaszolnak.</li></ul></details>
+    </div>
+    <p class="legal">Prototípus: a gombok egy része csak üzenetet mutat. Valódi pénzügyi adat nincs benne. Az AI-szövegek mintaszövegek.</p>
+  </aside>
+</div>
+
+<script>
+(function(){
+const TODAY='2026-11-11', WEEK0='2026-11-09', WEEK1='2026-11-15', DAYS_LEFT_FROM_WEEK=22;
+const CATS={groceries:['Groceries','cart'],dining:['Dining out','fork'],transport:['Transport','bus'],housing:['Housing','house'],utilities:['Utilities','bolt'],subs:['Subscriptions','repeat'],health:['Health','heart'],shopping:['Shopping','bag'],fun:['Entertainment','ticket'],travel:['Travel','plane'],gifts:['Gifts','gift'],other:['Other','dots'],income:['Salary','coin'],transfer:['Transfer','swap']};
+const S={
+  savingsTarget:100000, invest:40000, prevDeficit:0, octLeft:38400, octClosed:false, savingsBal:1240000,
+  selOpt:1, applied:false, newsFilter:'all', addAmt:'', addKind:'expense', addAcct:'MBH', selTxn:'t13',
+  dining:60000, chat:null, sources:{portfolio:true,mnb:true,reuters:true,bloomberg:true,portfolio_hu:true,coindesk:false}, digestOn:true,
+  rules:[
+    {id:'r1',name:'Salary',cat:'income',amt:650000,day:10,kind:'income',acct:'MBH'},
+    {id:'r2',name:'Rent',cat:'housing',amt:210000,day:1,kind:'expense',acct:'MBH'},
+    {id:'r3',name:'Gym membership',cat:'health',amt:16900,day:3,kind:'expense',acct:'MBH'},
+    {id:'r4',name:'Utilities',cat:'utilities',amt:28000,day:5,kind:'expense',acct:'MBH'},
+    {id:'r5',name:'Phone plan',cat:'subs',amt:8990,day:12,kind:'expense',acct:'MBH'},
+    {id:'r6',name:'Netflix',cat:'subs',amt:4490,day:15,kind:'expense',acct:'Revolut'},
+    {id:'r7',name:'Spotify',cat:'subs',amt:2290,day:20,kind:'expense',acct:'Revolut'}],
+  txns:[
+    {id:'t1',d:'2026-11-01',m:'Rent',cat:'housing',a:-210000,acct:'MBH',src:'recurring',rule:'r2'},
+    {id:'t2',d:'2026-11-02',m:'Spar',cat:'groceries',a:-12840,acct:'MBH',src:'sms'},
+    {id:'t3',d:'2026-11-03',m:'Gym membership',cat:'health',a:-16900,acct:'MBH',src:'recurring',rule:'r3'},
+    {id:'t4',d:'2026-11-03',m:'BKK monthly pass',cat:'transport',a:-8950,acct:'Revolut',src:'manual'},
+    {id:'t5',d:'2026-11-04',m:'Wolt',cat:'dining',a:-6790,acct:'Revolut',src:'manual'},
+    {id:'t6',d:'2026-11-05',m:'Utilities',cat:'utilities',a:-28000,acct:'MBH',src:'recurring',rule:'r4'},
+    {id:'t7',d:'2026-11-06',m:'Lidl',cat:'groceries',a:-18320,acct:'MBH',src:'sms'},
+    {id:'t8',d:'2026-11-07',m:'Cinema City',cat:'fun',a:-5600,acct:'Revolut',src:'manual'},
+    {id:'t9',d:'2026-11-08',m:'Bistro Fióka',cat:'dining',a:-14200,acct:'MBH',src:'sms'},
+    {id:'t10',d:'2026-11-09',m:'Rossmann',cat:'health',a:-4380,acct:'MBH',src:'sms'},
+    {id:'t11',d:'2026-11-10',m:'Salary',cat:'income',a:650000,acct:'MBH',src:'recurring',rule:'r1'},
+    {id:'t12',d:'2026-11-10',m:'Aldi',cat:'groceries',a:-9870,acct:'MBH',src:'sms',review:true,raw:'MBH Bank: Kartyas vasarlas -9 870 HUF, ALDI 152. BUDAPEST, 2026.11.10 18:42. Egyenleg: 427 880 HUF'},
+    {id:'t13',d:'2026-11-11',m:'MOL Station',cat:'transport',a:-15500,acct:'MBH',src:'sms',review:true,raw:'MBH Bank: Kartyas vasarlas -15 500 HUF, MOL 1093 BUDAORS, 2026.11.11 08:17. Egyenleg: 412 380 HUF'},
+    {id:'t14',d:'2026-11-11',m:'Fekete coffee',cat:'dining',a:-1450,acct:'Revolut',src:'manual'}],
+  msgs:[]
+};
+const ACCTS=[{n:'MBH Current',k:'MBH',open:0,base:412380},{n:'Revolut',k:'Revolut',base:86210,eur:'€140.00'},{n:'Cash',k:'Cash',base:18000}];
+const $=s=>document.querySelector(s), screen=$('#screen');
+const fmt=n=>{const s=Math.abs(Math.round(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ');return (n<0?'−':'')+s+' Ft'};
+const fmtS=n=>(n>0?'+':'')+fmt(n);
+const ic=(n,c='')=>`<svg class="i ${c}"><use href="#${n}"/></svg>`;
+const catIc=c=>`<span class="ci" style="--c:var(--c-${c==='income'||c==='transfer'?(c==='income'?'income':'other'):c})">${ic(CATS[c][1])}</span>`;
+const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const dayName=d=>{const dt=new Date(d+'T12:00:00');return d===TODAY?'Today':d==='2026-11-10'?'Yesterday':DOW[dt.getDay()]+', '+dt.toLocaleString('en-GB',{month:'short'})+' '+dt.getDate()};
+const MONTHS=['Nov 2026','Dec 2026','Jan 2027','Feb 2027','Mar 2027','Apr 2027','May 2027','Jun 2027'];
+
+/* ── the allowance formula (spec §6.4) ── */
+function calc(){
+  const recInc=S.rules.filter(r=>r.kind==='income').reduce((s,r)=>s+r.amt,0);
+  const recExp=S.rules.filter(r=>r.kind==='expense').reduce((s,r)=>s+r.amt,0);
+  const oneInc=S.txns.filter(t=>t.a>0&&!t.rule&&t.cat!=='transfer').reduce((s,t)=>s+t.a,0);
+  const free=recInc+oneInc-recExp-S.savingsTarget-S.invest-S.prevDeficit;
+  const exp=S.txns.filter(t=>t.a<0&&!t.rule&&t.cat!=='transfer');
+  const spent=exp.reduce((s,t)=>s-t.a,0);
+  const before=exp.filter(t=>t.d<WEEK0).reduce((s,t)=>s-t.a,0);
+  const remWS=free-before;
+  const budget=Math.max(0,Math.floor(remWS*7/DAYS_LEFT_FROM_WEEK));
+  const wkSpent=exp.filter(t=>t.d>=WEEK0&&t.d<=WEEK1).reduce((s,t)=>s-t.a,0);
+  const days=[];for(let i=0;i<7;i++){const d='2026-11-'+String(9+i).padStart(2,'0');days.push({d,s:exp.filter(t=>t.d===d).reduce((s,t)=>s-t.a,0)})}
+  return {recInc,recExp,oneInc,free,spent,remaining:free-spent,remWS,budget,wkSpent,wkLeft:budget-wkSpent,perDay:budget/7,days};
+}
+const balance=k=>{const a=ACCTS.find(x=>x.k===k);const added=S.txns.filter(t=>t.acct===k&&t.added).reduce((s,t)=>s+t.a,0);return a.base+added};
+
+/* ── shared pieces ── */
+const hdr=(title,{back=true,right=''}={})=>`<div class="hdr"><div class="side">${back?`<button class="ib soft" data-back aria-label="Back">${ic('back')}</button>`:''}</div><h1>${title}</h1><div class="side">${right}</div></div>`;
+const txRow=t=>`<button class="li${t.review?' rev':''}" data-txn="${t.id}">${catIc(t.cat)}<span class="tx"><strong>${t.m}</strong><span>${t.review?'<i class="dot"></i>Check · ':''}${CATS[t.cat][0]} · ${t.acct}${t.src==='sms'?' · SMS':t.src==='recurring'?' · Recurring':''}</span></span><span class="amt num ${t.a>0?'pos':''}">${fmtS(t.a)}</span></button>`;
+
+/* ── screens ── */
+const R={};
+R.home=()=>{const c=calc();const max=Math.max(c.perDay,...c.days.map(d=>d.s))*1.15||1;const rev=S.txns.filter(t=>t.review);
+  const total=ACCTS.reduce((s,a)=>s+balance(a.k),0)+S.savingsBal;
+  return `<div class="hdr big"><h1>November</h1><div class="side" style="width:auto;gap:8px"><button class="av" data-go="settings" aria-label="Settings">M</button></div></div>
+  <div class="pad">
+    ${S.octClosed?'':`<button class="banner" data-go="close"><span class="bi">${ic('piggy')}</span><div><strong>October is ready to close</strong><span>You had ${fmt(S.octLeft)} left. Move it to Savings?</span></div>${ic('chev')}</button>`}
+    <button class="hero card" data-go="breakdown" style="text-align:left">
+      <div class="meta"><span class="ov">Left this week</span><span class="pill">Mon 9 – Sun 15</span></div>
+      <div class="big num ${c.wkLeft<0?'neg':''}">${fmt(c.wkLeft).replace(' Ft','')}<small>Ft</small></div>
+      <div class="sub">of ${fmt(c.budget)} this week · about ${fmt(Math.max(0,c.wkLeft)/5)} a day for the 5 days left</div>
+      <div class="weekbars">${c.days.map((d,i)=>{const fut=d.d>TODAY;const h=Math.min(100,d.s/max*100);return `<div class="wb${d.d===TODAY?' today':''}${fut?' future':''}"><i>${fut?'':`<b class="${d.s>c.perDay?'over':''}" style="height:${h}%"></b>`}<s style="bottom:${c.perDay/max*100}%"></s></i><em>${['M','T','W','T','F','S','S'][i]}</em></div>`}).join('')}</div>
+    </button>
+    <button class="card monthcard" data-go="breakdown" style="text-align:left">
+      <div><div class="ov">Left this month</div><div class="mid num ${c.remaining<0?'neg':''}" style="margin-top:6px">${fmt(c.remaining)}</div></div>
+      <div class="sub" style="text-align:right">of ${fmt(c.free)}<br>19 days to go</div>
+      <div class="bar"><b style="width:${Math.max(0,Math.min(100,c.spent/c.free*100))}%"></b></div>
+    </button>
+    ${rev.length?`<button class="banner" data-go="review" style="background:color-mix(in srgb,var(--warn) 13%,var(--surf))"><span class="bi" style="color:var(--warn)">${ic('sms')}</span><div><strong>${rev.length} from SMS to check</strong><span>${rev.map(t=>t.m+' '+fmt(-t.a)).join(' · ')}</span></div>${ic('chev')}</button>`:''}
+    <button class="banner ai" data-go="digest"><span class="bi">${ic('news')}</span><div><strong>Morning brief</strong><span>EUR/HUF 389.40 · S&amp;P 500 +0.8% · BTC −1.2%</span></div>${ic('chev')}</button>
+    <div class="sec"><div class="sechd"><h2>Accounts</h2><button class="link" data-go="accounts">${fmt(total)}</button></div>
+      <div class="accts">${ACCTS.map(a=>`<button class="acct" data-go="accounts"><span>${a.n}</span><strong class="num">${fmt(balance(a.k))}</strong>${a.eur?`<span class="num">+ ${a.eur}</span>`:''}</button>`).join('')}<button class="acct" data-go="savings"><span>Savings</span><strong class="num">${fmt(S.savingsBal)}</strong></button></div></div>
+    <div class="sec"><div class="sechd"><h2>Recent</h2><button class="link" data-go="activity">See all</button></div>
+      <div class="list">${S.txns.slice().reverse().slice(0,5).map(txRow).join('')}</div></div>
+  </div>`};
+
+R.breakdown=()=>{const c=calc();return hdr('Where the numbers come from')+`<div class="pad">
+  <div class="sec"><span class="ov">This month · November</span><div class="card eq">
+    <div><span>Salary (recurring)</span><b class="num pos">${fmtS(c.recInc)}</b></div>
+    <div><span>One-off income</span><b class="num">${fmtS(c.oneInc)}</b></div>
+    <div><span>Recurring expenses (${S.rules.filter(r=>r.kind==='expense').length})</span><b class="num">${fmt(-c.recExp)}</b></div>
+    <div><span>Savings target</span><b class="num">${fmt(-S.savingsTarget)}</b></div>
+    <div><span>Investing</span><b class="num">${fmt(-S.invest)}</b></div>
+    <div><span>Overspend from October</span><b class="num">${fmt(-S.prevDeficit)}</b></div>
+    <div class="tot"><span>Free to spend</span><b class="num">${fmt(c.free)}</b></div>
+    <div><span>Spent so far (not recurring)</span><b class="num">${fmt(-c.spent)}</b></div>
+    <div class="tot"><span>Left this month</span><b class="num ${c.remaining<0?'neg':''}">${fmt(c.remaining)}</b></div></div></div>
+  <div class="sec"><span class="ov">This week · Mon 9 – Sun 15</span><div class="card eq">
+    <div><span>Left on Monday morning</span><b class="num">${fmt(c.remWS)}</b></div>
+    <div><span>Days from Monday to month end</span><b class="num">22</b></div>
+    <div><span>Daily share × 7 days</span><b class="num">${fmt(c.perDay)} × 7</b></div>
+    <div class="tot"><span>Week budget</span><b class="num">${fmt(c.budget)}</b></div>
+    <div><span>Spent this week</span><b class="num">${fmt(-c.wkSpent)}</b></div>
+    <div class="tot"><span>Left this week</span><b class="num ${c.wkLeft<0?'neg':''}">${fmt(c.wkLeft)}</b></div></div>
+  <p class="note">${ic('info')}Overspend in one week makes the following weeks smaller. Leftover at month end goes to Savings, overspend comes off next month.</p></div>
+  </div>`};
+
+R.review=()=>{const t=S.txns.find(x=>x.id===S.selTxn&&x.review)||S.txns.find(x=>x.review)||S.txns.find(x=>x.id==='t12');S.selTxn=t.id;return hdr('Check SMS')+`<div class="pad">
+  <div class="sec"><span class="ov">Message from MBH Bank</span><div class="smsraw">${t.raw||'MBH Bank: Kartyas vasarlas'}</div></div>
+  <div class="sec"><span class="ov">What we read</span><div class="list">
+    <div class="field"><span>Amount</span><b class="num">${fmt(-t.a)}</b></div>
+    <div class="field"><span>Merchant</span><b>${t.m}</b></div>
+    <div class="field"><span>Category</span><b>${CATS[t.cat][0]} <span class="pill ai">AI guess</span></b></div>
+    <div class="field"><span>Account</span><b>MBH Current</b></div>
+    <div class="field"><span>Date</span><b>${dayName(t.d)}</b></div></div></div>
+  <div class="row2"><button class="btn ghost" data-go="txn">${ic('edit')}Edit</button><button class="btn" data-approve="${t.id}">${ic('check')}Looks right</button></div>
+  <p class="note">${ic('info')}SMS items count toward your allowance right away. Checking only confirms the details.</p></div>`};
+
+R.accounts=()=>hdr('Accounts',{right:`<button class="ib soft" data-toast="Add account opens a short form">${ic('plus')}</button>`})+`<div class="pad">
+  <div class="card"><span class="ov">All accounts</span><div class="mid num" style="margin-top:8px">${fmt(ACCTS.reduce((s,a)=>s+balance(a.k),0)+S.savingsBal)}</div><div class="sub">EUR shown at today's rate, 389.40 Ft</div></div>
+  <div class="list">${ACCTS.map(a=>`<button class="li" data-toast="Account history opens here">${'<span class="ci" style="--c:var(--accent)">'+ic(a.k==='Cash'?'coin':'wallet')+'</span>'}<span class="tx"><strong>${a.n}</strong><span>${a.k==='MBH'?'Default · SMS automation on':a.k==='Revolut'?'Manual entry · HUF + EUR':'Manual entry'}</span></span><span class="amt num">${fmt(balance(a.k))}${a.eur?`<small>+ ${a.eur}</small>`:''}</span></button>`).join('')}
+  <button class="li" data-go="savings"><span class="ci" style="--c:var(--good)">${ic('piggy')}</span><span class="tx"><strong>Savings</strong><span>Month-end leftovers land here</span></span><span class="amt num">${fmt(S.savingsBal)}</span></button></div></div>`;
+
+R.activity=()=>{const days={};S.txns.slice().reverse().forEach(t=>{(days[t.d]=days[t.d]||[]).push(t)});
+  return `<div class="hdr big"><h1>Activity</h1><div class="side" style="width:auto"><button class="ib soft" data-go="recurring" aria-label="Recurring">${ic('repeat')}</button></div></div><div class="pad">
+  <div class="chips"><button class="chip on">November</button><button class="chip" data-go="budgets">Budgets</button><button class="chip" data-go="recurring">Recurring</button><button class="chip" data-toast="Filter by account or category">Filter</button></div>
+  ${Object.keys(days).map(d=>`<div class="sec"><div class="dayhd"><span>${dayName(d)}</span><span class="num">${fmt(days[d].reduce((s,t)=>s+t.a,0))}</span></div><div class="list">${days[d].map(txRow).join('')}</div></div>`).join('')}</div>`};
+
+R.txn=()=>{const t=S.txns.find(x=>x.id===S.selTxn)||S.txns[12];return hdr('Transaction',{right:`<button class="ib soft" data-toast="Deleted (prototype)">${ic('close')}</button>`})+`<div class="pad">
+  <div style="text-align:center;display:grid;gap:6px;justify-items:center;padding:10px 0"><span class="ci-lg">${catIc(t.cat)}</span><div class="big num" style="font-size:52px">${fmtS(t.a).replace(' Ft','')}<small>Ft</small></div><span class="sub">${t.m} · ${dayName(t.d)}</span></div>
+  <div class="list">
+    <div class="field"><span>Category</span><b>${CATS[t.cat][0]}</b></div>
+    <div class="field"><span>Account</span><b>${t.acct}</b></div>
+    <div class="field"><span>Date</span><b>${t.d.replace(/-/g,'. ')}.</b></div>
+    <div class="field"><span>Source</span><b>${t.src==='sms'?'SMS · MBH Bank':t.src==='recurring'?'Recurring rule':'Added by you'}</b></div>
+    <div class="field"><span>Counts toward allowance</span><b>${t.rule?'No, already planned':t.a>0?'Adds to income':'Yes'}</b></div>
+    <div class="field"><span>Note</span><b style="color:var(--faint);font-weight:400">Add a note</b></div></div>
+  ${t.review?`<button class="btn" data-approve="${t.id}">${ic('check')}Looks right</button>`:`<button class="btn ghost" data-toast="Saved">Save changes</button>`}</div>`};
+
+R.recurring=()=>{const inc=S.rules.filter(r=>r.kind==='income'),exp=S.rules.filter(r=>r.kind==='expense');
+  const rr=r=>`<button class="li" data-toast="Edit rule: amount, day, account, end date">${catIc(r.cat)}<span class="tx"><strong>${r.name}</strong><span>Monthly on the ${r.day}${[,'st','nd','rd'][r.day]||'th'} · ${r.acct}</span></span><span class="amt num ${r.kind==='income'?'pos':''}">${r.kind==='income'?'+':'−'}${fmt(r.amt)}</span></button>`;
+  return hdr('Recurring',{right:`<button class="ib soft" data-toast="New rule form">${ic('plus')}</button>`})+`<div class="pad">
+  <div class="row2"><div class="card"><span class="ov">In / month</span><div class="mid num pos" style="font-size:26px;margin-top:6px">${fmt(inc.reduce((s,r)=>s+r.amt,0))}</div></div><div class="card"><span class="ov">Out / month</span><div class="mid num" style="font-size:26px;margin-top:6px">${fmt(exp.reduce((s,r)=>s+r.amt,0))}</div></div></div>
+  <div class="sec"><span class="ov">Income</span><div class="list">${inc.map(rr).join('')}</div></div>
+  <div class="sec"><span class="ov">Expenses</span><div class="list">${exp.map(rr).join('')}</div></div>
+  <p class="note">${ic('info')}These show up on their day by themselves and are already part of your monthly plan.</p></div>`};
+
+R.budgets=()=>{const sp=c=>-S.txns.filter(t=>t.cat===c&&t.a<0&&!t.rule).reduce((s,t)=>s+t.a,0);
+  const B=[['groceries',90000],['dining',S.dining],['transport',40000],['fun',25000],['health',15000],['shopping',30000]];
+  return hdr('Category budgets')+`<div class="pad"><p class="sub" style="margin:0">Optional limits inside your monthly allowance. The assistant can suggest moving money between them.</p>
+  <div class="list">${B.map(([c,b])=>{const s=sp(c),p=Math.min(100,s/b*100);return `<div class="li" style="display:grid;grid-template-columns:36px 1fr;gap:12px">${catIc(c)}<div style="display:grid;gap:6px"><div style="display:flex;justify-content:space-between"><strong style="font-weight:500">${CATS[c][0]}</strong><span class="num sub">${fmt(s)} / ${fmt(b)}</span></div><div class="bar"><b style="width:${p}%;background:${p>90?'var(--bad)':'var(--c-'+c+')'}"></b></div></div></div>`}).join('')}</div></div>`};
+
+/* planner */
+const OPTS=[{n:'IKEA Kivik',p:189000,d:'3-seat, Tibbleby beige'},{n:'JYSK Karlstrup corner',p:320000,d:'Corner sofa, grey'},{n:'BoConcept Osaka leather',p:690000,d:'Leather, cognac'}];
+function impact(o){const c=calc();const left=c.remaining-o.p;let k=0;while(c.remaining+k*120000<o.p&&k<7)k++;return {left,when:k===0?'Now':MONTHS[k]}}
+R.plan=()=>`<div class="hdr big"><h1>Plan</h1><div class="side" style="width:auto"><button class="ib soft" data-go="couch-new" aria-label="New plan">${ic('plus')}</button></div></div><div class="pad">
+  <div class="sec"><div class="sechd"><h2>Purchases</h2></div>
+    <button class="opt" data-go="couch"><div class="top"><span style="display:flex;gap:10px;align-items:center"><span class="ci" style="--c:var(--accent);width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent)">${ic('sofa')}</span><strong>Couch</strong></span><span class="pill ${S.applied?'good':'warn'}">${S.applied?'Decided · Dec':'Comparing 3'}</span></div>
+      <div class="kv"><span>Needed by</span><b>mid-December</b><span>Options</span><b class="num">${fmt(189000)} – ${fmt(690000)}</b></div></button>
+    <button class="opt" data-toast="Same flow as the couch"><div class="top"><strong>Winter tyres</strong><span class="pill">Idea</span></div><div class="kv"><span>Estimate</span><b class="num">${fmt(120000)}</b></div></button></div>
+  <div class="sec"><div class="sechd"><h2>Savings</h2><button class="link" data-go="savings">Details</button></div>
+    <button class="card" data-go="savings" style="text-align:left;display:grid;gap:8px"><div style="display:flex;justify-content:space-between"><span class="sub">Emergency fund · 6 months</span><b class="num">${Math.round(S.savingsBal/2280000*100)}%</b></div><div class="bar"><b style="width:${S.savingsBal/2280000*100}%;background:var(--good)"></b></div><span class="sub num">${fmt(S.savingsBal)} of ${fmt(2280000)}</span></button></div>
+  <button class="banner ai" data-go="guide"><span class="bi">${ic('spark')}</span><div><strong>Smart money guide</strong><span>You are on step 2 of 5: finish the emergency fund</span></div>${ic('chev')}</button></div>`;
+
+R['couch-new']=()=>hdr('New purchase')+`<div class="pad"><div class="steps"><i class="on"></i><i></i><i></i></div>
+  <div class="list"><div class="field"><span>What</span><b>Couch</b></div><div class="field"><span>Needed by</span><b>Dec 15, 2026</b></div><div class="field"><span>Pay</span><b>All at once</b></div></div>
+  <div class="sec"><span class="ov">Options</span>${OPTS.map((o,i)=>`<div class="opt"><div class="top"><strong>${String.fromCharCode(65+i)} · ${o.n}</strong><b class="num">${fmt(o.p)}</b></div><span class="sub">${o.d}</span></div>`).join('')}
+  <button class="chip" data-toast="Add another option: name, price, link" style="justify-self:start">${ic('plus')}Add option</button></div>
+  <button class="btn" data-go="couch">See what it does to my money</button></div>`;
+
+R.couch=()=>{const c=calc();return hdr('Couch')+`<div class="pad"><div class="steps"><i class="on"></i><i class="on"></i><i></i></div>
+  <p class="sub" style="margin:0">If you buy now, from the <b class="num">${fmt(c.remaining)}</b> left in November:</p>
+  ${OPTS.map((o,i)=>{const m=impact(o);const cls=m.left>=0?'pos':m.left>-60000?'warnc':'neg';return `<button class="opt${S.selOpt===i?' sel':''}" data-opt="${i}"><div class="top"><strong>${String.fromCharCode(65+i)} · ${o.n}</strong><b class="num">${fmt(o.p)}</b></div>
+    <div class="kv"><span>Left this month</span><b class="num ${cls}">${fmt(m.left)}</b><span>Savings this month</span><b class="${m.left>=0?'pos':'warnc'}">${m.left>=0?'Untouched':'Needs a change'}</b><span>Safe to buy</span><b>${m.when==='Now'?'Now':'From '+m.when}</b></div></button>`}).join('')}
+  <p class="note">${ic('info')}“Safe to buy” sets aside 120 000 Ft a month and keeps your emergency fund untouched.</p>
+  <button class="btn ai" data-go="couch-ai">${ic('spark')}Which one should I pick?</button></div>`};
+
+R['couch-ai']=()=>hdr('Recommendation')+`<div class="pad"><div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+  <div class="aibox"><span class="who">${ic('spark')}Assistant</span><p><b>B, the JYSK corner sofa, in December</b> is the best fit. It is the one you can pay in one go without touching your emergency fund, if you make two changes for December.</p><p class="sub" style="margin:0">A would fit in December with no changes, but you said you want a corner sofa. C would push you to April and pause investing for three months.</p></div>
+  <div class="sec"><span class="ov">Changes for December</span><div class="list">
+    <div class="change"><span class="ci" style="--c:var(--c-dining);width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--c-dining) 15%,transparent);color:var(--c-dining)">${ic('fork')}</span><div><strong>Dining out budget</strong><span class="num">60 000 → 20 000 Ft</span></div></div>
+    <div class="change"><span class="ci" style="--c:var(--good);width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good)">${ic('piggy')}</span><div><strong>December savings</strong><span class="num">100 000 → 50 000 Ft, once</span></div></div>
+    <div class="change"><span class="ci" style="--c:var(--ai);width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--ai) 15%,transparent);color:var(--ai)">${ic('shield')}</span><div><strong>Emergency fund after</strong><span>3.2 months of expenses, still on track</span></div><span class="pill good">OK</span></div></div></div>
+  ${S.applied?`<button class="btn ghost" data-go="plan">${ic('check')}Applied · back to plans</button>`:`<button class="btn" data-apply>${ic('check')}Apply changes</button><button class="btn ghost" data-toast="Ask a follow-up in the assistant">Ask something else</button>`}
+  <p class="note">${ic('info')}The assistant suggests. Numbers come from your own data, and nothing changes until you tap Apply.</p></div>`;
+
+R.savings=()=>hdr('Savings')+`<div class="pad">
+  <div class="card"><span class="ov">Savings account</span><div class="big num" style="font-size:52px;margin-top:6px">${fmt(S.savingsBal).replace(' Ft','')}<small>Ft</small></div><div class="sub">+${fmt(S.savingsTarget)} planned every month${S.octClosed?' · October leftover added':''}</div></div>
+  <div class="sec"><span class="ov">Goals</span><div class="list">
+    <div class="li" style="display:grid;grid-template-columns:36px 1fr;gap:12px"><span class="ci" style="--c:var(--good)">${ic('shield')}</span><div style="display:grid;gap:6px"><div style="display:flex;justify-content:space-between"><strong style="font-weight:500">Emergency fund</strong><span class="num sub">${(S.savingsBal/380000).toFixed(1)} / 6 months</span></div><div class="bar"><b style="width:${S.savingsBal/2280000*100}%;background:var(--good)"></b></div></div></div>
+    <div class="li" style="display:grid;grid-template-columns:36px 1fr;gap:12px"><span class="ci" style="--c:var(--c-travel)">${ic('plane')}</span><div style="display:grid;gap:6px"><div style="display:flex;justify-content:space-between"><strong style="font-weight:500">Summer trip</strong><span class="num sub">${fmt(0)} / ${fmt(400000)}</span></div><div class="bar"><b style="width:0"></b></div></div></div></div></div>
+  <div class="sec"><span class="ov">History</span><div class="list">
+    ${S.octClosed?`<div class="li">${catIc('transfer')}<span class="tx"><strong>October leftover</strong><span>From MBH Current · Oct 31</span></span><span class="amt num pos">+${fmt(S.octLeft)}</span></div>`:''}
+    <div class="li">${catIc('transfer')}<span class="tx"><strong>Monthly saving</strong><span>From MBH Current · Nov 10</span></span><span class="amt num pos">+${fmt(100000)}</span></div>
+    <div class="li">${catIc('transfer')}<span class="tx"><strong>September leftover</strong><span>From MBH Current · Sep 30</span></span><span class="amt num pos">+${fmt(21300)}</span></div></div></div></div>`;
+
+R.guide=()=>hdr('Smart money guide')+`<div class="pad">
+  <div class="aibox"><span class="who">${ic('spark')}Based on your numbers</span><p>You take home <b class="num">650 000 Ft</b> and spend about <b class="num">380 000 Ft</b> a month. That leaves room to save and invest at the same time, as long as the emergency fund comes first.</p></div>
+  <div class="ladder">
+    <div class="rung done"><span class="n">${ic('check')}</span><div><strong>Know where the money goes</strong><p>Two months tracked. Rent and groceries are your biggest lines.</p></div></div>
+    <div class="rung now"><span class="n">2</span><div><strong>Emergency fund: 6 months</strong><p>${(S.savingsBal/380000).toFixed(1)} of 6 months. At 100 000 Ft a month you reach it in about ${Math.ceil((2280000-S.savingsBal)/100000)} months.</p></div></div>
+    <div class="rung"><span class="n">3</span><div><strong>No expensive debt</strong><p>No credit card or personal loan recorded. Nothing to do here.</p></div></div>
+    <div class="rung"><span class="n">4</span><div><strong>Invest every month</strong><p>Start small now with ${fmt(S.invest)}: Hungarian government bonds and a global ETF are the usual first steps.</p></div></div>
+    <div class="rung"><span class="n">5</span><div><strong>Build passive income</strong><p>Once investments pass about 3 million Ft, dividends and interest start to matter. We will plan this together.</p></div></div></div>
+  <p class="note">${ic('info')}General education, not personal financial advice. You decide what to do.</p></div>`;
+
+/* invest */
+const ALLOC=[['Hungarian gov. bonds','var(--c-transport)',40],['Global ETF (VWCE)','var(--c-groceries)',40],['Single stocks','var(--c-dining)',15],['Crypto','var(--c-subs)',5]];
+const legend=()=>`<div class="alloc">${ALLOC.map(a=>`<i style="width:${a[2]}%;background:${a[1]}"></i>`).join('')}</div><div class="legend">${ALLOC.map(a=>`<div><i style="background:${a[1]}"></i><span>${a[0]}</span><b class="num">${a[2]}% · ${fmt(S.invest*a[2]/100)}</b></div>`).join('')}</div>`;
+const investStep=()=>`<div class="card" style="display:grid;gap:10px"><div style="display:flex;justify-content:space-between;align-items:center"><div><span class="ov">Invest every month</span><div class="mid num" style="font-size:28px;margin-top:6px">${fmt(S.invest)}</div></div><div class="stepper"><button data-inv="-10000" aria-label="Less">−</button><button data-inv="10000" aria-label="More">+</button></div></div><span class="sub">Comes out of your allowance. Suggested for you: 40 000 Ft.</span></div>`;
+R.invest=()=>`<div class="hdr big"><h1>Invest</h1><div class="side" style="width:auto"><button class="ib soft" data-toast="Add a purchase: what, how much, price">${ic('plus')}</button></div></div><div class="pad">
+  <div class="card" style="display:grid;gap:6px"><span class="ov">Portfolio · example from March</span><div class="big num" style="font-size:50px">412 860<small>Ft</small></div><span class="sub"><b class="pos num">+18 240 Ft (+4.6%)</b> since you started</span>
+    <svg class="spark" viewBox="0 0 300 90" preserveAspectRatio="none"><defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--good)" stop-opacity=".3"/><stop offset="1" stop-color="var(--good)" stop-opacity="0"/></linearGradient></defs><path d="M0 80 L30 76 L60 70 L90 72 L120 60 L150 55 L180 58 L210 44 L240 40 L270 30 L300 24 L300 90 L0 90Z" fill="url(#g)"/><path d="M0 80 L30 76 L60 70 L90 72 L120 60 L150 55 L180 58 L210 44 L240 40 L270 30 L300 24" fill="none" stroke="var(--good)" stroke-width="2.2"/><circle cx="300" cy="24" r="4" fill="var(--good)"/></svg></div>
+  ${investStep()}
+  <div class="sec"><div class="sechd"><h2>Holdings</h2></div><div class="list">
+    <button class="li" data-go="holding"><span class="ci" style="--c:var(--c-groceries)">${ic('globe')}</span><span class="tx"><strong>Vanguard FTSE All-World</strong><span>VWCE · 1.42 units</span></span><span class="amt num">168 410 Ft<small class="pos">+6.1%</small></span></button>
+    <div class="li"><span class="ci" style="--c:var(--c-transport)">${ic('shield')}</span><span class="tx"><strong>Prémium Magyar Állampapír</strong><span>PMÁP · inflation + 0.5%</span></span><span class="amt num">165 000 Ft<small class="pos">+3.8%</small></span></div>
+    <div class="li"><span class="ci" style="--c:var(--c-dining)">${ic('chart')}</span><span class="tx"><strong>OTP Bank</strong><span>OTP · 2 shares</span></span><span class="amt num">61 920 Ft<small class="pos">+2.9%</small></span></div>
+    <div class="li"><span class="ci" style="--c:var(--c-subs)">${ic('coin')}</span><span class="tx"><strong>Bitcoin</strong><span>BTC · 0.0006</span></span><span class="amt num">17 530 Ft<small class="neg">−1.2%</small></span></div></div></div>
+  <button class="banner ai" data-go="allocation"><span class="bi">${ic('spark')}</span><div><strong>Suggested split</strong><span>How to divide ${fmt(S.invest)} each month</span></div>${ic('chev')}</button></div>`;
+R['invest-empty']=()=>`<div class="hdr big"><h1>Invest</h1></div><div class="pad">
+  <div class="card" style="display:grid;gap:8px;text-align:center;padding:22px 18px"><span class="ci" style="justify-self:center;width:56px;height:56px;border-radius:18px;display:grid;place-items:center;color:var(--accent);background:color-mix(in srgb,var(--accent) 15%,transparent)">${ic('chart')}</span><strong style="font-size:17px">You have no investments yet</strong><span class="sub">Pick a monthly amount, see a suggested split, then add your first purchase when you have made it.</span></div>
+  ${investStep()}
+  <div class="sec"><span class="ov">Suggested split</span><div class="card" style="display:grid;gap:12px">${legend()}</div></div>
+  <button class="btn" data-toast="Add a purchase: what, how much, price">${ic('plus')}Add my first purchase</button>
+  <p class="note">${ic('info')}General education, not personal financial advice.</p></div>`;
+R.allocation=()=>hdr('Suggested split')+`<div class="pad">
+  <div class="aibox"><span class="who">${ic('spark')}Why this split</span><p>Your emergency fund is at ${(S.savingsBal/380000).toFixed(1)} months, so most of the money goes to low-risk Hungarian government bonds and a broad world ETF. Single stocks and crypto stay small while you learn.</p></div>
+  <div class="card" style="display:grid;gap:12px">${legend()}</div>
+  <div class="sec"><span class="ov">Risk in plain words</span><div class="list">
+    <div class="field"><span>Bonds</span><b>Low · state-backed</b></div><div class="field"><span>World ETF</span><b>Medium · can drop 20% in a bad year</b></div><div class="field"><span>Stocks, crypto</span><b class="warnc">High · can halve</b></div></div></div>
+  <p class="note">${ic('info')}General education, not personal financial advice. You decide what to buy and where.</p></div>`;
+R.holding=()=>hdr('VWCE')+`<div class="pad"><div class="card" style="display:grid;gap:6px"><span class="ov">Vanguard FTSE All-World · Acc</span><div class="big num" style="font-size:48px">168 410<small>Ft</small></div><span class="sub">1.42 units · avg. price 41 900 Ft · <b class="pos">+6.1%</b></span></div>
+  <div class="list"><div class="field"><span>Today</span><b class="num">€118.62 · +0.4%</b></div><div class="field"><span>Bought</span><b>3 purchases since March</b></div><div class="field"><span>In your split</span><b>40%</b></div></div>
+  <div class="sec"><span class="ov">Related news</span><button class="news" data-go="article"><span class="src">Reuters · 2h</span><strong>Global stocks edge up as US inflation cools</strong></button></div></div>`;
+
+/* news */
+const NEWS=[
+  {t:'portfolio',src:'Portfolio.hu · 1h',h:'Forint firms to 389 per euro after MNB holds rates',p:'The central bank kept the base rate at 6.25%. Good for euro purchases this month.',tag:'EUR/HUF'},
+  {t:'markets',src:'Reuters · 2h',h:'Global stocks edge up as US inflation cools',p:'The S&P 500 rose 0.8%. World ETFs like VWCE followed.',tag:'Your portfolio'},
+  {t:'currency',src:'MNB · 3h',h:'Base rate unchanged at 6.25%',p:'Next decision on December 16. Retail bond yields stay attractive.',tag:'HUF rates'},
+  {t:'markets',src:'Bloomberg · 5h',h:'Oil slips below $70 on weaker demand outlook',p:'Fuel prices in Hungary may ease next week.',tag:'Markets'},
+  {t:'portfolio',src:'Portfolio.hu · 6h',h:'OTP beats profit expectations in Q3',p:'Shares up 2.1% in early trading.',tag:'Your portfolio'}];
+R.news=()=>{const f=S.newsFilter;const L=NEWS.filter(n=>f==='all'||n.t===f||(f==='portfolio'&&n.tag==='Your portfolio'));
+  return `<div class="hdr big"><h1>News</h1><div class="side" style="width:auto"><button class="ib soft" data-go="sources" aria-label="Sources">${ic('sliders')}</button></div></div><div class="pad">
+  <div class="tick"><div><span>EUR/HUF</span><b class="num">389.40</b><em class="pos">−0.3%</em></div><div><span>USD/HUF</span><b class="num">356.10</b><em class="pos">−0.5%</em></div><div><span>S&amp;P 500</span><b class="num">6 412</b><em class="pos">+0.8%</em></div><div><span>BUX</span><b class="num">98 230</b><em class="pos">+0.4%</em></div><div><span>BTC</span><b class="num">$87 900</b><em class="neg">−1.2%</em></div></div>
+  <button class="banner ai" data-go="digest"><span class="bi">${ic('spark')}</span><div><strong>Morning brief · 07:00</strong><span>3 things that matter for you today</span></div>${ic('chev')}</button>
+  <div class="chips">${[['all','All'],['portfolio','My portfolio'],['currency','Currencies'],['markets','Markets']].map(([k,n])=>`<button class="chip${f===k?' on':''}" data-nf="${k}">${n}</button>`).join('')}</div>
+  ${L.map(n=>`<button class="news" data-go="article"><span class="src">${n.src}<span class="pill${n.tag==='Your portfolio'?' ai':''}">${n.tag}</span></span><strong>${n.h}</strong><p>${n.p}</p></button>`).join('')}</div>`};
+R.digest=()=>{const c=calc();return hdr('Morning brief')+`<div class="pad"><span class="ov">Wednesday, November 11 · 07:00</span>
+  <div class="aibox"><span class="who">${ic('spark')}Your brief</span>
+    <p><b>Forint:</b> stronger at 389.40 per euro after the central bank held rates. A good day for the €140 in your Revolut pocket to stay put.</p>
+    <p><b>Markets:</b> US stocks up 0.8% on cooler inflation. Your world ETF is up 0.4% this morning.</p>
+    <p><b>Your week:</b> ${fmt(c.wkLeft)} left until Sunday. Groceries are running a bit high this week.</p></div>
+  <div class="sec"><span class="ov">Market summary, not advice</span><div class="card"><p class="sub" style="margin:0">Biggest movers: OTP +2.1% on results, oil −1.8%. Volatile names today: Tesla, Nvidia. This is a summary of what moved and why, not a buy or sell signal.</p></div></div>
+  <div class="sec"><span class="ov">Sources</span><div class="list">${NEWS.slice(0,3).map(n=>`<button class="li" data-go="article"><span class="tx"><strong>${n.h}</strong><span>${n.src}</span></span>${ic('chev')}</button>`).join('')}</div></div></div>`};
+R.article=()=>hdr('Article')+`<div class="pad"><span class="src sub">Portfolio.hu · 1h ago</span><h2 style="font-family:var(--display);font-weight:400;font-size:30px;line-height:1.1;margin:0;text-wrap:balance">Forint firms to 389 per euro after MNB holds rates</h2>
+  <div class="aibox"><span class="who">${ic('spark')}Summary</span><p>The Hungarian central bank kept the base rate at 6.25% for the fourth month. The forint strengthened about 0.3% against the euro.</p><p><b>What it means for you:</b> EUR spending on Revolut is slightly cheaper this week. Your PMÁP bonds are not affected.</p></div>
+  <div class="chips"><span class="pill">EUR/HUF</span><span class="pill">HUF rates</span><span class="pill ai">Your portfolio</span></div>
+  <button class="btn ghost" data-toast="Opens the original article in Safari">Read the original</button></div>`;
+R.sources=()=>{const L=[['portfolio_hu','Portfolio.hu','Hungarian markets · RSS'],['mnb','MNB','Central bank rates · API'],['reuters','Reuters Markets','Global markets · RSS'],['bloomberg','Bloomberg Markets','Global markets · RSS'],['coindesk','CoinDesk','Crypto · RSS']];
+  return hdr('Sources',{right:`<button class="ib soft" data-toast="Add a source: RSS link or site">${ic('plus')}</button>`})+`<div class="pad"><div class="list">${L.map(([k,n,d])=>`<div class="field"><span style="display:grid;gap:2px"><b style="color:var(--ink)">${n}</b><small style="color:var(--faint)">${d}</small></span><button class="sw${S.sources[k]?' on':''}" data-src="${k}" aria-label="Toggle ${n}"></button></div>`).join('')}</div>
+  <div class="list"><div class="field"><span>Check for news</span><b>Every hour</b></div><div class="field"><span>Morning brief</span><b>07:00</b></div></div>
+  <p class="note">${ic('info')}Checking more often uses more AI credits from your Base44 plan.</p></div>`};
+
+/* assistant */
+const ANS={
+  'Can I afford Vienna in December?':c=>`Yes, if you keep it near <b>90 000 Ft</b>. December has <b>${fmt(c.free)}</b> free, and the couch plan already takes part of it.<div class="kv"><span>Train + 2 nights</span><b>~75 000 Ft</b><span>Food and city</span><b>~25 000 Ft</b><span>Left in December after</span><b class="pos">~58 000 Ft</b></div>`,
+  'Why is my week so tight?':c=>`Groceries: <b>${fmt(9870)}</b> at Aldi and fuel <b>${fmt(15500)}</b> at MOL both landed this week. That is ${Math.round((9870+15500)/c.budget*100)}% of the week budget in two days.`,
+  'Where can I cut 20 000 Ft?':()=>`Dining out is at <b>${fmt(22440)}</b> of 60 000 Ft. Two fewer Wolt orders and one less restaurant visit would save about <b>20 000 Ft</b>. Want me to lower the budget for the rest of November?`};
+R.chat=()=>{const c=calc();if(!S.msgs.length)S.msgs=[{me:1,t:'How am I doing this month?'},{t:`Fine. You have <b>${fmt(c.remaining)}</b> left for 19 days, which is about <b>${fmt(c.remaining/19)}</b> a day. You are a little ahead on groceries and behind on dining out.`}];
+  return hdr('Assistant',{right:`<button class="ib soft" data-toast="Conversation history">${ic('clock')}</button>`})+`<div class="chat">${S.msgs.map(m=>`<div class="msg ${m.me?'me':'bot'}">${m.t}</div>`).join('')}</div>`};
+const composer=()=>`<div class="composer"><div class="chips">${Object.keys(ANS).map(q=>`<button class="chip" data-ask="${q}">${q}</button>`).join('')}</div><form class="cin" id="cin"><input id="cinput" placeholder="Ask about your money" autocomplete="off"><button aria-label="Send">${ic('send')}</button></form></div>`;
+
+/* settings */
+R.settings=()=>hdr('Settings')+`<div class="pad">
+  <div class="sec"><span class="ov">Monthly plan</span><div class="list">
+    <div class="field"><span>Save every month</span><div class="stepper"><button data-sav="-10000" aria-label="Less">−</button><b class="num">${fmt(S.savingsTarget)}</b><button data-sav="10000" aria-label="More">+</button></div></div>
+    <div class="field"><span>Invest every month</span><div class="stepper"><button data-inv="-10000" aria-label="Less">−</button><b class="num">${fmt(S.invest)}</b><button data-inv="10000" aria-label="More">+</button></div></div>
+    <div class="field"><span>Emergency fund</span><b>6 months</b></div>
+    <div class="field"><span>Week starts</span><b>Monday</b></div></div></div>
+  <div class="sec"><span class="ov">Automation</span><div class="list">
+    <button class="li" data-go="sms"><span class="ci" style="--c:var(--warn)">${ic('sms')}</span><span class="tx"><strong>SMS from MBH Bank</strong><span>On · last one 08:17 today</span></span>${ic('chev')}</button>
+    <div class="field"><span>Morning brief notification</span><button class="sw${S.digestOn?' on':''}" data-digest aria-label="Toggle morning brief"></button></div></div></div>
+  <div class="sec"><span class="ov">Data</span><div class="list">
+    <button class="li" data-go="accounts"><span class="ci" style="--c:var(--accent)">${ic('wallet')}</span><span class="tx"><strong>Accounts</strong><span>4 accounts</span></span>${ic('chev')}</button>
+    <button class="li" data-toast="finance-export-2026-11-11.json saved to Files"><span class="ci" style="--c:var(--good)">${ic('download')}</span><span class="tx"><strong>Export everything (JSON)</strong><span>Back up your data</span></span></button>
+    <button class="li" data-toast="transactions-2026-11.csv saved to Files"><span class="ci" style="--c:var(--good)">${ic('download')}</span><span class="tx"><strong>Export transactions (CSV)</strong><span>For spreadsheets</span></span></button></div></div>
+  <button class="btn ghost" data-toast="Signed out (prototype)">Sign out</button></div>`;
+R.sms=()=>hdr('SMS automation')+`<div class="pad">
+  <p class="sub" style="margin:0">When MBH Bank texts you about a payment, an iPhone Shortcut sends the text here, and the expense appears by itself.</p>
+  <div class="sec"><span class="ov">1 · Your personal key</span><div class="card" style="display:grid;gap:10px"><div class="code">ftk_live_••••••••••••••••3f9a</div><div class="row2"><button class="btn ghost" data-toast="Key copied">Copy</button><button class="btn ghost" data-toast="Old key revoked, new key created">New key</button></div><span class="sub">Shown once. Revoke it here if your phone is lost.</span></div></div>
+  <div class="sec"><span class="ov">2 · Set up the Shortcut</span><div class="list">
+    <div class="field"><span>Shortcuts → Automation → Message</span>${ic('chev')}</div>
+    <div class="field"><span>Sender: <b style="color:var(--ink)">MBH Bank</b></span><span class="pill">Run immediately</span></div>
+    <div class="field"><span>Get Contents of URL · POST · your key</span>${ic('chev')}</div></div></div>
+  <div class="sec"><span class="ov">3 · Test it</span><div class="smsraw">MBH Bank: Kartyas vasarlas -15 500 HUF, MOL 1093 BUDAORS, 2026.11.11 08:17. Egyenleg: 412 380 HUF</div><button class="btn" data-toast="Test received: MOL Station −15 500 Ft">Send a test message</button></div>
+  <p class="note">${ic('info')}Revolut sends app notifications, not SMS. Shortcuts cannot read those, so Revolut stays manual.</p></div>`;
+
+/* ── sheets ── */
+function sheetAdd(){const a=S.addAmt;const recent=['groceries','dining','transport','fun','shopping','health','other'];
+  return `<span class="grab"></span><div class="seg">${['expense','income','transfer'].map(k=>`<button class="${S.addKind===k?'on':''}" data-kind="${k}">${k[0].toUpperCase()+k.slice(1)}</button>`).join('')}</div>
+  <div class="amtin"><div class="big num ${a?'':'zero'}">${a?Number(a).toLocaleString('hu-HU').replace(/\s/g,' '):'0'}<small>Ft</small></div><span class="sub">${S.addAcct} · Today</span></div>
+  <div class="chips" style="justify-content:center">${recent.map(c=>`<button class="chip" data-cat="${c}" style="--c:var(--c-${c})">${ic(CATS[c][1])}${CATS[c][0]}</button>`).join('')}</div>
+  <div class="keys">${['1','2','3','4','5','6','7','8','9','000','0','⌫'].map(k=>`<button data-key="${k}">${k}</button>`).join('')}</div>
+  <p class="note" style="justify-content:center">${ic('info')}Type the amount, then tap a category to save.</p>`}
+function sheetClose(){return `<span class="grab"></span><div style="display:grid;gap:6px;text-align:center;padding:6px 0"><span class="ov">October 2026 · closed</span><div class="big num" style="font-size:54px">${fmt(S.octLeft).replace(' Ft','')}<small>Ft</small></div><span class="sub">left from your October allowance</span></div>
+  <div class="list"><div class="field"><span>Free to spend</span><b class="num">${fmt(229330)}</b></div><div class="field"><span>Spent</span><b class="num">${fmt(-190930)}</b></div><div class="field"><span>From</span><b>MBH Current</b></div><div class="field"><span>To</span><b>Savings</b></div></div>
+  <button class="btn" data-closemonth="move">${ic('piggy')}Move to Savings</button><button class="btn ghost" data-closemonth="keep">Keep it in MBH Current</button>
+  <p class="note">${ic('info')}November starts fresh either way. If you overspend a month, the next one starts lower.</p>`}
+
+/* ── router ── */
+const META={home:['Home','home'],breakdown:['Allowance breakdown','home'],close:['Month close','home',1],review:['SMS review','home'],accounts:['Accounts','home'],
+  activity:['Transactions','activity'],add:['Quick add','activity',1],txn:['Transaction detail','activity'],recurring:['Recurring','activity'],budgets:['Category budgets','activity'],
+  plan:['Plans','plan'],'couch-new':['Couch · 1. opciók','plan'],couch:['Couch · 2. hatás','plan'],'couch-ai':['Couch · 3. AI-javaslat','plan'],savings:['Savings','plan'],guide:['Smart money guide','plan'],
+  invest:['Portfolio','invest'],'invest-empty':['Getting started','invest'],allocation:['Suggested split','invest'],holding:['Holding','invest'],
+  news:['Feed','news'],digest:['Morning brief','news'],article:['Article','news'],sources:['Sources','news'],
+  chat:['Assistant','more'],settings:['Settings','more'],sms:['SMS automation','more']};
+const TABS=[['home','Home','home'],['activity','Activity','list'],['plan','Plan','target'],['invest','Invest','chart'],['news','News','news']];
+const ROOTS=['home','activity','plan','invest','news','invest-empty'];
+let base='home', stack=[];
+function render(){
+  let r=(location.hash||'#home').slice(1);if(!META[r])r='home';
+  const m=META[r], isSheet=m[2];
+  if(!isSheet&&r!==base){if(ROOTS.includes(r))stack=[];else stack.push(base);base=r}
+  const scr=META[base];const tab=scr[1];
+  screen.innerHTML=R[base]()+(base==='chat'?'':'');
+  screen.classList.toggle('notab',base==='chat');
+  const old=document.querySelector('.composer');if(old)old.remove();
+  if(base==='chat'){$('#phone').insertAdjacentHTML('beforeend',composer());bindComposer();screen.scrollTop=1e6}
+  $('#tabbar').hidden=base==='chat';$('#fab').hidden=base==='chat'||!ROOTS.includes(base);$('#askbtn').hidden=base==='chat'||!ROOTS.includes(base);
+  $('#tabbar').innerHTML=TABS.map(([k,n,i])=>`<button class="${(tab===k||(k==='invest'&&base==='invest-empty'))?'on':''}" data-tab="${k}">${ic(i)}<span>${n}</span></button>`).join('');
+  const sh=$('#sheet');
+  if(isSheet){sh.innerHTML=r==='add'?sheetAdd():sheetClose();sh.classList.add('on');$('#veil').classList.add('on')}
+  else{sh.classList.remove('on');$('#veil').classList.remove('on')}
+  /* panel sync */
+  const cur=isSheet?r:base;
+  document.querySelectorAll('#jump nav a').forEach(a=>a.setAttribute('aria-current',String(a.getAttribute('href')==='#'+cur)));
+  const g=META[cur][1];document.querySelectorAll('#jump .grp').forEach(d=>{const on=d.dataset.grp===g;d.classList.toggle('cur',on);if(on)d.open=true});
+  $('#nownm').textContent=META[cur][0];
+}
+function go(r){if(('#'+r)===location.hash)render();else location.hash=r}
+function back(){base=stack.pop()||'home';location.hash=base}
+addEventListener('hashchange',()=>{const was=base;render();if(base!==was)screen.scrollTop=0});
+const fit=()=>{$('#phone').style.zoom=innerWidth>820?Math.min(1,Math.max(.55,(innerHeight-48)/866)):''};addEventListener('resize',fit);fit();
+
+let tt;function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('on'),2200)}
+function closeSheet(){location.hash=base}
+
+/* ── interactions ── */
+document.addEventListener('click',e=>{
+  const t=e.target.closest('button,a');if(!t)return;
+  if(t.closest('#jump')&&t.tagName==='A'){return}
+  const d=t.dataset;
+  if('back' in d){back();return}
+  if(d.go){go(d.go);return}
+  if(d.tab){stack=[];go(d.tab);return}
+  if(d.toast){toast(d.toast);return}
+  if(d.txn){S.selTxn=d.txn;const tx=S.txns.find(x=>x.id===d.txn);go(tx.review?'review':'txn');return}
+  if(d.approve){const tx=S.txns.find(x=>x.id===d.approve);tx.review=false;toast('Confirmed · '+tx.m+' '+fmt(-tx.a));const nx=S.txns.find(x=>x.review);if(nx){S.selTxn=nx.id;render()}else back();return}
+  if(d.opt!==undefined){S.selOpt=+d.opt;render();return}
+  if('apply' in d){S.applied=true;toast('Applied for December · Couch plan decided');render();return}
+  if(d.inv){S.invest=Math.max(0,S.invest+ +d.inv);render();toast('Investing '+fmt(S.invest)+' a month · allowance updated');return}
+  if(d.sav){S.savingsTarget=Math.max(0,S.savingsTarget+ +d.sav);render();toast('Saving '+fmt(S.savingsTarget)+' a month · allowance updated');return}
+  if(d.nf){S.newsFilter=d.nf;render();return}
+  if(d.src){S.sources[d.src]=!S.sources[d.src];t.classList.toggle('on');return}
+  if('digest' in d){S.digestOn=!S.digestOn;t.classList.toggle('on');return}
+  if(d.kind){S.addKind=d.kind;if(d.kind==='transfer')toast('Transfer: pick from and to account');$('#sheet').innerHTML=sheetAdd();return}
+  if(d.key){if(d.key==='⌫')S.addAmt=S.addAmt.slice(0,-1);else if(S.addAmt.length<9&&!(S.addAmt===''&&/^0/.test(d.key)))S.addAmt+=d.key;$('#sheet').innerHTML=sheetAdd();return}
+  if(d.cat){const n=+S.addAmt;if(!n){toast('Type an amount first');return}
+    const inc=S.addKind==='income';S.txns.push({id:'n'+Date.now(),d:TODAY,m:CATS[d.cat][0],cat:inc?'income':d.cat,a:inc?n:-n,acct:S.addAcct,src:'manual',added:true});
+    S.addAmt='';toast('Saved · '+CATS[d.cat][0]+' '+fmt(n));closeSheet();return}
+  if(d.closemonth){if(d.closemonth==='move'){S.savingsBal+=S.octLeft;toast('Moved '+fmt(S.octLeft)+' to Savings')}else toast('October closed · kept in MBH Current');S.octClosed=true;closeSheet();return}
+  if(d.ask){ask(d.ask);return}
+});
+$('#veil').addEventListener('click',closeSheet);
+$('#fab').addEventListener('click',()=>go('add'));
+$('#askbtn').addEventListener('click',()=>go('chat'));
+function ask(q){const c=calc();S.msgs.push({me:1,t:q});S.msgs.push({t:ANS[q]?ANS[q](c):'In the real app the assistant answers this from your own data. In the prototype, try one of the suggested questions.'});render()}
+function bindComposer(){const f=$('#cin');f.addEventListener('submit',e=>{e.preventDefault();const v=$('#cinput').value.trim();if(v)ask(v)})}
+$('#pushdemo').addEventListener('click',()=>{const c=calc();$('#pushtxt').textContent=`Morning brief: EUR/HUF 389.40 (−0.3%), S&P 500 +0.8%. You have ${fmt(c.wkLeft)} left this week.`;const p=$('#push');p.classList.add('on');setTimeout(()=>p.classList.remove('on'),5200)});
+$('#push').addEventListener('click',()=>{$('#push').classList.remove('on');go('digest')});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#sheet').classList.contains('on'))closeSheet()});
+render();
+})();
+</script>
