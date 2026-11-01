@@ -1,0 +1,45 @@
+{
+  "name": "MonthClose",
+  "type": "object",
+  "properties": {
+    "month": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}$"
+    },
+    "final_remaining_minor": {
+      "type": "integer"
+    },
+    "deficit_minor": {
+      "type": "integer"
+    },
+    "leftover_action": {
+      "type": "string",
+      "enum": [
+        "transferred",
+        "kept",
+        "none"
+      ]
+    },
+    "transfer_pair_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "month",
+    "final_remaining_minor",
+    "deficit_minor",
+    "leftover_action"
+  ],
+  "rls": {
+    "create": true,
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

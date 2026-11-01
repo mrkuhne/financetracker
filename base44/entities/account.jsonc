@@ -1,0 +1,51 @@
+{
+  "name": "Account",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "checking",
+        "savings",
+        "cash",
+        "investment"
+      ]
+    },
+    "currency": {
+      "type": "string"
+    },
+    "opening_balance_minor": {
+      "type": "integer"
+    },
+    "is_default": {
+      "type": "boolean"
+    },
+    "is_savings_target": {
+      "type": "boolean"
+    },
+    "archived": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "name",
+    "type",
+    "currency",
+    "opening_balance_minor"
+  ],
+  "rls": {
+    "create": true,
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

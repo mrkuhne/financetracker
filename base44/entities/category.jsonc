@@ -1,0 +1,38 @@
+{
+  "name": "Category",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "expense",
+        "income"
+      ]
+    },
+    "icon": {
+      "type": "string"
+    },
+    "monthly_budget_minor": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "name",
+    "kind"
+  ],
+  "rls": {
+    "create": true,
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

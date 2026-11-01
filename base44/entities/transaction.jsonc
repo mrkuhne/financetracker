@@ -1,0 +1,75 @@
+{
+  "name": "Transaction",
+  "type": "object",
+  "properties": {
+    "account_id": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "expense",
+        "income",
+        "transfer_out",
+        "transfer_in"
+      ]
+    },
+    "amount_minor": {
+      "type": "integer"
+    },
+    "currency": {
+      "type": "string"
+    },
+    "amount_huf_minor": {
+      "type": "integer"
+    },
+    "category_id": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "note": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "sms",
+        "recurring"
+      ]
+    },
+    "needs_review": {
+      "type": "boolean"
+    },
+    "recurring_rule_id": {
+      "type": "string"
+    },
+    "transfer_pair_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "account_id",
+    "kind",
+    "amount_minor",
+    "currency",
+    "amount_huf_minor",
+    "date",
+    "source"
+  ],
+  "rls": {
+    "create": true,
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

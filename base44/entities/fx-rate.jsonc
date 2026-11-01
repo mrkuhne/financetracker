@@ -1,0 +1,33 @@
+{
+  "name": "FxRate",
+  "type": "object",
+  "properties": {
+    "pair": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "rate": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "pair",
+    "date",
+    "rate"
+  ],
+  "rls": {
+    "create": true,
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

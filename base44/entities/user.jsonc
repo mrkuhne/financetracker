@@ -1,0 +1,35 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "base_currency": {
+      "type": "string",
+      "enum": [
+        "HUF"
+      ],
+      "default": "HUF"
+    },
+    "monthly_savings_target_minor": {
+      "type": "integer"
+    },
+    "monthly_investment_amount_minor": {
+      "type": "integer"
+    },
+    "emergency_fund_months": {
+      "type": "number"
+    },
+    "week_start": {
+      "type": "string",
+      "enum": [
+        "monday"
+      ],
+      "default": "monday"
+    },
+    "digest_time": {
+      "type": "string"
+    },
+    "timezone": {
+      "type": "string"
+    }
+  }
+}
