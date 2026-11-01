@@ -3,12 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const ensure = vi.fn(async () => {});
 vi.mock('@/data/categories', () => ({ ensureDefaultCategories: () => ensure() }));
 
-const materialize = vi.fn(async () => 0);
-vi.mock('./materialize', () => ({ materializeRecurring: () => materialize() }));
+const materialize = vi.fn(async (_today: string) => 0);
+vi.mock('./runMaterialize', () => ({ runMaterialize: (t: string) => materialize(t) }));
 vi.mock('@/data/settings', () => ({ getSettings: async () => ({ timezone: 'Europe/Budapest' }) }));
-vi.mock('@/data/recurring', () => ({ listRules: vi.fn(), updateRule: vi.fn() }));
-vi.mock('@/data/transactions', () => ({ createTransaction: vi.fn(), listTransactions: vi.fn() }));
-vi.mock('@/data/fx', () => ({ getHufPerUnit: vi.fn() }));
 
 describe('runStartup', () => {
   beforeEach(() => {
@@ -30,5 +27,13 @@ describe('runStartup', () => {
     await expect(runStartup()).rejects.toThrow('boom');
     await runStartup();
     expect(ensure).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not fail startup when materialization throws', async () => {
+    const { runStartup } = await import('./startup');
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    materialize.mockRejectedValueOnce(new Error('offline'));
+    await expect(runStartup()).resolves.toEqual({ ok: true });
+    spy.mockRestore();
   });
 });

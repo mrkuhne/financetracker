@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RecurringRule, Txn } from '@/domain/types';
-import { materializeRecurring, type MaterializeDeps } from './materialize';
+import { materializeRecurring, materializeSingleFlight, type MaterializeDeps } from './materialize';
 
 const salary = (over: Partial<RecurringRule> = {}): RecurringRule => ({
   id: 'r1', name: 'Salary', kind: 'income', amount_minor: 100000, currency: 'EUR', amount_huf_minor: 40000000,
@@ -53,5 +53,29 @@ describe('materializeRecurring', () => {
     const { store, deps } = fakes([salary({ active: false }), salary({ id: 'r2', start_date: '2026-12-01' })]);
     expect(await materializeRecurring('2026-11-12', deps)).toBe(0);
     expect(store.txns).toHaveLength(0);
+  });
+
+  it('keeps partial progress when a later occurrence fails, then completes without duplicates', async () => {
+    const { store, deps } = fakes([salary()]);
+    let calls = 0;
+    const flaky: MaterializeDeps = {
+      ...deps,
+      createTransaction: async (t) => {
+        if (++calls === 2) throw new Error('boom');
+        return deps.createTransaction(t);
+      },
+    };
+    await expect(materializeRecurring('2026-11-12', flaky)).rejects.toThrow('boom');
+    expect(store.txns.map((t) => t.date)).toEqual(['2026-09-10']);
+    expect(store.rules[0].last_materialized_date).toBeNull();
+    expect(await materializeRecurring('2026-11-12', deps)).toBe(2);
+    expect(store.txns.map((t) => t.date)).toEqual(['2026-09-10', '2026-10-10', '2026-11-10']);
+  });
+
+  it('shares one run between overlapping callers', async () => {
+    const { store, deps } = fakes([salary()]);
+    const [a, b] = await Promise.all([materializeSingleFlight('2026-11-12', deps), materializeSingleFlight('2026-11-12', deps)]);
+    expect([a, b]).toEqual([3, 3]);
+    expect(store.txns).toHaveLength(3);
   });
 });

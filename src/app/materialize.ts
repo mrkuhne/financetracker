@@ -40,3 +40,13 @@ export async function materializeRecurring(today: ISODate, deps: MaterializeDeps
   }
   return created;
 }
+
+let inflight: Promise<number> | null = null;
+
+/** Single-flight wrapper: overlapping callers share one run. */
+export function materializeSingleFlight(today: ISODate, deps: MaterializeDeps): Promise<number> {
+  inflight ??= materializeRecurring(today, deps).finally(() => {
+    inflight = null;
+  });
+  return inflight;
+}

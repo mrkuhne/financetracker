@@ -6,10 +6,9 @@ import { notifyTxnsChanged } from '@/features/transactions/events';
 import { listAccounts } from '@/data/accounts';
 import { listCategories, type Category } from '@/data/categories';
 import { createRule, deleteRule, listRules, updateRule } from '@/data/recurring';
-import { createTransaction, listTransactions } from '@/data/transactions';
 import { getHufPerUnit } from '@/data/fx';
 import { getSettings } from '@/data/settings';
-import { materializeRecurring } from '@/app/materialize';
+import { runMaterialize } from '@/app/runMaterialize';
 import { todayInTz } from '@/domain/dates';
 import { formatMoney, toHufMinor } from '@/domain/money';
 import type { Account, RecurringRule } from '@/domain/types';
@@ -25,6 +24,7 @@ export function RecurringScreen() {
   const [today, setToday] = useState('');
   const [editing, setEditing] = useState<Editing>(null);
   const [failed, setFailed] = useState(false);
+  const [notice, setNotice] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -43,19 +43,30 @@ export function RecurringScreen() {
   }, [load]);
 
   async function save(draft: RuleDraft, existing?: RecurringRule) {
+    setNotice('');
+    const rate = await getHufPerUnit(draft.currency, today);
+    const fields = { ...draft, amount_huf_minor: toHufMinor(draft.amount_minor, rate) };
     try {
-      const rate = await getHufPerUnit(draft.currency, today);
-      const fields = { ...draft, amount_huf_minor: toHufMinor(draft.amount_minor, rate) };
-      if (existing) await updateRule(existing.id, fields);
-      else await createRule({ ...fields, last_materialized_date: null, active: true });
-      if (draft.start_date <= today) {
-        const n = await materializeRecurring(today, { listRules, listTransactions, createTransaction, updateRule, getHufPerUnit });
-        if (n > 0) notifyTxnsChanged();
+      if (existing) {
+        const reset = existing.start_date !== draft.start_date || existing.frequency !== draft.frequency;
+        await updateRule(existing.id, reset ? { ...fields, last_materialized_date: null } : fields);
+      } else {
+        await createRule({ ...fields, last_materialized_date: null, active: true });
       }
-      setEditing(null);
-    } finally {
+    } catch (e) {
       await load();
+      throw e;
     }
+    // The rule is persisted: close the sheet. Materialization failures are reported separately.
+    setEditing(null);
+    if (draft.start_date <= today) {
+      try {
+        if ((await runMaterialize(today)) > 0) notifyTxnsChanged();
+      } catch {
+        setNotice('Saved. Past entries will be added next time you open the app.');
+      }
+    }
+    await load();
   }
 
   async function toggle(r: RecurringRule) {
@@ -115,6 +126,7 @@ export function RecurringScreen() {
           <button className="link" style={{ color: 'var(--accent)', fontWeight: 600 }} onClick={() => void load()}>Retry</button>
         </div>
       )}
+      {notice && <div className="card sub" role="status">{notice}</div>}
       {rules === null && !failed && <div className="spinner" role="status" aria-label="Loading" style={{ justifySelf: 'center' }} />}
       {rules !== null && (
         <>
