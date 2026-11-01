@@ -58,6 +58,12 @@ describe('allowance', () => {
     expect(cross.budgetMinor).toBe(25_900_000 + 5_129_032);
   });
 
+  it('deficit belongs to the month containing today', () => {
+    const dec = computeWeeklyAllowance({ today: '2026-12-02', rules, txns, settings, previousDeficitMinor: 40_000_00 });
+    expect(dec.weekStart).toBe('2026-11-30');
+    expect(dec.budgetMinor).toBe(25_900_000 + 4_354_838);
+  });
+
   it('overspent clamps', () => {
     const broke = [...txns, expense('2026-11-10', 400_000_00)];
     expect(computeMonthlyAllowance({ month: '2026-11', rules, txns: broke, settings, previousDeficitMinor: 0 }).remainingMinor)

@@ -48,6 +48,7 @@ export function computeMonthlyAllowance(i: {
 }
 
 export function computeWeeklyAllowance(i: {
+  // previousDeficitMinor is the deficit carried into monthOf(today); any other touched month uses 0.
   today: ISODate; rules: RecurringRule[]; txns: Txn[]; settings: Settings; previousDeficitMinor: number;
 }): WeeklyAllowance {
   const ws = weekStart(i.today);
@@ -56,14 +57,14 @@ export function computeWeeklyAllowance(i: {
   if (monthOf(we) !== months[0]) months.push(nextMonth(months[0]));
 
   let budgetMinor = 0;
-  months.forEach((m, idx) => {
+  months.forEach((m) => {
     const from = compareDates(ws, firstDay(m)) > 0 ? ws : firstDay(m);
     const weekEndInM = compareDates(we, lastDay(m)) < 0 ? we : lastDay(m);
     const daysOfWeekInM = daysBetweenInclusive(from, weekEndInM);
     const daysToEnd = daysBetweenInclusive(from, lastDay(m));
     const a = computeMonthlyAllowance({
       month: m, rules: i.rules, txns: i.txns, settings: i.settings,
-      previousDeficitMinor: idx === 0 ? i.previousDeficitMinor : 0,
+      previousDeficitMinor: m === monthOf(i.today) ? i.previousDeficitMinor : 0,
     });
     const spentBefore = sum(
       i.txns.filter((t) => monthOf(t.date) === m && isSpend(t) && compareDates(t.date, from) < 0).map((t) => t.amount_huf_minor),
