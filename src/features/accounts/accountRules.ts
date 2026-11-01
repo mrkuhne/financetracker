@@ -10,37 +10,61 @@ export interface AccountPlan {
   saved: AccountDraft;
   /** Other accounts whose flags must change so the one-default / one-savings-target rules hold. */
   patches: AccountPatch[];
+  /** Set when the save must be refused; show it to the user. */
+  error?: string;
 }
 
+type Flags = Partial<Pick<Account, 'is_default' | 'is_savings_target'>>;
+
 /**
- * Enforces: exactly one default account, and exactly one savings target among savings accounts.
- * `others` = every account except the one being saved. Pure; callers persist the result.
+ * Enforces: exactly one (non-archived) default account, and exactly one savings target among
+ * non-archived savings accounts. `others` = every account except the one being saved. Pure; callers persist.
+ * Returns `error` (plain words) when the save must be refused.
  */
 export function planAccountSave(others: Account[], draft: AccountDraft): AccountPlan {
-  const flags = new Map<string, Partial<Pick<Account, 'is_default' | 'is_savings_target'>>>();
-  const set = (id: string, f: Partial<Pick<Account, 'is_default' | 'is_savings_target'>>) => flags.set(id, { ...flags.get(id), ...f });
+  const flags = new Map<string, Flags>();
+  const set = (id: string, f: Flags) => flags.set(id, { ...flags.get(id), ...f });
   const saved: AccountDraft = { ...draft };
+  const active = others.filter((o) => !o.archived);
 
-  // Default: the saved account wins if it asks for it; otherwise it must be default when nobody else is.
-  const otherDefault = others.some((o) => o.is_default);
+  if (saved.archived && active.length === 0) {
+    return { saved, patches: [], error: 'You need at least one account that is not archived.' };
+  }
+  if (saved.archived) {
+    saved.is_default = false;
+    saved.is_savings_target = false;
+  }
+
+  // Default
   if (saved.is_default) {
     for (const o of others) if (o.is_default) set(o.id, { is_default: false });
-  } else if (!otherDefault) {
-    saved.is_default = true;
+  } else if (!active.some((o) => o.is_default)) {
+    if (saved.archived) {
+      for (const o of others) if (o.is_default) set(o.id, { is_default: false });
+      set(active[0].id, { is_default: true });
+    } else {
+      saved.is_default = true;
+    }
   }
 
-  // Savings target: only savings accounts can hold it.
-  if (saved.type !== 'savings') {
+  // Savings target: only non-archived savings accounts can hold it.
+  const activeSavings = active.filter((o) => o.type === 'savings');
+  if (saved.type !== 'savings' || saved.archived) {
     saved.is_savings_target = false;
-    const hasOtherTarget = others.some((o) => o.type === 'savings' && o.is_savings_target);
-    const candidate = others.find((o) => o.type === 'savings' && !o.archived) ?? others.find((o) => o.type === 'savings');
-    if (!hasOtherTarget && candidate) set(candidate.id, { is_savings_target: true });
+    if (!activeSavings.some((o) => o.is_savings_target) && activeSavings.length) {
+      for (const o of others) if (o.is_savings_target) set(o.id, { is_savings_target: false });
+      set(activeSavings[0].id, { is_savings_target: true });
+    }
   } else if (saved.is_savings_target) {
     for (const o of others) if (o.is_savings_target) set(o.id, { is_savings_target: false });
-  } else if (!others.some((o) => o.type === 'savings' && o.is_savings_target)) {
-    saved.is_savings_target = true; // first savings account (or the only one left) is the target
+  } else if (!activeSavings.some((o) => o.is_savings_target)) {
+    saved.is_savings_target = true;
   }
 
+  return { saved, patches: toPatches(others, flags) };
+}
+
+function toPatches(others: Account[], flags: Map<string, Flags>): AccountPatch[] {
   const patches: AccountPatch[] = [];
   for (const o of others) {
     const f = flags.get(o.id);
@@ -50,5 +74,23 @@ export function planAccountSave(others: Account[], draft: AccountDraft): Account
     if (f.is_savings_target !== undefined && f.is_savings_target !== o.is_savings_target) patch.is_savings_target = f.is_savings_target;
     if (Object.keys(patch).length) patches.push({ id: o.id, patch });
   }
-  return { saved, patches };
+  return patches;
+}
+
+/** Self-heal: if several accounts claim default / savings target, keep the first of each and clear the rest. */
+export function healAccounts(accounts: Account[]): AccountPatch[] {
+  const flags = new Map<string, Flags>();
+  let seenDefault = false;
+  let seenTarget = false;
+  for (const a of accounts) {
+    if (a.is_default) {
+      if (seenDefault) flags.set(a.id, { ...flags.get(a.id), is_default: false });
+      seenDefault = true;
+    }
+    if (a.is_savings_target) {
+      if (seenTarget) flags.set(a.id, { ...flags.get(a.id), is_savings_target: false });
+      seenTarget = true;
+    }
+  }
+  return toPatches(accounts, flags);
 }

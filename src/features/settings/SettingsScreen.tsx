@@ -16,21 +16,39 @@ export function SettingsScreen() {
   const [failed, setFailed] = useState(false);
   const [saveError, setSaveError] = useState(false);
 
+  const latest = useRef<Settings | null>(null);
+  const chain = useRef<Promise<void>>(Promise.resolve());
+
   useEffect(() => {
-    getSettings().then(setS, () => setFailed(true));
+    getSettings().then(
+      (v) => {
+        latest.current = v;
+        setS(v);
+      },
+      () => setFailed(true),
+    );
   }, []);
 
-  async function patch(p: Partial<Settings>) {
-    if (!s) return;
-    const prev = s;
-    setS({ ...s, ...p });
+  /** Computes the change from the latest value, shows it at once, and saves in order. On failure, re-fetch the truth. */
+  function patch(make: (cur: Settings) => Partial<Settings>) {
+    const cur = latest.current;
+    if (!cur) return;
+    const p = make(cur);
+    latest.current = { ...cur, ...p };
+    setS(latest.current);
     setSaveError(false);
-    try {
-      await updateSettings(p);
-    } catch {
-      setS(prev);
-      setSaveError(true);
-    }
+    chain.current = chain.current
+      .then(() => updateSettings(p))
+      .catch(async () => {
+        setSaveError(true);
+        try {
+          const fresh = await getSettings();
+          latest.current = fresh;
+          setS(fresh);
+        } catch {
+          /* keep the optimistic value; the error message is already shown */
+        }
+      });
   }
 
   async function signOut() {
@@ -47,19 +65,19 @@ export function SettingsScreen() {
           <div className="sec">
             <span className="ov">Monthly plan</span>
             <div className="list">
-              <AmountField label="Save every month" minor={s.monthly_savings_target_minor} onChange={(v) => void patch({ monthly_savings_target_minor: v ?? 0 })} />
-              <AmountField label="Invest every month" minor={s.monthly_investment_amount_minor} optional onChange={(v) => void patch({ monthly_investment_amount_minor: v })} />
+              <AmountField label="Save every month" minor={s.monthly_savings_target_minor} onChange={(f) => patch((c) => ({ monthly_savings_target_minor: f(c.monthly_savings_target_minor) ?? 0 }))} />
+              <AmountField label="Invest every month" minor={s.monthly_investment_amount_minor} optional onChange={(f) => patch((c) => ({ monthly_investment_amount_minor: f(c.monthly_investment_amount_minor) }))} />
               <div className="field">
                 <span>Emergency fund</span>
                 <div className="stepper">
-                  <button aria-label="Fewer months" onClick={() => void patch({ emergency_fund_months: Math.max(1, s.emergency_fund_months - 1) })}>−</button>
+                  <button aria-label="Fewer months" onClick={() => patch((c) => ({ emergency_fund_months: Math.max(1, c.emergency_fund_months - 1) }))}>−</button>
                   <b className="num">{s.emergency_fund_months} months</b>
-                  <button aria-label="More months" onClick={() => void patch({ emergency_fund_months: Math.min(36, s.emergency_fund_months + 1) })}>+</button>
+                  <button aria-label="More months" onClick={() => patch((c) => ({ emergency_fund_months: Math.min(36, c.emergency_fund_months + 1) }))}>+</button>
                 </div>
               </div>
               <label className="field">
                 <span>Timezone</span>
-                <select value={s.timezone} onChange={(e) => void patch({ timezone: e.target.value })}>
+                <select value={s.timezone} onChange={(e) => { const value = e.target.value; patch(() => ({ timezone: value })); }}>
                   {(ZONES.includes(s.timezone) ? ZONES : [s.timezone, ...ZONES]).map((z) => (
                     <option key={z} value={z}>{z}</option>
                   ))}
@@ -87,7 +105,7 @@ export function SettingsScreen() {
 }
 
 /** Stepper with +/- 10 000 Ft; tap the value to type an exact amount. `optional` allows empty (= not set). */
-function AmountField({ label, minor, optional = false, onChange }: { label: string; minor: number | null; optional?: boolean; onChange: (v: number | null) => void }) {
+function AmountField({ label, minor, optional = false, onChange }: { label: string; minor: number | null; optional?: boolean; onChange: (f: (cur: number | null) => number | null) => void }) {
   const [typing, setTyping] = useState(false);
   const [text, setText] = useState('');
   const ref = useRef<HTMLInputElement>(null);
@@ -98,16 +116,16 @@ function AmountField({ label, minor, optional = false, onChange }: { label: stri
   const clamp = (n: number) => Math.max(0, n);
   const commit = () => {
     setTyping(false);
-    if (text.trim() === '') return onChange(optional ? null : 0);
+    if (text.trim() === '') return onChange(() => (optional ? null : 0));
     const v = parseAmountInput(text);
-    if (v !== null) onChange(clamp(v));
+    if (v !== null) onChange(() => clamp(v));
   };
 
   return (
     <div className="field">
       <span>{label}</span>
       <div className="stepper">
-        <button aria-label={`Less ${label}`} onClick={() => onChange(clamp((minor ?? 0) - STEP))}>−</button>
+        <button aria-label={`Less ${label}`} onClick={() => onChange((c) => clamp((c ?? 0) - STEP))}>−</button>
         {typing ? (
           <input
             ref={ref}
@@ -132,7 +150,7 @@ function AmountField({ label, minor, optional = false, onChange }: { label: stri
             <b>{minor === null ? 'Not set' : formatMoney(minor, 'HUF')}</b>
           </button>
         )}
-        <button aria-label={`More ${label}`} onClick={() => onChange(clamp((minor ?? 0) + STEP))}>+</button>
+        <button aria-label={`More ${label}`} onClick={() => onChange((c) => clamp((c ?? 0) + STEP))}>+</button>
       </div>
     </div>
   );

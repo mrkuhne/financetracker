@@ -7,7 +7,7 @@ import { accountBalanceMinor } from '@/domain/balances';
 import { formatMoney } from '@/domain/money';
 import type { Account, Txn } from '@/domain/types';
 import { AccountSheet } from './AccountSheet';
-import { planAccountSave, type AccountDraft } from './accountRules';
+import { healAccounts, planAccountSave, type AccountDraft } from './accountRules';
 
 type Editing = { account?: Account } | null;
 
@@ -20,7 +20,17 @@ export function AccountsScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [a, t] = await Promise.all([listAccounts(), listAllTransactions()]);
+      const [a0, t] = await Promise.all([listAccounts(), listAllTransactions()]);
+      let a = a0;
+      const heal = healAccounts(a0);
+      if (heal.length) {
+        try {
+          for (const p of heal) await updateAccount(p.id, p.patch);
+          a = a0.map((x) => ({ ...x, ...(heal.find((p) => p.id === x.id)?.patch ?? {}) }));
+        } catch {
+          /* leave as loaded; will retry next visit */
+        }
+      }
       setAccounts(a);
       setTxns(t);
       setFailed(false);
@@ -34,13 +44,18 @@ export function AccountsScreen() {
 
   async function save(draft: AccountDraft) {
     const others = (accounts ?? []).filter((a) => a.id !== draft.id);
-    const { saved, patches } = planAccountSave(others, draft);
+    const { saved, patches, error } = planAccountSave(others, draft);
+    if (error) throw new Error(error);
     const { id, ...fields } = saved;
-    if (id) await updateAccount(id, fields);
-    else await createAccount(fields);
-    for (const p of patches) await updateAccount(p.id, p.patch);
-    setEditing(null);
-    await load();
+    try {
+      // Clear old default/target first, save the account last, so a failure never leaves two of either.
+      for (const p of patches) await updateAccount(p.id, p.patch);
+      if (id) await updateAccount(id, fields);
+      else await createAccount(fields);
+      setEditing(null);
+    } finally {
+      await load();
+    }
   }
 
   const visible = (accounts ?? []).filter((a) => showArchived || !a.archived);
@@ -65,7 +80,9 @@ export function AccountsScreen() {
         </div>
       )}
       {accounts === null && !failed && <div className="spinner" role="status" aria-label="Loading" style={{ justifySelf: 'center' }} />}
-      {accounts !== null && visible.length === 0 && <div className="card sub">No accounts yet. Tap + to add your first one.</div>}
+      {accounts !== null && visible.length === 0 && (
+        <div className="card sub">{accounts.length === 0 ? 'No accounts yet. Tap + to add your first one.' : 'Only archived accounts. Turn on Show archived to see them.'}</div>
+      )}
       {visible.length > 0 && (
         <div className="list">
           {visible.map((a) => (

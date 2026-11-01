@@ -42,15 +42,15 @@ export function AccountSheet({ account, onSave, onClose }: { account?: Account; 
         is_savings_target: type === 'savings' && isTarget,
         archived,
       });
-    } catch {
-      setError('Could not save. Try again.');
+    } catch (e) {
+      setError(e instanceof Error && e.message.startsWith('You need') ? e.message : 'Could not save. Try again.');
       setBusy(false);
     }
   }
 
   return (
     <>
-      <div className="scrim" onClick={onClose} />
+      <div className="scrim" onClick={() => !busy && onClose()} />
       <div className="sheet" role="dialog" aria-label={account ? 'Edit account' : 'New account'}>
         <span className="grab" />
         <div className="list">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planAccountSave, type AccountDraft } from './accountRules';
+import { healAccounts, planAccountSave, type AccountDraft } from './accountRules';
 import type { Account } from '@/domain/types';
 
 const acc = (o: Partial<Account> & { id: string }): Account => ({
@@ -50,5 +50,45 @@ describe('planAccountSave', () => {
   });
   it('a lone savings account stays target when edited', () => {
     expect(planAccountSave([], draft({ id: 's', type: 'savings', is_savings_target: false })).saved.is_savings_target).toBe(true);
+  });
+
+  it('archiving the default promotes the first non-archived account', () => {
+    const r = planAccountSave([acc({ id: 'x', archived: true }), acc({ id: 'b' })], draft({ id: 'a', is_default: true, archived: true }));
+    expect(r.saved.is_default).toBe(false);
+    expect(r.patches).toEqual([{ id: 'b', patch: { is_default: true } }]);
+  });
+  it('archiving the savings target promotes another active savings account', () => {
+    const r = planAccountSave(
+      [acc({ id: 'c', is_default: true }), acc({ id: 's2', type: 'savings' })],
+      draft({ id: 's1', type: 'savings', is_savings_target: true, archived: true }),
+    );
+    expect(r.saved.is_savings_target).toBe(false);
+    expect(r.patches).toEqual([{ id: 's2', patch: { is_savings_target: true } }]);
+  });
+  it('archiving the only active account is refused', () => {
+    const r = planAccountSave([acc({ id: 'x', archived: true })], draft({ id: 'a', archived: true }));
+    expect(r.error).toMatch(/not archived/);
+  });
+  it('archiving a non-default account changes nothing else', () => {
+    const r = planAccountSave([acc({ id: 'a', is_default: true })], draft({ id: 'b', archived: true }));
+    expect(r.patches).toEqual([]);
+    expect(r.error).toBeUndefined();
+  });
+});
+
+describe('healAccounts', () => {
+  it('keeps the first default and target, clears the rest', () => {
+    const r = healAccounts([
+      acc({ id: 'a', is_default: true }),
+      acc({ id: 'b', is_default: true, type: 'savings', is_savings_target: true }),
+      acc({ id: 'c', type: 'savings', is_savings_target: true }),
+    ]);
+    expect(r).toEqual([
+      { id: 'b', patch: { is_default: false } },
+      { id: 'c', patch: { is_savings_target: false } },
+    ]);
+  });
+  it('does nothing when consistent', () => {
+    expect(healAccounts([acc({ id: 'a', is_default: true })])).toEqual([]);
   });
 });
