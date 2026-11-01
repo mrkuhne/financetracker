@@ -72,8 +72,10 @@ export async function createTransfer(i: {
     recurring_rule_id: null,
     transfer_pair_id: pairId,
   });
-  await createTransaction(leg('transfer_out', i.fromAccountId));
-  await createTransaction(leg('transfer_in', i.toAccountId));
+  await base44.entities.Transaction.bulkCreate([
+    stripNulls(leg('transfer_out', i.fromAccountId)),
+    stripNulls(leg('transfer_in', i.toAccountId)),
+  ]);
   return pairId;
 }
 
