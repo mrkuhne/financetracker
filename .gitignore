@@ -1,6 +1,21 @@
 .superpowers/
-node_modules/
-dist/
+# Dependencies
+node_modules
+
+# Build
+dist
+
+# Environment
 .env
-.env.local
+.env.*
+*.local
+
+# Editor
+.vscode
+.idea
 .DS_Store
+*.swp
+
+# Base44
+.app.json*
+.types/
