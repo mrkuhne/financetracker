@@ -24,14 +24,20 @@
       "type": "integer"
     },
     "category_id": {
-      "type": "string"
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "date": {
       "type": "string",
       "format": "date"
     },
     "note": {
-      "type": "string"
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "source": {
       "type": "string",
@@ -45,10 +51,16 @@
       "type": "boolean"
     },
     "recurring_rule_id": {
-      "type": "string"
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "transfer_pair_id": {
-      "type": "string"
+      "type": [
+        "string",
+        "null"
+      ]
     }
   },
   "required": [

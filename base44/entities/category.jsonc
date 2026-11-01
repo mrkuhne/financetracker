@@ -16,7 +16,10 @@
       "type": "string"
     },
     "monthly_budget_minor": {
-      "type": "integer"
+      "type": [
+        "integer",
+        "null"
+      ]
     }
   },
   "required": [

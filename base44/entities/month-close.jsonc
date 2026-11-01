@@ -21,7 +21,10 @@
       ]
     },
     "transfer_pair_id": {
-      "type": "string"
+      "type": [
+        "string",
+        "null"
+      ]
     }
   },
   "required": [

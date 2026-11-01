@@ -13,7 +13,10 @@
       "type": "integer"
     },
     "monthly_investment_amount_minor": {
-      "type": "integer"
+      "type": [
+        "integer",
+        "null"
+      ]
     },
     "emergency_fund_months": {
       "type": "number"
