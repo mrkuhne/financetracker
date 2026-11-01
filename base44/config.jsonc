@@ -5,7 +5,7 @@
 {
   "name": "finance-tracker",
 
-  "visibility": "public",
+  "visibility": "private",
 
   // Site/hosting configuration for the client application
   // Docs: https://docs.base44.com/developers/backend/overview/project-structure
