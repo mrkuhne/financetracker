@@ -85,4 +85,53 @@ describe('allowance', () => {
       .toBe(-141_000_00);
     expect(computeWeeklyAllowance({ today: '2026-11-16', rules, txns: broke, settings, previousDeficitMinor: 0 }).budgetMinor).toBe(0);
   });
+
+  describe('recurring totals do not rewrite the past', () => {
+    const noSettings: Settings = { ...settings, monthly_savings_target_minor: 0, monthly_investment_amount_minor: null };
+    const weekly = (o: Partial<RecurringRule> = {}): RecurringRule => ({
+      ...rule('gym', 'expense', 10_000_00, '2026-11-02'), frequency: 'weekly', ...o,
+    });
+    const linked = (d: string, a: number, id = 'gym') => expense(d, a, { recurring_rule_id: id, source: 'recurring' });
+    const month = (r: RecurringRule[], t: Txn[]) =>
+      computeMonthlyAllowance({ month: '2026-11', rules: r, txns: t, settings: noSettings, previousDeficitMinor: 0 });
+
+    it('counts the materialized txn instead of its occurrence', () => {
+      // Occurrences: 11-02, 09, 16, 23, 30. One materialized at a different (old) amount.
+      const r = [weekly({ last_materialized_date: '2026-11-02' })];
+      expect(month(r, [linked('2026-11-02', 9_000_00)]).recurringExpensesMinor).toBe(9_000_00 + 4 * 10_000_00);
+    });
+
+    it('paused after its charge: charge still counted, later occurrences not', () => {
+      const r = [weekly({ active: false, last_materialized_date: '2026-11-09' })];
+      const t = [linked('2026-11-02', 10_000_00), linked('2026-11-09', 10_000_00)];
+      expect(month(r, t).recurringExpensesMinor).toBe(20_000_00);
+    });
+
+    it("deleted rule's txns still counted", () => {
+      expect(month([], [linked('2026-11-02', 10_000_00)]).recurringExpensesMinor).toBe(10_000_00);
+      expect(month([], [linked('2026-11-02', 10_000_00)]).spentMinor).toBe(0);
+    });
+
+    it('re-priced rule: past at the old amount, future at the new', () => {
+      const r = [weekly({ amount_minor: 12_000_00, amount_huf_minor: 12_000_00, last_materialized_date: '2026-11-09' })];
+      const t = [linked('2026-11-02', 10_000_00), linked('2026-11-09', 10_000_00)];
+      expect(month(r, t).recurringExpensesMinor).toBe(2 * 10_000_00 + 3 * 12_000_00);
+    });
+
+    it('rule with end_date before the month counts 0', () => {
+      expect(month([weekly({ start_date: '2026-09-07', end_date: '2026-10-31' })], []).recurringExpensesMinor).toBe(0);
+    });
+
+    it('rule-linked income txn is recurring income, not one-off', () => {
+      const t = [income('2026-11-10', 600_000_00, { recurring_rule_id: 'gone', source: 'recurring' }), income('2026-11-12', 5_000_00)];
+      const a = month([], t);
+      expect(a.recurringIncomeMinor).toBe(600_000_00);
+      expect(a.oneOffIncomeMinor).toBe(5_000_00);
+    });
+
+    it('does not count occurrences up to last_materialized_date that were never written (schedule edit / re-activation)', () => {
+      const r = [weekly({ last_materialized_date: '2026-11-15' })];
+      expect(month(r, []).recurringExpensesMinor).toBe(3 * 10_000_00); // 16, 23, 30
+    });
+  });
 });

@@ -16,12 +16,27 @@ export interface WeeklyAllowance {
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 
-function ruleTotal(rules: RecurringRule[], kind: RecurringRule['kind'], month: YearMonth): number {
-  return sum(
-    rules
-      .filter((r) => r.active && r.kind === kind)
-      .map((r) => r.amount_huf_minor * occurrencesInRange(r, firstDay(month), lastDay(month)).length),
-  );
+/**
+ * Recurring income/expense of `month`, without rewriting the past:
+ *  - every rule-linked txn dated in the month counts at its own amount, whatever the rule's
+ *    current state (paused, deleted, re-priced);
+ *  - plus the CURRENT amount of each occurrence of an ACTIVE rule in the month that is not yet
+ *    materialized: after `last_materialized_date` and without a linked txn on that date.
+ *    Occurrences on or before `last_materialized_date` with no txn were deliberately skipped
+ *    (schedule edit, re-activation after a pause, or a deleted entry) and never will be written.
+ */
+function recurringTotal(rules: RecurringRule[], inMonth: Txn[], kind: RecurringRule['kind'], month: YearMonth): number {
+  const linked = inMonth.filter((t) => t.kind === kind && t.recurring_rule_id !== null);
+  const have = new Set(linked.map((t) => `${t.recurring_rule_id}|${t.date}`));
+  const projected = rules
+    .filter((r) => r.active && r.kind === kind)
+    .flatMap((r) =>
+      occurrencesInRange(r, firstDay(month), lastDay(month))
+        .filter((d) => !r.last_materialized_date || compareDates(d, r.last_materialized_date) > 0)
+        .filter((d) => !have.has(`${r.id}|${d}`))
+        .map(() => r.amount_huf_minor),
+    );
+  return sum(linked.map((t) => t.amount_huf_minor)) + sum(projected);
 }
 
 const isSpend = (t: Txn) => t.kind === 'expense' && t.recurring_rule_id === null;
@@ -30,8 +45,8 @@ export function computeMonthlyAllowance(i: {
   month: YearMonth; rules: RecurringRule[]; txns: Txn[]; settings: Settings; previousDeficitMinor: number;
 }): MonthlyAllowance {
   const inMonth = i.txns.filter((t) => monthOf(t.date) === i.month);
-  const recurringIncomeMinor = ruleTotal(i.rules, 'income', i.month);
-  const recurringExpensesMinor = ruleTotal(i.rules, 'expense', i.month);
+  const recurringIncomeMinor = recurringTotal(i.rules, inMonth, 'income', i.month);
+  const recurringExpensesMinor = recurringTotal(i.rules, inMonth, 'expense', i.month);
   const oneOffIncomeMinor = sum(
     inMonth.filter((t) => t.kind === 'income' && t.recurring_rule_id === null).map((t) => t.amount_huf_minor),
   );
