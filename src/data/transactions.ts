@@ -1,6 +1,6 @@
 import { base44 } from '@/data/client';
-import type { ISODate, Txn, YearMonth } from '@/domain/types';
-import { monthOf } from '@/domain/dates';
+import type { ISODate, Txn } from '@/domain/types';
+import { toHufMinor } from '@/domain/money';
 import { getHufPerUnit } from '@/data/fx';
 import { pick, stripNulls } from '@/data/records';
 
@@ -58,7 +58,7 @@ export async function createTransfer(i: {
 }): Promise<string> {
   const pairId = crypto.randomUUID();
   const rate = await getHufPerUnit(i.currency, i.date);
-  const amountHuf = Math.round(i.amountMinor * rate);
+  const amountHuf = toHufMinor(i.amountMinor, rate);
   const leg = (kind: 'transfer_out' | 'transfer_in', accountId: string): Omit<Txn, 'id'> => ({
     account_id: accountId,
     kind,
@@ -78,9 +78,4 @@ export async function createTransfer(i: {
     stripNulls(leg('transfer_in', i.toAccountId)),
   ]);
   return pairId;
-}
-
-export async function earliestTransactionMonth(): Promise<YearMonth | null> {
-  const rows = await base44.entities.Transaction.list('date', 1);
-  return rows.length ? monthOf(rows[0].date as string) : null;
 }

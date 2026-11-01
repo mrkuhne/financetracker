@@ -5,14 +5,18 @@ vi.mock('@/data/categories', () => ({ ensureDefaultCategories: () => ensure() })
 
 const materialize = vi.fn(async (_today: string) => 0);
 vi.mock('./runMaterialize', () => ({ runMaterialize: (t: string) => materialize(t) }));
-vi.mock('@/data/monthCloses', () => ({ listMonthCloses: async () => [] }));
-vi.mock('@/data/transactions', () => ({ earliestTransactionMonth: async () => '2026-09' }));
 vi.mock('@/data/settings', () => ({ getSettings: async () => ({ timezone: 'Europe/Budapest' }) }));
+const notify = vi.fn();
+vi.mock('@/features/transactions/events', () => ({ notifyTxnsChanged: () => notify() }));
+const today = vi.fn(() => '2026-11-01');
+vi.mock('@/domain/dates', () => ({ todayInTz: () => today() }));
 
 describe('runStartup', () => {
   beforeEach(() => {
     ensure.mockClear();
     materialize.mockClear();
+    notify.mockClear();
+    today.mockReturnValue('2026-11-01');
     vi.resetModules();
   });
 
@@ -31,18 +35,26 @@ describe('runStartup', () => {
     expect(ensure).toHaveBeenCalledTimes(2);
   });
 
-  it('reports pending month closes oldest first', async () => {
-    const { runStartup } = await import('./startup');
-    const { pendingCloses } = await runStartup();
-    expect(pendingCloses.length).toBeGreaterThanOrEqual(1);
-    expect(pendingCloses[0]).toBe('2026-09');
-  });
-
   it('does not fail startup when materialization throws', async () => {
     const { runStartup } = await import('./startup');
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     materialize.mockRejectedValueOnce(new Error('offline'));
     await expect(runStartup()).resolves.toMatchObject({ ok: true });
     spy.mockRestore();
+  });
+
+  it('re-materializes on resume only when the day changed', async () => {
+    const { runStartup, resumeIfNewDay } = await import('./startup');
+    await runStartup();
+    await resumeIfNewDay();
+    expect(materialize).toHaveBeenCalledTimes(1);
+    today.mockReturnValue('2026-11-02');
+    materialize.mockResolvedValueOnce(2);
+    await resumeIfNewDay();
+    expect(materialize).toHaveBeenLastCalledWith('2026-11-02');
+    expect(materialize).toHaveBeenCalledTimes(2);
+    expect(notify).toHaveBeenCalledTimes(1);
+    await resumeIfNewDay();
+    expect(materialize).toHaveBeenCalledTimes(2);
   });
 });
