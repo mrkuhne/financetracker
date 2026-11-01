@@ -6,6 +6,7 @@ import {
   RecurringScreen,
   TransactionsScreen,
 } from '@/features/shell/routes';
+import { BreakdownScreen } from '@/features/home/HomeScreen';
 import { AccountsScreen } from '@/features/accounts/AccountsScreen';
 import { SettingsScreen } from '@/features/settings/SettingsScreen';
 
@@ -16,6 +17,7 @@ export default function App() {
         <Routes>
           <Route element={<AppShell />}>
             <Route path="/" element={<HomeScreen />} />
+            <Route path="/breakdown" element={<BreakdownScreen />} />
             <Route path="/transactions" element={<TransactionsScreen />} />
             <Route path="/recurring" element={<RecurringScreen />} />
             <Route path="/accounts" element={<AccountsScreen />} />
