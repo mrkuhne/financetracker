@@ -126,3 +126,9 @@ export function findCloseTransfer(
     txns.some((p) => p.kind === 'transfer_in' && p.transfer_pair_id === t.transfer_pair_id && p.account_id === q.toAccountId));
   return out?.transfer_pair_id ?? null;
 }
+
+/** First letter of the signed-in user's full name, else their email, upper-cased. */
+export function avatarInitial(user: { full_name?: string | null; email?: string | null } | null | undefined): string {
+  const src = user?.full_name?.trim() || user?.email?.trim() || '';
+  return src ? src[0].toLocaleUpperCase() : '?';
+}

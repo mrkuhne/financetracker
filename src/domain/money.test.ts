@@ -19,4 +19,9 @@ describe('money', () => {
     expect(formatMoney(28_500_000, 'HUF').replace(/\s/g, ' ')).toBe('285 000 Ft');
     expect(formatMoney(1_050, 'EUR')).toMatch(/10[.,]50/);
   });
+  it('never renders negative zero', () => {
+    expect(formatMoney(-0, 'HUF').replace(/\s/g, ' ')).toBe('0 Ft');
+    expect(formatMoney(-40, 'HUF').replace(/\s/g, ' ')).toBe('0 Ft'); // rounds to zero
+    expect(formatMoney(-0.4, 'EUR')).not.toMatch(/[-−]/);
+  });
 });

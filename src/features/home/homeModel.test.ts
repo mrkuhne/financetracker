@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Account, MonthClose, RecurringRule, Settings, Txn } from '@/domain/types';
-import { buildHomeModel, canMoveLeftover, closeRecord, findCloseTransfer, summarizeClose } from './homeModel';
+import { avatarInitial, buildHomeModel, canMoveLeftover, closeRecord, findCloseTransfer, summarizeClose } from './homeModel';
 
 const base = {
   id: 't', account_id: 'a1', amount_minor: 0, currency: 'HUF', amount_huf_minor: 0,
@@ -138,5 +138,13 @@ describe('canMoveLeftover', () => {
     expect(canMoveLeftover(a('a1', 'HUF', { is_default: true }), a('s', 'HUF', { is_savings_target: true }))).toBe(true);
     expect(canMoveLeftover(a('a1', 'HUF', { is_default: true }), a('s', 'EUR', { is_savings_target: true }))).toBe(false);
     expect(canMoveLeftover(undefined, a('s', 'HUF'))).toBe(false);
+  });
+});
+
+describe('avatarInitial', () => {
+  it('uses full name, then email, then a neutral fallback', () => {
+    expect(avatarInitial({ full_name: 'dániel kühne', email: 'x@y.z' })).toBe('D');
+    expect(avatarInitial({ full_name: '  ', email: 'kate@example.com' })).toBe('K');
+    expect(avatarInitial(null)).toBe('?');
   });
 });

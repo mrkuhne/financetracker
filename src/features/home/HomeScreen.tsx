@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { base44 } from '@/data/client';
 import { listCategories, type Category } from '@/data/categories';
 import { formatMoney } from '@/domain/money';
 import type { Txn } from '@/domain/types';
@@ -9,7 +10,7 @@ import { CatIcon } from '@/features/transactions/CatIcon';
 import { monthLabel } from '@/features/transactions/txLogic';
 import { AllowanceBreakdown } from './AllowanceBreakdown';
 import { huf, hufNum } from './fmt';
-import { summarizeClose } from './homeModel';
+import { avatarInitial, summarizeClose } from './homeModel';
 import { MonthClosePrompt } from './MonthClosePrompt';
 import { useHomeData } from './useHomeData';
 
@@ -31,11 +32,16 @@ export function HomeScreen() {
   const [open, setOpen] = useState(false);
   // Transfer already written for a month whose MonthClose is not saved yet; survives sheet unmount.
   const [transfers, setTransfers] = useState<Record<string, string>>({});
+  const [initial, setInitial] = useState('');
   useEffect(() => { void listCategories().then(setCategories).catch(() => {}); }, []);
+  useEffect(() => {
+    void base44.auth.me().then((u) => setInitial(avatarInitial(u as { full_name?: string; email?: string }))).catch(() => {});
+  }, []);
+  const avatar = <Link to="/settings" className="av" aria-label="Settings">{initial}</Link>;
   const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
   const shell = (body: React.ReactNode, title = 'Home') => (
-    <Screen title={title} big right={<Link to="/settings" className="av" aria-label="Settings">D</Link>}>{body}</Screen>
+    <Screen title={title} big right={avatar}>{body}</Screen>
   );
   if (!data) {
     return shell(failed
@@ -75,7 +81,7 @@ export function HomeScreen() {
   };
 
   return (
-    <Screen title={monthLabel(m.month).split(' ')[0]} big right={<Link to="/settings" className="av" aria-label="Settings">D</Link>}>
+    <Screen title={monthLabel(m.month).split(' ')[0]} big right={avatar}>
       {summary && (
         <button className="banner" onClick={() => { setDismissed(false); setOpen(true); }}>
           <span className="bi"><Icon name="piggy" /></span>

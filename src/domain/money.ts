@@ -23,5 +23,11 @@ export function formatMoney(minor: number, currency: string): string {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
     useGrouping: 'always',
-  } as Intl.NumberFormatOptions).format(fromMinor(minor));
+  } as Intl.NumberFormatOptions).format(roundedMajor(minor, digits));
+}
+
+/** Round to the displayed precision first so values that show as zero never render as "−0". */
+function roundedMajor(minor: number, digits: number): number {
+  const scale = 10 ** digits;
+  return roundHalfAwayFromZero(fromMinor(minor) * scale) / scale || 0;
 }
