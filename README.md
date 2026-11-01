@@ -1,41 +1,37 @@
-# Todo App
+# Finance Tracker
 
-A simple todo list app built with React and Base44 backend.
+A personal finance PWA: accounts, transactions, recurring income and bills, and a weekly/monthly
+spending allowance (with month-end close to Savings). All amounts are tracked in their account's
+currency and valued in HUF.
 
-## Structure
+## Stack
 
-```
-base44/               # Backend configuration
-├── config.jsonc      # Project settings
-└── entities/         # Data schemas
-    └── Task.jsonc    # Task entity
+- [Base44](https://base44.com) backend (entities, auth, hosting)
+- Vite + React 18 + TypeScript (strict) + Tailwind CSS, installable as a PWA
+- Vitest for the pure domain logic (`src/domain`) and feature models
 
-src/                  # Frontend code
-├── App.jsx           # Main todo app
-├── api/              # Base44 client
-├── components/ui/    # UI components
-└── lib/              # Utilities
-```
+Layout: `src/domain` (pure, tested money/date/allowance logic), `src/data` (Base44 data access),
+`src/features` (screens), `src/app` (startup and recurring materialization), `base44/` (entity schemas).
 
-## Development
+## Getting started
 
 ```bash
 npm install
-npm run dev
+base44 login
+base44 link    # fresh clone only: base44/.app.jsonc is gitignored
+base44 dev     # local dev server
 ```
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start dev server |
-| `npm run build` | Build for production |
-| `npm run preview` | Preview production build |
+| Command | What it does |
+|---------|--------------|
+| `npm test` | Run the unit tests |
+| `npm run build` | Type-check and build |
+| `base44 deploy` | Deploy backend and hosting |
 
-## Base44 CLI
+## Docs
 
-```bash
-base44 login          # Authenticate
-base44 entities push  # Push entity schemas
-base44 deploy         # Deploy backend + hosting
-```
+- Design spec: [docs/superpowers/specs](docs/superpowers/specs)
+- Implementation plans: [docs/superpowers/plans](docs/superpowers/plans)
+- Visual prototype: [docs/prototype](docs/prototype)
