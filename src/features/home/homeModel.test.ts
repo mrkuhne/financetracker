@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Account, MonthClose, RecurringRule, Settings, Txn } from '@/domain/types';
-import { buildHomeModel, closeRecord, summarizeClose } from './homeModel';
+import { buildHomeModel, canMoveLeftover, closeRecord, findCloseTransfer, summarizeClose } from './homeModel';
 
 const base = {
   id: 't', account_id: 'a1', amount_minor: 0, currency: 'HUF', amount_huf_minor: 0,
@@ -42,7 +42,7 @@ describe('buildHomeModel', () => {
     expect(m.weekly.budgetMinor).toBe(6_879_310);
     expect(m.daysLeftInMonth).toBe(27);
     expect(m.daysLeftInWeek).toBe(5);
-    expect(m.dailyShareMinor).toBeCloseTo(6_879_310 / 7);
+    expect(m.dailyShareMinor).toBeCloseTo(6_879_310 / 7); // all 7 days counted
   });
 
   it('bars', () => {
@@ -68,7 +68,7 @@ describe('buildHomeModel', () => {
   it('balances skip archived and convert foreign currency', () => {
     expect(m.accounts.map((a) => a.account.id)).toEqual(['a1', 'a2', 'a4']);
     expect(m.totalBalanceHufMinor).toBe(
-      (1_000_000_00 - 15_000_00 - 10_000_00 - 200_000_00 - 50_000_00 - 2_53 + 20_000_00) + 50_000_00 + 100_00 * 400,
+      (1_000_000_00 - 15_000_00 - 10_000_00 - 200_000_00 - 50_000_00 - 1_000_00 + 20_000_00) + 50_000_00 + 100_00 * 400, // EUR txn on a HUF account counts at its HUF value
     );
   });
 
@@ -103,5 +103,40 @@ describe('summarizeClose / closeRecord', () => {
     const s = summarizeClose({ month: '2026-11', rules, txns: big, settings, closes });
     expect(s.deficitMinor).toBe(41_000_00);
     expect(closeRecord(s, 'ok', null)).toEqual({ month: '2026-11', final_remaining_minor: -41_000_00, deficit_minor: 41_000_00, leftover_action: 'none', transfer_pair_id: null });
+  });
+});
+
+describe('daily share uses counted days', () => {
+  it('week starting in the previous month divides by the counted days only', () => {
+    const r = [rule('salary', 'income', 650_000_00, '2026-09-10')];
+    const s2: Settings = { ...settings, monthly_savings_target_minor: 20_000_00, monthly_investment_amount_minor: null };
+    const d = buildHomeModel({ today: '2026-11-01', rules: r, txns: [mk('expense', '2026-11-01', 2_400_00)], settings: s2, closes: [], accounts: [] });
+    expect(d.weekly.budgetMinor).toBe(21_000_00);
+    expect(d.dailyShareMinor).toBe(21_000_00); // only Sun 1 Nov is counted
+    expect(d.bars[6].over).toBe(false);
+  });
+});
+
+describe('findCloseTransfer', () => {
+  const leg = (kind: Txn['kind'], account: string, o: Partial<Txn> = {}) =>
+    mk(kind, '2026-10-31', 50_000_00, { account_id: account, transfer_pair_id: 'p1', ...o });
+  const q = { fromAccountId: 'a1', toAccountId: 'sav', date: '2026-10-31', amountMinor: 50_000_00 };
+  it('finds an existing transfer from default to savings on the last day with the same amount', () => {
+    expect(findCloseTransfer([leg('transfer_out', 'a1'), leg('transfer_in', 'sav')], q)).toBe('p1');
+  });
+  it('ignores different amount, date, accounts or a missing pair', () => {
+    expect(findCloseTransfer([leg('transfer_out', 'a1', { amount_minor: 1 }), leg('transfer_in', 'sav')], q)).toBeNull();
+    expect(findCloseTransfer([leg('transfer_out', 'a1', { date: '2026-10-30' }), leg('transfer_in', 'sav')], q)).toBeNull();
+    expect(findCloseTransfer([leg('transfer_out', 'a1'), leg('transfer_in', 'other')], q)).toBeNull();
+    expect(findCloseTransfer([leg('transfer_out', 'a1', { transfer_pair_id: null })], q)).toBeNull();
+  });
+});
+
+describe('canMoveLeftover', () => {
+  const a = (id: string, currency: string, o: Partial<Account> = {}) => acct(id, { currency, ...o });
+  it('needs a default and a savings target in the same currency', () => {
+    expect(canMoveLeftover(a('a1', 'HUF', { is_default: true }), a('s', 'HUF', { is_savings_target: true }))).toBe(true);
+    expect(canMoveLeftover(a('a1', 'HUF', { is_default: true }), a('s', 'EUR', { is_savings_target: true }))).toBe(false);
+    expect(canMoveLeftover(undefined, a('s', 'HUF'))).toBe(false);
   });
 });

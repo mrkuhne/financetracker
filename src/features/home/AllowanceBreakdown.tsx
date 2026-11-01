@@ -41,7 +41,7 @@ export function AllowanceBreakdown({ model, rules }: { model: HomeModel; rules: 
               <b className="num">{huf(p.portionMinor)}</b>
             </div>
           ))}
-          <div><span>Daily share × 7 days</span><b className="num">{huf(model.dailyShareMinor)} × 7</b></div>
+          <div><span>Daily share × {model.countedDays} day{model.countedDays === 1 ? '' : 's'}</span><b className="num">{huf(model.dailyShareMinor)} × {model.countedDays}</b></div>
           <div className="tot"><span>Week budget</span><b className="num">{huf(w.budgetMinor)}</b></div>
           <div><span>Spent this week</span><b className="num">{huf(-w.spentMinor)}</b></div>
           <div className="tot"><span>Left this week</span><b className={`num${w.remainingMinor < 0 ? ' neg' : ''}`}>{huf(w.remainingMinor)}</b></div>

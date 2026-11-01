@@ -16,8 +16,9 @@ export interface HomeModel {
   weekly: WeeklyAllowance;
   daysLeftInMonth: number; // including today
   daysLeftInWeek: number; // including today
+  countedDays: number; // days of the week that belong to the budget (from countedFrom)
   perDayLeftMinor: number; // max(0, week remaining) / days left in week
-  dailyShareMinor: number; // week budget / 7
+  dailyShareMinor: number; // week budget / counted days (countedFrom..weekEnd)
   bars: DayBar[];
   accounts: AccountView[];
   totalBalanceHufMinor: number;
@@ -39,7 +40,8 @@ export function buildHomeModel(i: {
   const prevDef = previousDeficit(month, i.closes);
   const monthly = computeMonthlyAllowance({ month, rules: i.rules, txns: i.txns, settings: i.settings, previousDeficitMinor: prevDef });
   const weekly = computeWeeklyAllowance({ today: i.today, rules: i.rules, txns: i.txns, settings: i.settings, previousDeficitMinor: prevDef });
-  const dailyShareMinor = weekly.budgetMinor / 7;
+  const countedDays = daysBetweenInclusive(weekly.countedFrom, weekly.weekEnd);
+  const dailyShareMinor = weekly.budgetMinor / countedDays;
 
   const bars: DayBar[] = Array.from({ length: 7 }, (_, n) => {
     const date = addDays(weekly.weekStart, n);
@@ -63,7 +65,7 @@ export function buildHomeModel(i: {
   const byDateDesc = (a: Txn, b: Txn) =>
     compareDates(b.date, a.date) || (b.created_date ?? '').localeCompare(a.created_date ?? '') || b.id.localeCompare(a.id);
   return {
-    month, monthly, weekly, daysLeftInMonth, daysLeftInWeek,
+    month, monthly, weekly, daysLeftInMonth, daysLeftInWeek, countedDays,
     perDayLeftMinor: Math.max(0, weekly.remainingMinor) / daysLeftInWeek,
     dailyShareMinor, bars,
     accounts,
@@ -103,4 +105,24 @@ export function closeRecord(
     leftover_action: choice === 'move' ? 'transferred' : 'kept',
     transfer_pair_id: choice === 'move' ? transferPairId : null,
   };
+}
+
+/** Leftover can be moved only between a default account and a savings target of the same currency. */
+export function canMoveLeftover(from: Account | undefined, to: Account | undefined): boolean {
+  return !!from && !!to && from.currency === to.currency;
+}
+
+/**
+ * A month-close transfer already written (e.g. the MonthClose save failed and the app was reloaded):
+ * a transfer_out from the default account dated `date` with the same amount, whose pair leg goes into
+ * the savings target. Returns its transfer_pair_id, or null.
+ */
+export function findCloseTransfer(
+  txns: Txn[], q: { fromAccountId: string; toAccountId: string; date: ISODate; amountMinor: number },
+): string | null {
+  const out = txns.find((t) =>
+    t.kind === 'transfer_out' && t.account_id === q.fromAccountId && t.date === q.date && t.amount_minor === q.amountMinor &&
+    t.transfer_pair_id !== null &&
+    txns.some((p) => p.kind === 'transfer_in' && p.transfer_pair_id === t.transfer_pair_id && p.account_id === q.toAccountId));
+  return out?.transfer_pair_id ?? null;
 }

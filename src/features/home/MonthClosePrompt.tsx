@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createMonthClose } from '@/data/monthCloses';
-import { createTransfer } from '@/data/transactions';
+import { createTransfer, listTransactions } from '@/data/transactions';
 import { getHufPerUnit } from '@/data/fx';
 import { lastDay } from '@/domain/dates';
 import type { Account } from '@/domain/types';
@@ -9,7 +9,7 @@ import { Icon } from '@/features/shell/Icons';
 import { monthLabel } from '@/features/transactions/txLogic';
 import { notifyTxnsChanged } from '@/features/transactions/events';
 import { huf, hufNum } from './fmt';
-import { closeRecord, type CloseSummary } from './homeModel';
+import { canMoveLeftover, closeRecord, findCloseTransfer, type CloseSummary } from './homeModel';
 
 /** Bottom sheet for ONE pending month (the caller passes the oldest first and re-renders with the next after `onClosed`). */
 export function MonthClosePrompt({ summary, accounts, transferPairId, onTransferred, onClosed, onDismiss }: {
@@ -19,6 +19,8 @@ export function MonthClosePrompt({ summary, accounts, transferPairId, onTransfer
   const from = active.find((a) => a.is_default);
   const to = active.find((a) => a.is_savings_target);
   const { month, leftoverMinor, deficitMinor, allowance } = summary;
+  const canMove = canMoveLeftover(from, to);
+  const currencyMismatch = !!from && !!to && !canMove;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const inFlight = useRef(false);
@@ -34,12 +36,16 @@ export function MonthClosePrompt({ summary, accounts, transferPairId, onTransfer
     setError('');
     try {
       if (choice === 'move' && leftoverMinor > 0 && !pairId.current) {
-        if (!from || !to) throw new Error('missing accounts');
+        if (!from || !to || !canMoveLeftover(from, to)) throw new Error('cannot move');
         const date = lastDay(month);
         const rate = await getHufPerUnit(from.currency, date);
-        pairId.current = await createTransfer({
-          fromAccountId: from.id, toAccountId: to.id, currency: from.currency, date,
-          amountMinor: from.currency === 'HUF' ? leftoverMinor : Math.round(leftoverMinor / rate),
+        const amountMinor = from.currency === 'HUF' ? leftoverMinor : Math.round(leftoverMinor / rate);
+        // After a reload the in-memory pair id is gone: reuse a transfer already written for this close.
+        const existing = findCloseTransfer(await listTransactions({ from: date, to: date }), {
+          fromAccountId: from.id, toAccountId: to.id, date, amountMinor,
+        });
+        pairId.current = existing ?? await createTransfer({
+          fromAccountId: from.id, toAccountId: to.id, currency: from.currency, date, amountMinor,
           note: `${monthLabel(month)} leftover`,
         });
         onTransferred(pairId.current);
@@ -89,10 +95,14 @@ export function MonthClosePrompt({ summary, accounts, transferPairId, onTransfer
           </>
         ) : (
           <>
-            {to && from ? (
+            {canMove ? (
               <button className="btn" disabled={busy} onClick={() => void act('move')}>
                 <Icon name="piggy" />Move to Savings
               </button>
+            ) : currencyMismatch ? (
+              <p className="note"><Icon name="info" />
+                <span>{from!.name} ({from!.currency}) and {to!.name} ({to!.currency}) use different currencies, so the leftover can't be moved automatically.</span>
+              </p>
             ) : (
               <p className="note"><Icon name="info" />
                 <span>
@@ -101,7 +111,7 @@ export function MonthClosePrompt({ summary, accounts, transferPairId, onTransfer
                 </span>
               </p>
             )}
-            <button className={`btn${to && from ? ' ghost' : ''}`} disabled={busy} onClick={() => void act('keep')}>
+            <button className={`btn${canMove ? ' ghost' : ''}`} disabled={busy} onClick={() => void act('keep')}>
               Keep it{from ? ` in ${from.name}` : ''}
             </button>
           </>
