@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Category } from '@/data/categories';
 import type { Txn } from '@/domain/types';
-import { applyKey, dayLabel, groupByDay, needsHufRecompute, recentCategoryIds } from './txLogic';
+import { applyKey, normalizeAmountFor, dayLabel, groupByDay, needsHufRecompute, recentCategoryIds } from './txLogic';
 
 const cat = (id: string, kind: 'expense' | 'income' = 'expense'): Category => ({ id, name: id, kind, icon: 'dots', monthly_budget_minor: null });
 const tx = (p: Partial<Txn>): Txn => ({
@@ -92,5 +92,13 @@ describe('dayLabel', () => {
     expect(dayLabel('2026-11-01', '2026-11-01')).toBe('Today');
     expect(dayLabel('2026-10-31', '2026-11-01')).toBe('Yesterday');
     expect(dayLabel('2026-10-28', '2026-11-01')).toBe('Wed 28 Oct');
+  });
+});
+
+describe('normalizeAmountFor', () => {
+  it('truncates the fraction for integer currencies', () => {
+    expect(normalizeAmountFor('12,5', false)).toBe('12');
+    expect(normalizeAmountFor('0,', false)).toBe('0');
+    expect(normalizeAmountFor('12,5', true)).toBe('12,5');
   });
 });

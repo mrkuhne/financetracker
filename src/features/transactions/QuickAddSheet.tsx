@@ -10,7 +10,7 @@ import { toHufMinor } from '@/domain/money';
 import { parseAmountInput } from '@/lib/amountInput';
 import type { Account, ISODate, Txn } from '@/domain/types';
 import { notifyTxnsChanged } from './events';
-import { applyKey, categoryColor, formatTyped, keysFor, recentCategoryIds } from './txLogic';
+import { applyKey, categoryColor, formatTyped, keysFor, normalizeAmountFor, recentCategoryIds } from './txLogic';
 
 type Mode = 'expense' | 'income' | 'transfer';
 
@@ -81,6 +81,9 @@ function Sheet({ onClose }: { onClose: () => void }) {
   const byId = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
   const decimals = currency !== 'HUF';
+  useEffect(() => {
+    setAmount((a) => normalizeAmountFor(a, decimals));
+  }, [decimals]);
   const shown = formatTyped(amount);
   const hasMore = categories.filter((c) => c.kind === kind).length > 6;
   const unit = currency === 'HUF' ? 'Ft' : currency;
@@ -89,7 +92,7 @@ function Sheet({ onClose }: { onClose: () => void }) {
 
   async function saveExpenseOrIncome(categoryId: string) {
     if (inFlight.current) return;
-    const amountMinor = parseAmountInput(amount);
+    const amountMinor = parseAmountInput(normalizeAmountFor(amount, decimals));
     if (!amountMinor) return setError('Type an amount first.');
     if (!account) return setError('Add an account first.');
     inFlight.current = true;
@@ -123,7 +126,7 @@ function Sheet({ onClose }: { onClose: () => void }) {
   async function saveTransfer() {
     const to = accounts.find((a) => a.id === toAccountId);
     if (inFlight.current) return;
-    const amountMinor = parseAmountInput(amount);
+    const amountMinor = parseAmountInput(normalizeAmountFor(amount, decimals));
     if (!amountMinor) return setError('Type an amount first.');
     if (!account || !to) return setError('Pick both accounts.');
     if (account.id === to.id) return setError('Pick two different accounts.');

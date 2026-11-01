@@ -19,6 +19,11 @@ export function applyKey(amount: string, key: Key, decimals = false): string {
   return amount + key;
 }
 
+/** Drop the fraction when the currency has no decimals (HUF); no-op otherwise. */
+export function normalizeAmountFor(amount: string, decimals: boolean): string {
+  return decimals ? amount : amount.split(',')[0];
+}
+
 /** Display "12 500,5" style text for the in-progress amount. */
 export function formatTyped(amount: string): string {
   if (!amount) return '0';
