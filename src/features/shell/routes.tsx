@@ -1,3 +1,4 @@
+import { RecurringScreen } from '@/features/recurring/RecurringScreen';
 import { TransactionsScreen } from '@/features/transactions/TransactionsScreen';
 import { Link } from 'react-router-dom';
 import { Screen } from './Screen';
@@ -20,10 +21,6 @@ export const HomeScreen = () => (
     </Link>
   </Screen>
 );
-export const RecurringScreen = () => (
-  <Screen title="Recurring" back="/transactions">
-    <Soon text="Recurring rules arrive in a later task." />
-  </Screen>
-);
+export { RecurringScreen };
 
 export { TransactionsScreen };
