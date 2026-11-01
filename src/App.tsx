@@ -2,12 +2,12 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AuthGate } from '@/features/auth/AuthGate';
 import { AppShell } from '@/features/shell/AppShell';
 import {
-  AccountsScreen,
   HomeScreen,
   RecurringScreen,
-  SettingsScreen,
   TransactionsScreen,
 } from '@/features/shell/routes';
+import { AccountsScreen } from '@/features/accounts/AccountsScreen';
+import { SettingsScreen } from '@/features/settings/SettingsScreen';
 
 export default function App() {
   return (

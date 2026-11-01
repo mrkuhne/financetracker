@@ -101,3 +101,45 @@ svg.i { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-widt
 .spinner { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--hair); border-top-color: var(--accent); animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* ── shared prototype components (lists, fields, buttons, sheets) ── */
+.ov { font-size: 11px; font-weight: 600; letter-spacing: 1.1px; text-transform: uppercase; color: var(--faint); }
+.mid { font-family: var(--display); font-size: 34px; line-height: 1; letter-spacing: -.5px; }
+.sec { display: grid; gap: 10px; }
+.neg { color: var(--bad); } .pos { color: var(--good); }
+.pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600; background: var(--surf2); color: var(--sub); }
+.btn { display: flex; align-items: center; justify-content: center; gap: 8px; height: 50px; border-radius: 16px; background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 15px; width: 100%; }
+.btn.ghost { background: var(--surf2); color: var(--ink); }
+.btn:disabled { opacity: .5; cursor: default; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.list { background: var(--surf); border-radius: 20px; overflow: hidden; }
+.li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; width: 100%; text-align: left; position: relative; text-decoration: none; color: inherit; }
+.li + .li::before { content: ""; position: absolute; top: 0; left: 62px; right: 0; border-top: 1px solid var(--hair); }
+.ci { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; flex: 0 0 auto; color: var(--c); background: color-mix(in srgb, var(--c) 15%, transparent); }
+.ci svg { width: 19px; height: 19px; }
+.li .tx { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.li .tx strong { font-size: 14.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.li .tx span { font-size: 12px; color: var(--faint); display: flex; gap: 6px; align-items: center; }
+.li .amt { font-weight: 600; font-size: 14.5px; text-align: right; }
+.field { display: flex; justify-content: space-between; align-items: center; padding: 13px 14px; gap: 10px; }
+.field + .field { border-top: 1px solid var(--hair); }
+.field > span { color: var(--sub); }
+.field b { font-weight: 600; }
+.field input, .field select { background: transparent; border: 0; color: var(--ink); font: inherit; font-weight: 600; text-align: right; min-width: 0; flex: 1; }
+.field select option { color: #000; }
+.stepper { display: flex; align-items: center; gap: 10px; }
+.stepper button { width: 32px; height: 32px; border-radius: 10px; background: var(--surf2); font-size: 18px; font-weight: 600; display: grid; place-items: center; }
+.stepper b, .stepper input { min-width: 84px; text-align: center; }
+.stepper input { background: var(--surf2); border: 0; border-radius: 8px; height: 32px; color: var(--ink); font: inherit; font-weight: 600; width: 96px; flex: none; }
+.sw { width: 46px; height: 28px; border-radius: 999px; background: var(--surf2); position: relative; transition: background .2s; flex: none; }
+.sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--surf); box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .2s var(--ease); }
+.sw.on { background: var(--good); }
+.sw.on::after { transform: translateX(18px); }
+.note { font-size: 11.5px; color: var(--faint); line-height: 1.45; display: flex; gap: 8px; }
+.err { font-size: 12.5px; color: var(--bad); }
+.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 40; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 41; max-width: 560px; margin: 0 auto; background: var(--bg); border-radius: 28px 28px 0 0; padding: 10px 18px calc(28px + env(safe-area-inset-bottom, 0px)); max-height: 92dvh; overflow-y: auto; display: grid; gap: 14px; }
+.grab { width: 40px; height: 5px; border-radius: 3px; background: var(--surf2); justify-self: center; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--surf2); border-radius: 12px; padding: 3px; }
+.seg button { height: 32px; border-radius: 10px; font-size: 13px; font-weight: 600; color: var(--sub); }
+.seg button.on { background: var(--surf); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }

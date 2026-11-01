@@ -38,13 +38,3 @@ export const RecurringScreen = () => (
     <Soon text="Recurring rules arrive in a later task." />
   </Screen>
 );
-export const AccountsScreen = () => (
-  <Screen title="Accounts" back="/settings">
-    <Soon text="Accounts arrive in a later task." />
-  </Screen>
-);
-export const SettingsScreen = () => (
-  <Screen title="Settings" back="/">
-    <Soon text="Settings arrive in a later task." />
-  </Screen>
-);
