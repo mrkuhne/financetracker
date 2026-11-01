@@ -6,7 +6,6 @@ import { getHufPerUnit } from '@/data/fx';
 import { formatMoney, fromMinor, toHufMinor } from '@/domain/money';
 import type { Account, Txn } from '@/domain/types';
 import { parseAmountInput } from '@/lib/amountInput';
-import { CURRENCIES } from '@/features/accounts/AccountSheet';
 import { CatIcon } from './CatIcon';
 import { notifyTxnsChanged } from './events';
 import { needsHufRecompute } from './txLogic';
@@ -18,9 +17,10 @@ export function TransactionForm({ txn, accounts, categories, onClose }: { txn: T
   const isTransfer = txn.kind === 'transfer_in' || txn.kind === 'transfer_out';
   const [kind, setKind] = useState<'expense' | 'income'>(txn.kind === 'income' ? 'income' : 'expense');
   const [amount, setAmount] = useState(String(fromMinor(txn.amount_minor)));
-  const [currency, setCurrency] = useState(txn.currency);
   const [categoryId, setCategoryId] = useState(txn.category_id ?? '');
   const [accountId, setAccountId] = useState(txn.account_id);
+  // Locked to the account's currency (balances are kept in the account currency).
+  const currency = accounts.find((a) => a.id === accountId)?.currency ?? txn.currency;
   const [date, setDate] = useState(txn.date);
   const [note, setNote] = useState(txn.note ?? '');
   const [confirming, setConfirming] = useState(false);
@@ -29,7 +29,6 @@ export function TransactionForm({ txn, accounts, categories, onClose }: { txn: T
 
   const cats = categories.filter((c) => c.kind === kind);
   const category = categories.find((c) => c.id === txn.category_id);
-  const currencies = CURRENCIES.includes(currency) ? CURRENCIES : [...CURRENCIES, currency];
 
   async function run(fn: () => Promise<void>) {
     setBusy(true);
@@ -99,12 +98,10 @@ export function TransactionForm({ txn, accounts, categories, onClose }: { txn: T
                 <span>Amount</span>
                 <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" aria-label="Amount" />
               </label>
-              <label className="field">
+              <div className="field">
                 <span>Currency</span>
-                <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                  {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </label>
+                <b>{currency}</b>
+              </div>
               <label className="field">
                 <span>Category</span>
                 <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
@@ -116,11 +113,7 @@ export function TransactionForm({ txn, accounts, categories, onClose }: { txn: T
                 <span>Account</span>
                 <select
                   value={accountId}
-                  onChange={(e) => {
-                    setAccountId(e.target.value);
-                    const a = accounts.find((x) => x.id === e.target.value);
-                    if (a) setCurrency(a.currency);
-                  }}
+                  onChange={(e) => setAccountId(e.target.value)}
                 >
                   {accounts.filter((a) => !a.archived || a.id === txn.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>

@@ -13,7 +13,10 @@ const TYPES: { value: Account['type']; label: string }[] = [
 ];
 
 /** Bottom sheet to create or edit an account. `onSave` receives the raw draft; rules are applied by the caller. */
-export function AccountSheet({ account, onSave, onClose }: { account?: Account; onSave: (d: AccountDraft) => Promise<void>; onClose: () => void }) {
+/** `currencyLocked`: the account already has transactions, whose amounts are in its currency. */
+export function AccountSheet({ account, currencyLocked = false, onSave, onClose }: {
+  account?: Account; currencyLocked?: boolean; onSave: (d: AccountDraft) => Promise<void>; onClose: () => void;
+}) {
   const [name, setName] = useState(account?.name ?? '');
   const [type, setType] = useState<Account['type']>(account?.type ?? 'checking');
   const [currency, setCurrency] = useState(account?.currency ?? 'HUF');
@@ -77,11 +80,12 @@ export function AccountSheet({ account, onSave, onClose }: { account?: Account; 
           <span className="ov">Currency</span>
           <div className="seg">
             {CURRENCIES.map((c) => (
-              <button key={c} type="button" className={currency === c ? 'on' : ''} onClick={() => setCurrency(c)}>
+              <button key={c} type="button" className={currency === c ? 'on' : ''} disabled={currencyLocked} onClick={() => setCurrency(c)}>
                 {c}
               </button>
             ))}
           </div>
+          {currencyLocked && <span className="sub">This account has transactions, so its currency can't change.</span>}
         </div>
         <div className="list">
           <Toggle label="Default account" on={isDefault} onChange={setIsDefault} />

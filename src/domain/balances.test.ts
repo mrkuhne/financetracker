@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { accountBalanceMinor } from './balances';
+import { accountBalance, accountBalanceMinor } from './balances';
 import type { Account, Txn } from './types';
 
 const acct = (o: Partial<Account> = {}): Account => ({
@@ -26,5 +26,14 @@ describe('accountBalanceMinor', () => {
   it('uses account currency amount, not HUF', () => {
     expect(accountBalanceMinor(acct({ currency: 'EUR' }),
       [mk('income', 100, { currency: 'EUR', amount_huf_minor: 40_000 })])).toBe(100);
+  });
+  it('mismatched currency: HUF account uses amount_huf_minor', () => {
+    expect(accountBalanceMinor(acct({ opening_balance_minor: 10_000_00 }),
+      [mk('expense', 2_53, { currency: 'EUR', amount_huf_minor: 1_000_00 })])).toBe(9_000_00);
+  });
+  it('mismatched currency on a non-HUF account is skipped and counted', () => {
+    const r = accountBalance(acct({ currency: 'EUR', opening_balance_minor: 100_00 }),
+      [mk('expense', 5_000_00, { currency: 'HUF' }), mk('expense', 10_00, { currency: 'EUR' })]);
+    expect(r).toEqual({ balanceMinor: 90_00, skippedCount: 1 });
   });
 });

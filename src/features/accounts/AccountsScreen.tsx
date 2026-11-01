@@ -107,7 +107,14 @@ export function AccountsScreen() {
           </div>
         </div>
       )}
-      {editing && <AccountSheet account={editing.account} onSave={save} onClose={() => setEditing(null)} />}
+      {editing && (
+        <AccountSheet
+          account={editing.account}
+          currencyLocked={!!editing.account && txns.some((t) => t.account_id === editing.account!.id)}
+          onSave={save}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </Screen>
   );
 }

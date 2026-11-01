@@ -3,7 +3,6 @@ import type { Category } from '@/data/categories';
 import { fromMinor } from '@/domain/money';
 import type { Account, RecurringRule } from '@/domain/types';
 import { parseAmountInput } from '@/lib/amountInput';
-import { CURRENCIES } from '@/features/accounts/AccountSheet';
 
 export interface RuleDraft {
   name: string;
@@ -33,9 +32,10 @@ export function RecurringSheet({ rule, accounts, categories, today, onSave, onDe
   const [name, setName] = useState(rule?.name ?? '');
   const [kind, setKind] = useState<'expense' | 'income'>(rule?.kind ?? 'expense');
   const [amount, setAmount] = useState(rule ? String(fromMinor(rule.amount_minor)) : '');
-  const [currency, setCurrency] = useState(rule?.currency ?? defaultAccount?.currency ?? 'HUF');
   const [categoryId, setCategoryId] = useState(rule?.category_id ?? '');
   const [accountId, setAccountId] = useState(rule?.account_id ?? defaultAccount?.id ?? '');
+  // Locked to the account's currency; the caller recomputes the HUF value on save.
+  const currency = accounts.find((a) => a.id === accountId)?.currency ?? rule?.currency ?? 'HUF';
   const [frequency, setFrequency] = useState<RecurringRule['frequency']>(rule?.frequency ?? 'monthly');
   const [start, setStart] = useState(rule?.start_date ?? today);
   const [end, setEnd] = useState(rule?.end_date ?? '');
@@ -44,7 +44,6 @@ export function RecurringSheet({ rule, accounts, categories, today, onSave, onDe
   const [error, setError] = useState('');
 
   const cats = categories.filter((c) => c.kind === kind);
-  const currencies = CURRENCIES.includes(currency) ? CURRENCIES : [...CURRENCIES, currency];
 
   async function run(fn: () => Promise<void>) {
     setBusy(true);
@@ -93,12 +92,10 @@ export function RecurringSheet({ rule, accounts, categories, today, onSave, onDe
             <span>Amount</span>
             <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0" aria-label="Amount" />
           </label>
-          <label className="field">
+          <div className="field">
             <span>Currency</span>
-            <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
-              {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </label>
+            <b>{currency}</b>
+          </div>
           <label className="field">
             <span>Category</span>
             <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
@@ -110,11 +107,7 @@ export function RecurringSheet({ rule, accounts, categories, today, onSave, onDe
             <span>Account</span>
             <select
               value={accountId}
-              onChange={(e) => {
-                setAccountId(e.target.value);
-                const a = accounts.find((x) => x.id === e.target.value);
-                if (a) setCurrency(a.currency);
-              }}
+              onChange={(e) => setAccountId(e.target.value)}
             >
               {accounts.filter((a) => !a.archived || a.id === rule?.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
