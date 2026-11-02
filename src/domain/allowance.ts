@@ -39,7 +39,8 @@ function recurringTotal(rules: RecurringRule[], inMonth: Txn[], kind: RecurringR
   return sum(linked.map((t) => t.amount_huf_minor)) + sum(projected);
 }
 
-const isSpend = (t: Txn) => t.kind === 'expense' && t.recurring_rule_id === null;
+/** Day-to-day spending: an expense not linked to a recurring rule. */
+export const isSpend = (t: Txn) => t.kind === 'expense' && t.recurring_rule_id === null;
 
 export function savingsTargetFor(settings: Settings, month: YearMonth): number {
   const o = settings.month_overrides?.[month]?.savings_target_minor;

@@ -1,23 +1,27 @@
 import type { ISODate, MonthClose, PurchaseOption, RecurringRule, Settings, Txn, YearMonth } from './types';
-import { computeMonthlyAllowance } from './allowance';
-import { addMonths, compareDates, daysInMonth, monthOf, monthsBetween, nextMonth } from './dates';
+import { computeMonthlyAllowance, isSpend } from './allowance';
+import { addMonths, compareDates, daysInMonth, firstDay, monthOf, monthsBetween, nextMonth } from './dates';
 import { previousDeficit } from './monthClose';
 
 export const SAFE_HORIZON_MONTHS = 24;
 const RECENT_MONTHS = 3;
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
-const isSpend = (t: Txn) => t.kind === 'expense' && t.recurring_rule_id === null;
 
 export interface MonthTotals { month: YearMonth; spendMinor: number; expensesMinor: number; incomeMinor: number }
 
-/** Every complete month from the earliest txn's month to the month before today's, oldest first. */
+/**
+ * Every complete month before today's, oldest first. Tracking starts at the earliest txn that is not
+ * recurring back-fill; that month counts only if the txn is on its 1st, else the next month is first.
+ */
 export function completeMonthTotals(txns: Txn[], today: ISODate): MonthTotals[] {
-  if (txns.length === 0) return [];
+  const tracked = txns.filter((t) => t.source !== 'recurring');
+  if (tracked.length === 0) return [];
   const current = monthOf(today);
-  const earliest = txns.map((t) => monthOf(t.date)).reduce((a, b) => (compareDates(a, b) <= 0 ? a : b));
+  const earliestDate = tracked.map((t) => t.date).reduce((a, b) => (compareDates(a, b) <= 0 ? a : b));
+  const first = earliestDate === firstDay(monthOf(earliestDate)) ? monthOf(earliestDate) : nextMonth(monthOf(earliestDate));
   const out: MonthTotals[] = [];
-  for (let m = earliest; compareDates(m, current) < 0; m = nextMonth(m)) {
+  for (let m = first; compareDates(m, current) < 0; m = nextMonth(m)) {
     const inMonth = txns.filter((t) => monthOf(t.date) === m);
     out.push({
       month: m,
@@ -34,8 +38,7 @@ function recentAverage(months: MonthTotals[], pick: (m: MonthTotals) => number):
   return Math.floor(sum(recent.map(pick)) / recent.length);
 }
 
-export function typicalMonthlySpendMinor(txns: Txn[], today: ISODate): number {
-  const months = completeMonthTotals(txns, today);
+export function typicalMonthlySpendMinor(txns: Txn[], today: ISODate, months = completeMonthTotals(txns, today)): number {
   if (months.length > 0) return recentAverage(months, (m) => m.spendMinor);
   const month = monthOf(today);
   const soFar = sum(txns.filter((t) => monthOf(t.date) === month && isSpend(t)).map((t) => t.amount_huf_minor));
@@ -43,15 +46,17 @@ export function typicalMonthlySpendMinor(txns: Txn[], today: ISODate): number {
   return Math.floor((soFar * daysInMonth(month)) / dayOfMonth);
 }
 
-export function averageMonthlyExpensesMinor(txns: Txn[], rules: RecurringRule[], settings: Settings, today: ISODate): number {
-  const months = completeMonthTotals(txns, today);
+export function averageMonthlyExpensesMinor(
+  txns: Txn[], rules: RecurringRule[], settings: Settings, today: ISODate, months = completeMonthTotals(txns, today),
+): number {
   if (months.length > 0) return recentAverage(months, (m) => m.expensesMinor);
   const a = computeMonthlyAllowance({ month: monthOf(today), rules, txns, settings, previousDeficitMinor: 0 });
-  return a.recurringExpensesMinor + typicalMonthlySpendMinor(txns, today);
+  return a.recurringExpensesMinor + typicalMonthlySpendMinor(txns, today, months);
 }
 
-export function averageMonthlyIncomeMinor(txns: Txn[], rules: RecurringRule[], settings: Settings, today: ISODate): number {
-  const months = completeMonthTotals(txns, today);
+export function averageMonthlyIncomeMinor(
+  txns: Txn[], rules: RecurringRule[], settings: Settings, today: ISODate, months = completeMonthTotals(txns, today),
+): number {
   if (months.length > 0) return recentAverage(months, (m) => m.incomeMinor);
   const a = computeMonthlyAllowance({ month: monthOf(today), rules, txns, settings, previousDeficitMinor: 0 });
   return a.recurringIncomeMinor + a.oneOffIncomeMinor;
@@ -110,7 +115,8 @@ export function buildPlanningModel(i: {
   today: ISODate; rules: RecurringRule[]; txns: Txn[]; settings: Settings; closes: MonthClose[];
 }): PlanningModel {
   const month = monthOf(i.today);
-  const typicalSpendMinor = typicalMonthlySpendMinor(i.txns, i.today);
+  const months = completeMonthTotals(i.txns, i.today);
+  const typicalSpendMinor = typicalMonthlySpendMinor(i.txns, i.today, months);
   const thisMonth = computeMonthlyAllowance({
     month, rules: i.rules, txns: i.txns, settings: i.settings, previousDeficitMinor: previousDeficit(month, i.closes),
   });
@@ -121,8 +127,8 @@ export function buildPlanningModel(i: {
     today: i.today, month, remainingMinor: thisMonth.remainingMinor,
     setAsideMinor: Math.max(0, nextFree.freeMinor - typicalSpendMinor),
     typicalSpendMinor,
-    avgExpensesMinor: averageMonthlyExpensesMinor(i.txns, i.rules, i.settings, i.today),
-    avgIncomeMinor: averageMonthlyIncomeMinor(i.txns, i.rules, i.settings, i.today),
-    trackedMonths: completeMonthTotals(i.txns, i.today).length,
+    avgExpensesMinor: averageMonthlyExpensesMinor(i.txns, i.rules, i.settings, i.today, months),
+    avgIncomeMinor: averageMonthlyIncomeMinor(i.txns, i.rules, i.settings, i.today, months),
+    trackedMonths: months.length,
   };
 }

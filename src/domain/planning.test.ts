@@ -21,7 +21,7 @@ const SETTINGS: Settings = {
   month_overrides: {}, has_expensive_debt: null,
 };
 
-const hist = [txn('2026-09-03', 'expense', 30_000_000), txn('2026-09-05', 'expense', 20_000_000, 'r1'),
+const hist = [txn('2026-09-01', 'expense', 30_000_000), txn('2026-09-05', 'expense', 20_000_000, 'r1'),
   txn('2026-10-03', 'expense', 36_000_000), txn('2026-10-05', 'expense', 20_000_000, 'r1'),
   txn('2026-10-01', 'income', 65_000_000, 'r2'), txn('2026-10-09', 'transfer_out', 9_000_000)];
 
@@ -35,7 +35,7 @@ describe('averages', () => {
   test('tracked months counts complete months', () =>
     expect(completeMonthTotals(hist, '2026-11-15').map((m) => m.month)).toEqual(['2026-09', '2026-10']));
   test('only the last 3 complete months count', () => {
-    const t = [txn('2026-06-10', 'expense', 90_000_000),
+    const t = [txn('2026-06-01', 'expense', 90_000_000),
       ...['2026-07', '2026-08', '2026-09', '2026-10'].map((m) => txn(`${m}-10`, 'expense', 30_000_000))];
     expect(typicalMonthlySpendMinor(t, '2026-11-15')).toBe(30_000_000);
   });
@@ -53,6 +53,20 @@ describe('averages', () => {
     expect(typicalMonthlySpendMinor([], '2026-11-10')).toBe(0);
     expect(averageMonthlyExpensesMinor([], [], SETTINGS, '2026-11-10')).toBe(0);
   });
+});
+
+describe('complete months start at the first fully tracked month', () => {
+  const rec = (date: string, kind: Txn['kind'], amount: number): Txn => ({ ...txn(date, kind, amount, 'r1'), source: 'recurring' });
+  test('only recurring back-fill: no complete months', () =>
+    expect(completeMonthTotals([rec('2026-08-05', 'expense', 1), rec('2026-09-05', 'expense', 1), rec('2026-10-05', 'income', 1)], '2026-11-15')).toEqual([]));
+  test('first manual txn mid-month: that month is excluded, earlier back-fill ignored', () =>
+    expect(completeMonthTotals([rec('2026-09-05', 'expense', 1), txn('2026-10-28', 'expense', 5), txn('2026-11-03', 'expense', 7)], '2026-12-10')
+      .map((m) => m.month)).toEqual(['2026-11']));
+  test('first manual txn on the 1st: that month is included', () =>
+    expect(completeMonthTotals([rec('2026-09-05', 'expense', 1), txn('2026-10-01', 'expense', 5)], '2026-12-10')
+      .map((m) => m.month)).toEqual(['2026-10', '2026-11']));
+  test('back-fill alone does not make spend look like zero', () =>
+    expect(typicalMonthlySpendMinor([rec('2026-09-05', 'expense', 1), txn('2026-11-02', 'expense', 10_000_000)], '2026-11-10')).toBe(30_000_000));
 });
 
 describe('buildPlanningModel', () => {
