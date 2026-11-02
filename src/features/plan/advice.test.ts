@@ -72,5 +72,5 @@ test('prompt contains the rules and the data, and nothing personal', () => {
     remainingMinor: 5_000_000, setAsideMinor: 3_000_000, savingsTargetMinor: 10_000_000, emergencyMonthsCovered: 3.2, emergencyGoalMonths: 6,
     categories: [{ name: 'Dining out', budgetMinor: 6_000_000, spentThisMonthMinor: 1_400_000 }] };
   const p = buildAdvicePrompt(input);
-  for (const s of ['1-based', 'at most 3', 'YYYY-MM', '24 months', 'IKEA Kivik', 'Dining out', '189 000', '2027-03']) expect(p).toContain(s);
+  for (const s of ['1-based', 'at most 3', 'YYYY-MM', '24 months', 'IKEA Kivik', 'Dining out', '189 000', '2027-03', 'Monthly cost 189 000 Ft']) expect(p).toContain(s);
 });

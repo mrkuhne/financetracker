@@ -48,7 +48,8 @@ function AdviceBody({ data, plan, reload }: { data: PlanData; plan: PurchasePlan
   const stored = plan.advice?.fingerprint === fingerprint ? plan.advice.advice : null;
 
   // Once advice is on screen it stays, even after Apply changes the numbers it was based on.
-  const [generated, setGenerated] = useState<Advice | null>(null);
+  // Seeded from the stored advice on first render, so a later fingerprint change cannot remove it.
+  const [generated, setGenerated] = useState<Advice | null>(stored);
   const [loading, setLoading] = useState(false);
   const [failedCall, setFailedCall] = useState(false);
   const [mode, setMode] = useState<'month' | 'permanent'>('month');
@@ -57,7 +58,7 @@ function AdviceBody({ data, plan, reload }: { data: PlanData; plan: PurchasePlan
   const [applied, setApplied] = useState(false);
   const [awaiting, setAwaiting] = useState<((p: PurchasePlan) => boolean) | null>(null);
   const started = useRef(false);
-  const advice = generated ?? stored;
+  const advice = generated;
 
   const effectiveBudget = (cid: string) => categories.find((c) => c.id === cid)?.monthly_budget_minor ?? null;
 

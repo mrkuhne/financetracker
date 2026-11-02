@@ -37,7 +37,7 @@ export function buildAdvicePrompt(i: AdviceInput): string {
   const opts = i.options.map((o) => {
     const pay = o.payment === 'installments' ? `${ft(o.installmentMinor ?? 0)} x ${o.count ?? 0} months` : 'paid at once';
     const safe = o.impact.safeMonth ?? 'not within 2 years';
-    return `${o.letter}. ${o.name}: price ${ft(o.priceMinor)}, ${pay}. If bought now: left this month ${ft(o.impact.leftThisMonthMinor)}, needs ${ft(o.impact.touchesSavingsMinor)} from savings, safe to buy from ${safe}.`;
+    return `${o.letter}. ${o.name}: price ${ft(o.priceMinor)}, ${pay}. Monthly cost ${ft(o.impact.monthlyCostMinor)}. If bought now: left this month ${ft(o.impact.leftThisMonthMinor)}, needs ${ft(o.impact.touchesSavingsMinor)} from savings, safe to buy from ${safe}.`;
   });
   const cats = i.categories.map((c) => `- ${c.name}: budget ${c.budgetMinor === null ? 'none' : ft(c.budgetMinor)}, spent this month ${ft(c.spentThisMonthMinor)}`);
   return [
