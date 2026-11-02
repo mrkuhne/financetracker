@@ -66,7 +66,7 @@ export function normalizeGuide(raw: unknown): { intro: string; tips: Record<numb
 const bucket = (minor: number) => Math.round(minor / 5_000_000);
 
 export function guideCacheKey(f: GuideFacts): string {
-  return [currentStep(f.steps)?.n ?? 0, bucket(f.avgIncomeMinor), bucket(f.avgExpensesMinor), bucket(f.emergencySavedMinor ?? 0)].join('|');
+  return [currentStep(f.steps)?.n ?? 0, f.steps.map((s) => s.status[0]).join(''), bucket(f.avgIncomeMinor), bucket(f.avgExpensesMinor), bucket(f.emergencySavedMinor ?? 0)].join('|');
 }
 
 export function fallbackFact(step: GuideStep, f: GuideFacts): string {

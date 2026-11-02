@@ -93,7 +93,7 @@ export function PlanImpactScreen() {
   const markBought = (record: boolean) => run(async () => {
     if (!selected) return;
     if (!record) {
-      await updatePlan(plan.id, { status: 'bought' });
+      await updatePlan(plan.id, { status: 'bought', selected_option_id: selected.id });
       return;
     }
     const r = planPurchaseRecord({ plan, option: selected, accounts: data.home.accounts, categories: data.categories, today: data.home.today });
@@ -104,7 +104,7 @@ export function PlanImpactScreen() {
         : { optionId: selected.id, recurring_rule_id: (await createRule(r.rule)).id };
     }
     const { optionId: _o, ...link } = written.current;
-    await updatePlan(plan.id, { status: 'bought', ...link });
+    await updatePlan(plan.id, { status: 'bought', selected_option_id: selected.id, ...link });
     written.current = null;
     if (r.kind === 'rule') await runMaterialize(data.home.today).catch(() => undefined);
     notifyTxnsChanged();

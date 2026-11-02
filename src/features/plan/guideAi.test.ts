@@ -29,6 +29,11 @@ describe('guideAi', () => {
     expect(guideCacheKey({ ...facts, avgIncomeMinor: 66_000_000 })).toBe(k1);
     expect(guideCacheKey({ ...facts, avgIncomeMinor: 75_000_000 })).not.toBe(k1);
   });
+  test('cache key changes when a later step changes status', () => {
+    const k1 = guideCacheKey(facts);
+    const later = facts.steps.map((st, i) => (i === 4 ? { ...st, status: st.status === 'done' ? 'todo' : 'done' } : st)) as typeof facts.steps;
+    expect(guideCacheKey({ ...facts, steps: later })).not.toBe(k1);
+  });
   test('fallback facts', () => {
     expect(fallbackFact(steps[1], { ...facts, emergencyMonthsCovered: 3.3, emergencyGoalMonths: 6, savingsTargetMinor: 10_000_000, monthsToEmergency: 11 }))
       .toBe(`3.3 of 6 months. At ${huf(10_000_000)} a month you reach it in about 11 months.`);
