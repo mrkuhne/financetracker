@@ -13,6 +13,7 @@ import { SmsAutomationScreen } from '@/features/sms/SmsAutomationScreen';
 import { ReviewSmsScreen } from '@/features/sms/ReviewSmsScreen';
 import { PlanScreen } from '@/features/plan/PlanScreen';
 import { PlanEditScreen } from '@/features/plan/PlanEditScreen';
+import { GuideScreen } from '@/features/plan/GuideScreen';
 import { PlanImpactScreen } from '@/features/plan/PlanImpactScreen';
 import { AdviceScreen } from '@/features/plan/AdviceScreen';
 import { BudgetsScreen } from '@/features/plan/BudgetsScreen';
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="/plan/:id" element={<PlanImpactScreen />} />
             <Route path="/plan/:id/edit" element={<PlanEditScreen />} />
             <Route path="/plan/:id/advice" element={<AdviceScreen />} />
+            <Route path="/guide" element={<GuideScreen />} />
             <Route path="/budgets" element={<BudgetsScreen />} />
             <Route path="/savings" element={<SavingsScreen />} />
             <Route path="/accounts" element={<AccountsScreen />} />

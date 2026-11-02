@@ -30,7 +30,8 @@ export async function getGuideCache(): Promise<GuideCache | null> {
   const me = (await base44.auth.me()) as Record<string, unknown>;
   const c = me.guide_cache as Record<string, unknown> | null | undefined;
   if (!c || typeof c !== 'object' || typeof c.key !== 'string' || typeof c.intro !== 'string') return null;
-  return c as unknown as GuideCache;
+  const tips = c.tips && typeof c.tips === 'object' && !Array.isArray(c.tips) ? c.tips : {};
+  return { ...c, tips, generated_at: typeof c.generated_at === 'string' ? c.generated_at : '' } as unknown as GuideCache;
 }
 
 export async function saveGuideCache(c: GuideCache): Promise<void> {
