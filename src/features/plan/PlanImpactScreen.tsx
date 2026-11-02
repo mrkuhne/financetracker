@@ -5,11 +5,12 @@ import { createRule } from '@/data/recurring';
 import { createTransaction } from '@/data/transactions';
 import { updatePlan } from '@/data/purchasePlans';
 import { simulateOption } from '@/domain/planning';
-import type { PurchaseOption, YearMonth } from '@/domain/types';
+import type { PurchaseOption, PurchasePlan, YearMonth } from '@/domain/types';
 import { huf } from '@/features/home/fmt';
 import { Icon } from '@/features/shell/Icons';
 import { Screen } from '@/features/shell/Screen';
 import { notifyTxnsChanged } from '@/features/transactions/events';
+import { safeLink } from './planDraft';
 import { planPurchaseRecord } from './purchaseRecord';
 import { optionLetter, usePlanData } from './usePlanData';
 
@@ -28,11 +29,24 @@ export function PlanImpactScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   // Ids written by an attempt whose plan update failed, so a retry links them instead of creating again.
-  const written = useRef<{ transaction_id?: string; recurring_rule_id?: string } | null>(null);
+  const written = useRef<{ optionId: string; transaction_id?: string; recurring_rule_id?: string } | null>(null);
+  // Until the reloaded plan matches this, the write is still in flight from the screen's point of view.
+  const [awaiting, setAwaiting] = useState<((p: PurchasePlan) => boolean) | null>(null);
 
-  useEffect(() => { setPicked(undefined); setMode('idle'); setError(''); written.current = null; }, [id]);
+  useEffect(() => { setPicked(undefined); setMode('idle'); setError(''); setAwaiting(null); setBusy(false); written.current = null; }, [id]);
 
   const plan = data?.plans.find((p) => p.id === id);
+
+  useEffect(() => {
+    if (!awaiting) return;
+    if (plan && awaiting(plan)) {
+      setAwaiting(null); setBusy(false); setMode('idle'); setPicked(undefined);
+      return;
+    }
+    // If the reload never shows the change, stop blocking the screen.
+    const t = setTimeout(() => { setAwaiting(null); setBusy(false); setMode('idle'); setPicked(undefined); }, 8000);
+    return () => clearTimeout(t);
+  }, [awaiting, plan]);
   if (!data || !plan) {
     return (
       <Screen title="Purchase" back="/plan">
@@ -56,23 +70,24 @@ export function PlanImpactScreen() {
   const impactOf = (o: PurchaseOption) =>
     simulateOption({ option: o, remainingMinor: planning.remainingMinor, setAsideMinor: planning.setAsideMinor, currentMonth });
 
-  async function run(fn: () => Promise<void>, failMsg: string) {
+  async function run(fn: () => Promise<void>, expect: (p: PurchasePlan) => boolean) {
     setBusy(true);
     setError('');
     try {
       await fn();
-      setMode('idle');
-      setPicked(undefined);
-      reload();
     } catch {
-      setError(failMsg);
+      setError('Could not save. Try again.');
+      setBusy(false);
+      return;
     }
-    setBusy(false);
+    // Stay busy (and keep the picked option) until the reloaded plan shows the change.
+    setAwaiting(() => expect);
+    void reload();
   }
 
   const choose = () => selected && run(
     () => updatePlan(plan.id, { status: 'decided', selected_option_id: selected.id, planned_month: impactOf(selected).safeMonth ?? currentMonth }).then(() => undefined),
-    'Could not save. Try again.',
+    (p) => p.status === 'decided' && p.selected_option_id === selected.id,
   );
 
   const markBought = (record: boolean) => run(async () => {
@@ -83,16 +98,17 @@ export function PlanImpactScreen() {
     }
     const r = planPurchaseRecord({ plan, option: selected, accounts: data.home.accounts, categories: data.categories, today: data.home.today });
     if (r.kind === 'error') throw new Error(r.reason);
-    if (!written.current) {
+    if (written.current?.optionId !== selected.id) {
       written.current = r.kind === 'txn'
-        ? { transaction_id: (await createTransaction(r.txn)).id }
-        : { recurring_rule_id: (await createRule(r.rule)).id };
+        ? { optionId: selected.id, transaction_id: (await createTransaction(r.txn)).id }
+        : { optionId: selected.id, recurring_rule_id: (await createRule(r.rule)).id };
     }
-    await updatePlan(plan.id, { status: 'bought', ...written.current });
+    const { optionId: _o, ...link } = written.current;
+    await updatePlan(plan.id, { status: 'bought', ...link });
     written.current = null;
     if (r.kind === 'rule') await runMaterialize(data.home.today).catch(() => undefined);
     notifyTxnsChanged();
-  }, 'Could not save. Try again.');
+  }, (p) => p.status === 'bought');
 
   // Show the specific refusal for a record that cannot be made, without touching the data layer.
   const recordPreview = selected && open
@@ -108,17 +124,19 @@ export function PlanImpactScreen() {
   return (
     <Screen title={plan.title} back="/plan" right={right}>
       <div className="steps"><i className="on" /><i className="on" /><i /></div>
-      <p className="sub" style={{ margin: 0 }}>
-        If you buy now, from the <b className="num">{huf(planning.remainingMinor)}</b> left in {monthName(currentMonth)}:
-      </p>
+      {open && (
+        <p className="sub" style={{ margin: 0 }}>
+          If you buy now, from the <b className="num">{huf(planning.remainingMinor)}</b> left in {monthName(currentMonth)}:
+        </p>
+      )}
       {options.map((o, i) => {
         const m = impactOf(o);
         const cls = m.leftThisMonthMinor >= 0 ? 'pos' : m.leftThisMonthMinor > -6_000_000 ? 'warnc' : 'neg';
         return (
           <div key={o.id} role="button" tabIndex={0} aria-pressed={o.id === selectedId} className={`opt${o.id === selectedId ? ' sel' : ''}`}
             style={{ cursor: open ? 'pointer' : 'default' }}
-            onClick={() => open && setPicked(o.id)}
-            onKeyDown={(e) => { if (open && (e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); setPicked(o.id); } }}>
+            onClick={() => { if (open) { setPicked(o.id); if (written.current?.optionId !== o.id) written.current = null; } }}
+            onKeyDown={(e) => { if (open && (e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); setPicked(o.id); if (written.current?.optionId !== o.id) written.current = null; } }}>
             <div className="top">
               <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
                 <strong>{optionLetter(i)} · {o.name}</strong>
@@ -126,6 +144,7 @@ export function PlanImpactScreen() {
               </span>
               <b className="num">{huf(o.price_minor)}</b>
             </div>
+            {open && (
             <div className="kv">
               <span>Left this month</span><b className={`num ${cls}`}>{huf(m.leftThisMonthMinor)}</b>
               <span>Savings this month</span>
@@ -133,13 +152,14 @@ export function PlanImpactScreen() {
               <span>Safe to buy</span>
               <b>{m.safeMonth === null ? 'Not within 2 years' : m.safeMonth === currentMonth ? 'Now' : `From ${monthYear(m.safeMonth)}`}</b>
             </div>
-            {o.link && (
-              <a className="link" href={o.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>Open link</a>
+            )}
+            {open && safeLink(o.link) && (
+              <a className="link" href={safeLink(o.link) as string} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>Open link</a>
             )}
           </div>
         );
       })}
-      <p className="note"><Icon name="info" />“Safe to buy” sets aside {huf(planning.setAsideMinor)} a month and keeps your emergency fund untouched.</p>
+      {open && <p className="note"><Icon name="info" />“Safe to buy” sets aside {huf(planning.setAsideMinor)} a month and keeps your emergency fund untouched.</p>}
 
       {open ? (
         <>
@@ -152,7 +172,7 @@ export function PlanImpactScreen() {
         <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span className={`pill ${plan.status === 'bought' ? 'good' : ''}`}>{plan.status === 'bought' ? 'Bought' : 'Dropped'}</span>
           <button className="btn ghost" style={{ width: 'auto', padding: '0 18px' }} disabled={busy}
-            onClick={() => void run(() => updatePlan(plan.id, { status: 'considering' }).then(() => undefined), 'Could not save. Try again.')}>Reopen</button>
+            onClick={() => void run(() => updatePlan(plan.id, { status: 'considering' }).then(() => undefined), (p) => p.status === 'considering')}>Reopen</button>
         </div>
       )}
 
@@ -164,7 +184,7 @@ export function PlanImpactScreen() {
               ? <p className="err" role="alert">{recordError}</p>
               : <button className="btn" disabled={busy} onClick={() => void markBought(true)}>{isRule ? 'Add the monthly payment' : 'Add the expense'}</button>}
             <button className="btn ghost" disabled={busy} onClick={() => void markBought(false)}>It's already in Activity</button>
-            <button className="btn ghost" disabled={busy} onClick={() => setMode('idle')}>Cancel</button>
+            <button className="btn ghost" disabled={busy} onClick={() => { written.current = null; setMode('idle'); }}>Cancel</button>
           </div>
         ) : (
           <button className="btn" disabled={busy} onClick={() => { setError(''); setMode('bought'); }}>Mark as bought</button>
@@ -176,7 +196,7 @@ export function PlanImpactScreen() {
           <div className="row2">
             <button className="btn ghost" disabled={busy} onClick={() => setMode('idle')}>Keep it</button>
             <button className="btn" disabled={busy} style={{ background: 'var(--bad)', color: '#fff' }}
-              onClick={() => void run(() => updatePlan(plan.id, { status: 'dropped' }).then(() => undefined), 'Could not save. Try again.')}>Drop plan</button>
+              onClick={() => void run(() => updatePlan(plan.id, { status: 'dropped' }).then(() => undefined), (p) => p.status === 'dropped')}>Drop plan</button>
           </div>
         ) : (
           <button className="btn ghost" disabled={busy} onClick={() => { setError(''); setMode('drop'); }}>Drop this plan</button>

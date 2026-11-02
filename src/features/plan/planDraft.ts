@@ -76,3 +76,9 @@ export function draftFromPlan(plan: PurchasePlan, options: PurchaseOption[]): Pl
     })),
   };
 }
+
+/** The trimmed link when it is an http(s) URL, else null (never render other schemes as links). */
+export function safeLink(link: string | null): string | null {
+  const t = link?.trim() ?? '';
+  return /^https?:\/\//i.test(t) ? t : null;
+}

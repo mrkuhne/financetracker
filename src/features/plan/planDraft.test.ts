@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { PurchaseOption, PurchasePlan } from '@/domain/types';
-import { diffOptions, draftFromPlan, validatePlanDraft, type OptionDraft, type ValidOption } from './planDraft';
+import { diffOptions, draftFromPlan, safeLink, validatePlanDraft, type OptionDraft, type ValidOption } from './planDraft';
 
 const opt = (o: Partial<OptionDraft> = {}): OptionDraft => ({ name: 'IKEA Kivik', priceText: '189 000', payment: 'one_time', installmentText: '', countText: '', link: '', note: '', ...o });
 
@@ -48,4 +48,13 @@ test('draftFromPlan round-trips options in position order', () => {
     { name: 'A', price_minor: 18_900_000, currency: 'HUF', payment: 'one_time', installment_minor: null, installment_count: null, link: 'https://x.hu', note: null, position: 0 },
     { name: 'B', price_minor: 36_000_000, currency: 'HUF', payment: 'installments', installment_minor: 3_000_000, installment_count: 12, link: null, note: 'n', position: 1 },
   ]);
+});
+
+describe('safeLink', () => {
+  test('only http(s) links', () => {
+    expect(safeLink(' https://ikea.com/x ')).toBe('https://ikea.com/x');
+    expect(safeLink('HTTP://a.hu')).toBe('HTTP://a.hu');
+    expect(safeLink('javascript:alert(1)')).toBeNull();
+    expect(safeLink(null)).toBeNull();
+  });
 });
