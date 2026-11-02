@@ -28,7 +28,7 @@ base44 dev     # local dev server
 |---------|--------------|
 | `npm test` | Run the unit tests |
 | `npm run build` | Type-check and build |
-| `base44 deploy` | Deploy backend and hosting |
+| `npm run deploy` | Build with the Base44 app id injected and deploy (plain `npm run build` output has no app id, so login loops in production) |
 
 ## Docs
 
