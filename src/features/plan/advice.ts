@@ -71,7 +71,8 @@ const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInt
 const text = (v: unknown) => (typeof v === 'string' ? v.trim().slice(0, 1000) : '');
 
 export function normalizeAdvice(raw: unknown, ctx: {
-  optionCount: number; currentMonth: YearMonth; savingsTargetMinor: number; categories: Category[]; effectiveBudget: (categoryId: string) => number | null;
+  optionCount: number; currentMonth: YearMonth; categories: Category[];
+  savingsTargetFor: (month: YearMonth) => number; effectiveBudget: (categoryId: string, month: YearMonth) => number | null;
 }): Advice | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const r = raw as Record<string, unknown>;
@@ -83,38 +84,51 @@ export function normalizeAdvice(raw: unknown, ctx: {
   const bestOffset = offset(r.best_month);
   const bestMonth = typeof r.best_month === 'string' && bestOffset !== null && bestOffset >= 0 && bestOffset <= 24 ? r.best_month : ctx.currentMonth;
 
+  const rawChanges: unknown[] = Array.isArray(r.changes) ? r.changes : [];
+  // The month the advice will be applied to: the first valid postpone month, else best_month.
+  // Cuts are checked against that month's values, since that is the month Apply writes.
+  // That postpone is always kept (a slot is reserved for it), so the shown month matches the changes.
+  let postponeMonth: YearMonth | null = null;
+  for (const c of rawChanges) {
+    const ch = c && typeof c === 'object' ? (c as Record<string, unknown>) : null;
+    if (!ch || ch.type !== 'postpone') continue;
+    const o = offset(ch.month);
+    if (o !== null && o >= 1 && o <= 24) { postponeMonth = ch.month as YearMonth; break; }
+  }
+  const target = postponeMonth ?? bestMonth;
+  const savingsFrom = ctx.savingsTargetFor(target);
+
   const changes: AdviceChange[] = [];
   const seenCats = new Set<string>();
   let hasSavings = false, hasPostpone = false;
-  let postponeMonth: YearMonth | null = null;
-  for (const c of Array.isArray(r.changes) ? r.changes : []) {
+  for (const c of rawChanges) {
     if (changes.length >= 3) break;
     if (!c || typeof c !== 'object') continue;
     const ch = c as Record<string, unknown>;
+    if (ch.type !== 'postpone' && postponeMonth !== null && !hasPostpone && changes.length >= 2) continue;
     if (ch.type === 'category_budget') {
       const name = typeof ch.category_name === 'string' ? ch.category_name.trim().toLowerCase() : '';
       const cat = ctx.categories.find((x) => x.kind === 'expense' && x.name.trim().toLowerCase() === name);
       if (!cat || seenCats.has(cat.id) || !isInt(ch.new_amount_huf) || ch.new_amount_huf < 0 || ch.new_amount_huf > 10_000_000) continue;
       const to = ch.new_amount_huf * 100;
-      const from = ctx.effectiveBudget(cat.id);
+      const from = ctx.effectiveBudget(cat.id, target);
       if (from !== null && to >= from) continue;
       seenCats.add(cat.id);
       changes.push({ type: 'category_budget', category_id: cat.id, category_name: cat.name, from_minor: from, to_minor: to });
     } else if (ch.type === 'savings_target') {
       if (hasSavings || !isInt(ch.new_amount_huf)) continue;
       const to = ch.new_amount_huf * 100;
-      if (to < 0 || to >= ctx.savingsTargetMinor) continue;
+      if (to < 0 || to >= savingsFrom) continue;
       hasSavings = true;
-      changes.push({ type: 'savings_target', from_minor: ctx.savingsTargetMinor, to_minor: to });
+      changes.push({ type: 'savings_target', from_minor: savingsFrom, to_minor: to });
     } else if (ch.type === 'postpone') {
       const o = offset(ch.month);
       if (hasPostpone || o === null || o < 1 || o > 24) continue;
       hasPostpone = true;
-      postponeMonth = ch.month as YearMonth;
-      changes.push({ type: 'postpone', month: postponeMonth });
+      changes.push({ type: 'postpone', month: ch.month as YearMonth });
     }
   }
-  return { option_index: r.recommended_option - 1, month: postponeMonth ?? bestMonth, summary, others: text(r.others), changes };
+  return { option_index: r.recommended_option - 1, month: target, summary, others: text(r.others), changes };
 }
 
 export function adviceCutsMinor(changes: AdviceChange[]): number {

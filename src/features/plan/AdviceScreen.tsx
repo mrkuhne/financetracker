@@ -12,7 +12,7 @@ import { huf } from '@/features/home/fmt';
 import { Icon, type IconName } from '@/features/shell/Icons';
 import { Screen } from '@/features/shell/Screen';
 import { ADVICE_SCHEMA, adviceCutsMinor, adviceFingerprint, buildAdvicePrompt, normalizeAdvice } from './advice';
-import { planApply } from './applyChanges';
+import { changesForMode, planApply } from './applyChanges';
 import { effectiveCategoryBudget } from './budgets';
 import { optionLetter, usePlanData, type PlanData } from './usePlanData';
 
@@ -46,24 +46,28 @@ function AdviceBody({ data, plan, reload }: { data: PlanData; plan: PurchasePlan
   const currentMonth = planning.month;
   const settings = data.home.settings;
   const fingerprint = adviceFingerprint(options, planning);
-  const stored = plan.advice?.fingerprint === fingerprint ? plan.advice.advice : null;
+  const stored = plan.advice?.advice ?? null;
 
   // Once advice is on screen it stays, even after Apply changes the numbers it was based on.
   // Seeded from the stored advice on first render, so a later fingerprint change cannot remove it.
+  // Stored advice whose numbers changed is still shown, with a quiet note, instead of calling the AI again.
   const [generated, setGenerated] = useState<Advice | null>(stored);
+  const [stale, setStale] = useState(stored !== null && plan.advice?.fingerprint !== fingerprint);
   const [loading, setLoading] = useState(false);
   const [failedCall, setFailedCall] = useState(false);
   const [mode, setMode] = useState<'month' | 'permanent'>('month');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [applied, setApplied] = useState(false);
+  // What Apply wrote; kept on screen because the reloaded permanent values would otherwise filter it out.
+  const [appliedChanges, setAppliedChanges] = useState<AdviceChange[] | null>(null);
   const [awaiting, setAwaiting] = useState<((p: PurchasePlan) => boolean) | null>(null);
   const started = useRef(false);
   const advice = generated;
 
-  const effectiveBudget = (cid: string) => {
+  const effectiveBudget = (cid: string, month: YearMonth) => {
     const c = categories.find((x) => x.id === cid);
-    return c ? effectiveCategoryBudget(c, settings, currentMonth) : null;
+    return c ? effectiveCategoryBudget(c, settings, month) : null;
   };
 
   async function generate() {
@@ -94,10 +98,12 @@ function AdviceBody({ data, plan, reload }: { data: PlanData; plan: PurchasePlan
       });
       const raw = await invokeLlm(prompt, ADVICE_SCHEMA);
       const result = normalizeAdvice(raw, {
-        optionCount: options.length, currentMonth, savingsTargetMinor: savingsTargetFor(settings, currentMonth), categories, effectiveBudget,
+        optionCount: options.length, currentMonth, categories, effectiveBudget,
+        savingsTargetFor: (month) => savingsTargetFor(settings, month),
       });
       if (!result) { setFailedCall(true); return; }
       setGenerated(result);
+      setStale(false);
       const record: StoredAdvice = { fingerprint, generated_at: new Date().toISOString(), advice: result };
       await updatePlan(plan.id, { advice: record }).catch(() => undefined);
     } catch {
@@ -108,7 +114,8 @@ function AdviceBody({ data, plan, reload }: { data: PlanData; plan: PurchasePlan
   }
 
   useEffect(() => {
-    // One call per visit; the ref also stops React StrictMode's double mount from calling twice.
+    // Only when the plan has no stored advice at all; one call per visit, and the ref
+    // also stops React StrictMode's double mount from calling twice.
     if (started.current || advice || options.length === 0) return;
     started.current = true;
     void generate();
@@ -154,7 +161,12 @@ function AdviceBody({ data, plan, reload }: { data: PlanData; plan: PurchasePlan
   }
   const mon = monthName(advice.month);
   const hasSettingChange = advice.changes.some((c) => c.type !== 'postpone');
-  const cuts = adviceCutsMinor(advice.changes);
+  // "From now on" writes the permanent values: show and apply only real cuts of those.
+  const shown = appliedChanges ?? changesForMode(advice.changes, mode, {
+    savingsTargetMinor: settings.monthly_savings_target_minor,
+    budget: (cid) => categories.find((x) => x.id === cid)?.monthly_budget_minor ?? null,
+  });
+  const cuts = adviceCutsMinor(shown);
   const emergencySaved = data.emergency?.savedMinor ?? 0;
   const after = emergencyAfterMinor({
     option, remainingMinor: planning.remainingMinor, setAsideMinor: planning.setAsideMinor, currentMonth,
@@ -170,10 +182,11 @@ function AdviceBody({ data, plan, reload }: { data: PlanData; plan: PurchasePlan
     setBusy(true);
     setError('');
     try {
-      const { settingsPatch, categoryPatches } = planApply({ changes: advice.changes, mode, month: advice.month, settings });
+      const { settingsPatch, categoryPatches } = planApply({ changes: shown, mode, month: advice.month, settings });
       if (Object.keys(settingsPatch).length > 0) await updateSettings(settingsPatch);
       for (const p of categoryPatches) await updateCategory(p.id, { monthly_budget_minor: p.monthly_budget_minor });
       await updatePlan(plan.id, { status: 'decided', selected_option_id: option.id, planned_month: advice.month });
+      setAppliedChanges(shown);
     } catch {
       setError('Could not apply the changes. Try again.');
       setBusy(false);
@@ -214,17 +227,27 @@ function AdviceBody({ data, plan, reload }: { data: PlanData; plan: PurchasePlan
         <p>{advice.summary}</p>
         {advice.others && <p className="sub" style={{ margin: 0 }}>{advice.others}</p>}
       </div>
+      {stale && <p className="sub" style={{ margin: 0 }}>Your numbers changed since this suggestion.</p>}
       <div className="sec">
         <span className="ov">Changes for {mon}</span>
         <div className="list">
-          {advice.changes.map(changeRow)}
+          {shown.map(changeRow)}
           <div className="change">
             <span className="ci" style={{ ['--c' as string]: 'var(--ai)' }}><Icon name="shield" /></span>
-            <div>
-              <strong>Emergency fund after</strong>
-              <span>{months === null ? '—' : `${months} months of expenses`}</span>
-            </div>
-            <span className={`pill ${untouched ? 'good' : ''}`}>{untouched ? 'OK' : 'Uses savings'}</span>
+            {data.emergency ? (
+              <>
+                <div>
+                  <strong>Emergency fund after</strong>
+                  <span>{months === null ? '—' : `${months} months of expenses`}</span>
+                </div>
+                <span className={`pill ${untouched ? 'good' : ''}`}>{untouched ? 'OK' : 'Uses savings'}</span>
+              </>
+            ) : (
+              <div>
+                <strong>Emergency fund after</strong>
+                <Link className="link" to="/savings">Set up your emergency fund</Link>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -5,7 +5,7 @@ import type { PurchaseOption } from '@/domain/types';
 
 const cat = (id: string, name: string, kind: 'expense' | 'income'): Category => ({ id, name, kind, icon: 'dots', monthly_budget_minor: null });
 const cats = [cat('c1', 'Dining out', 'expense'), cat('c2', 'Salary', 'income'), cat('c3', 'Groceries', 'expense'), cat('c4', 'Transport', 'expense'), cat('c5', 'Health', 'expense')];
-const ctx = { optionCount: 3, currentMonth: '2026-11', savingsTargetMinor: 10_000_000, categories: cats, effectiveBudget: (id: string) => (id === 'c1' ? 6_000_000 : null) };
+const ctx = { optionCount: 3, currentMonth: '2026-11', savingsTargetFor: () => 10_000_000, categories: cats, effectiveBudget: (id: string) => (id === 'c1' ? 6_000_000 : null) };
 const good = { recommended_option: 2, best_month: '2026-12', summary: ' B in December. ', others: 'A is small.',
   changes: [ { type: 'category_budget', category_name: 'dining OUT', new_amount_huf: 20000 }, { type: 'savings_target', new_amount_huf: 50000 } ] };
 
@@ -44,6 +44,31 @@ describe('normalizeAdvice', () => {
       { type: 'category_budget', category_name: 'dining out', new_amount_huf: 10000 },
       { type: 'savings_target', new_amount_huf: 50000 }, { type: 'savings_target', new_amount_huf: 40000 } ] }, ctx);
     expect(r?.changes).toHaveLength(2);
+  });
+  test('cuts are checked against the advice month, not the current month', () => {
+    // Nov has an override of 50 000; Dec uses the permanent 100 000. Dining out: Nov 30 000, Dec 60 000.
+    const monthCtx = { ...ctx,
+      savingsTargetFor: (m: string) => (m === '2026-11' ? 5_000_000 : 10_000_000),
+      effectiveBudget: (id: string, m: string) => (id === 'c1' ? (m === '2026-11' ? 3_000_000 : 6_000_000) : null) };
+    const r = normalizeAdvice({ ...good, best_month: '2026-12', changes: [
+      { type: 'savings_target', new_amount_huf: 40000 }, { type: 'category_budget', category_name: 'Dining out', new_amount_huf: 40000 } ] }, monthCtx);
+    expect(r?.changes).toEqual([{ type: 'savings_target', from_minor: 10_000_000, to_minor: 4_000_000 },
+      { type: 'category_budget', category_id: 'c1', category_name: 'Dining out', from_minor: 6_000_000, to_minor: 4_000_000 }]);
+    // A postpone month takes precedence over best_month for the check.
+    const p = normalizeAdvice({ ...good, best_month: '2026-11', changes: [
+      { type: 'savings_target', new_amount_huf: 80000 }, { type: 'postpone', month: '2026-12' } ] }, monthCtx);
+    expect(p?.changes).toEqual([{ type: 'savings_target', from_minor: 10_000_000, to_minor: 8_000_000 }, { type: 'postpone', month: '2026-12' }]);
+    // Invalid best_month falls back to the current month: 80 000 is not a cut of Nov's 50 000.
+    expect(normalizeAdvice({ ...good, best_month: 'soon', changes: [{ type: 'savings_target', new_amount_huf: 80000 }] }, monthCtx)?.changes).toEqual([]);
+  });
+  test('a valid postpone past the cap is kept, so the month matches the changes', () => {
+    const r = normalizeAdvice({ ...good, changes: [
+      { type: 'category_budget', category_name: 'Dining out', new_amount_huf: 20000 },
+      { type: 'category_budget', category_name: 'Groceries', new_amount_huf: 50000 },
+      { type: 'category_budget', category_name: 'Transport', new_amount_huf: 10000 },
+      { type: 'postpone', month: '2027-01' } ] }, ctx);
+    expect(r?.month).toBe('2027-01');
+    expect(r?.changes.map((c) => c.type)).toEqual(['category_budget', 'category_budget', 'postpone']);
   });
   test('caps text at 1000 characters, others defaults to empty', () => {
     const r = normalizeAdvice({ ...good, summary: 'x'.repeat(2000), others: undefined }, ctx);
