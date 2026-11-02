@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createOption, createPlan, deleteOption, deletePlan, getPlan, listOptionsForPlan, updateOption, updatePlan } from '@/data/purchasePlans';
 import { Icon } from '@/features/shell/Icons';
@@ -18,6 +18,8 @@ export function PlanEditScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [confirming, setConfirming] = useState(false);
+  // Id of a plan created by an earlier failed save, so a retry does not create it twice.
+  const createdId = useRef<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -56,17 +58,29 @@ export function PlanEditScreen() {
     setBusy(true);
     setError('');
     try {
-      let planId = existing?.plan.id;
+      let planId = existing?.plan.id ?? createdId.current;
+      const keptIds = new Set(v.options.map((o) => o.id));
+      // Dropping the selected option sends a decided plan back to considering.
+      const sel = existing?.plan.selected_option_id;
+      const lostSelection = !!existing && !!sel && !keptIds.has(sel);
       if (existing) {
-        await updatePlan(existing.plan.id, { title: v.title, needed_by: v.needed_by });
+        await updatePlan(existing.plan.id, {
+          title: v.title, needed_by: v.needed_by,
+          ...(lostSelection ? { selected_option_id: null, planned_month: null, ...(existing.plan.status === 'decided' ? { status: 'considering' as const } : {}) } : {}),
+        });
+      } else if (planId) {
+        await updatePlan(planId, { title: v.title, needed_by: v.needed_by });
       } else {
         planId = (await createPlan({
           title: v.title, needed_by: v.needed_by, status: 'considering', selected_option_id: null,
           planned_month: null, transaction_id: null, recurring_rule_id: null, advice: null,
         })).id;
+        createdId.current = planId;
       }
       const pid = planId as string;
-      const d = diffOptions(existing?.options ?? [], v.options);
+      // Diff against what is stored now, so a retry after a partial failure does not repeat writes.
+      const stored = existing || createdId.current ? await listOptionsForPlan(pid) : [];
+      const d = diffOptions(stored, v.options);
       await Promise.all([
         ...d.create.map(({ id: _unused, ...o }) => createOption({ ...o, plan_id: pid })),
         ...d.update.map(({ id: oid, ...o }) => updateOption(oid, o)),
