@@ -1,0 +1,23 @@
+{
+  "name": "PurchaseOption",
+  "type": "object",
+  "properties": {
+    "plan_id": { "type": "string" },
+    "name": { "type": "string" },
+    "price_minor": { "type": "integer" },
+    "currency": { "type": "string", "enum": ["HUF"] },
+    "payment": { "type": "string", "enum": ["one_time", "installments"] },
+    "installment_minor": { "type": ["integer", "null"] },
+    "installment_count": { "type": ["integer", "null"] },
+    "link": { "type": ["string", "null"] },
+    "note": { "type": ["string", "null"] },
+    "position": { "type": "integer" }
+  },
+  "required": ["plan_id", "name", "price_minor", "currency", "payment", "position"],
+  "rls": {
+    "create": true,
+    "read": { "created_by_id": "{{user.id}}" },
+    "update": { "created_by_id": "{{user.id}}" },
+    "delete": { "created_by_id": "{{user.id}}" }
+  }
+}

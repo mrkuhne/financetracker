@@ -50,11 +50,13 @@ describe('buildExportJson', () => {
     const now = new Date('2026-11-01T10:00:00Z');
     const o = JSON.parse(buildExportJson({
       accounts: [], categories: [], transactions: [base], recurring_rules: [], month_closes: [],
-      settings: { base_currency: 'HUF', monthly_savings_target_minor: 0, monthly_investment_amount_minor: null, emergency_fund_months: 3, week_start: 'monday', digest_time: '20:00', timezone: 'UTC' },
+      purchase_plans: [], purchase_options: [], savings_goals: [],
+      settings: { base_currency: 'HUF', monthly_savings_target_minor: 0, monthly_investment_amount_minor: null, emergency_fund_months: 3, week_start: 'monday', digest_time: '20:00', timezone: 'UTC', month_overrides: {}, has_expensive_debt: null },
     }, now));
     expect(o.version).toBe(1);
     expect(o.exported_at).toBe('2026-11-01T10:00:00.000Z');
     for (const k of ['accounts', 'categories', 'transactions', 'recurring_rules', 'month_closes', 'settings']) expect(o).toHaveProperty(k);
+    expect(Object.keys(o)).toEqual(expect.arrayContaining(['purchase_plans', 'purchase_options', 'savings_goals']));
     expect(o.transactions).toHaveLength(1);
   });
 });

@@ -1,0 +1,21 @@
+{
+  "name": "PurchasePlan",
+  "type": "object",
+  "properties": {
+    "title": { "type": "string" },
+    "needed_by": { "type": ["string", "null"], "format": "date" },
+    "status": { "type": "string", "enum": ["considering", "decided", "bought", "dropped"] },
+    "selected_option_id": { "type": ["string", "null"] },
+    "planned_month": { "type": ["string", "null"] },
+    "transaction_id": { "type": ["string", "null"] },
+    "recurring_rule_id": { "type": ["string", "null"] },
+    "advice": { "type": ["object", "null"] }
+  },
+  "required": ["title", "status"],
+  "rls": {
+    "create": true,
+    "read": { "created_by_id": "{{user.id}}" },
+    "update": { "created_by_id": "{{user.id}}" },
+    "delete": { "created_by_id": "{{user.id}}" }
+  }
+}

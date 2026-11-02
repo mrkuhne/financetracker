@@ -3,8 +3,10 @@ import { listCategories, type Category } from '@/data/categories';
 import { listAllTransactions } from '@/data/transactions';
 import { listRules } from '@/data/recurring';
 import { listMonthCloses } from '@/data/monthCloses';
+import { listPlans, listAllOptions } from '@/data/purchasePlans';
+import { listGoals } from '@/data/savingsGoals';
 import { getSettings } from '@/data/settings';
-import type { Account, MonthClose, RecurringRule, Settings, Txn } from '@/domain/types';
+import type { Account, MonthClose, PurchaseOption, PurchasePlan, RecurringRule, SavingsGoal, Settings, Txn } from '@/domain/types';
 
 export const CSV_HEADER = 'date,account,kind,amount,currency,amount_huf,category,note,source';
 
@@ -53,6 +55,9 @@ export interface ExportData {
   transactions: Txn[];
   recurring_rules: RecurringRule[];
   month_closes: MonthClose[];
+  purchase_plans: PurchasePlan[];
+  purchase_options: PurchaseOption[];
+  savings_goals: SavingsGoal[];
   settings: Settings;
 }
 
@@ -61,10 +66,11 @@ export function buildExportJson(data: ExportData, now: Date = new Date()): strin
 }
 
 export async function exportAllJson(): Promise<Blob> {
-  const [accounts, categories, transactions, recurring_rules, month_closes, settings] = await Promise.all([
-    listAccounts(), listCategories(), listAllTransactions(), listRules(), listMonthCloses(), getSettings(),
+  const [accounts, categories, transactions, recurring_rules, month_closes, purchase_plans, purchase_options, savings_goals, settings] = await Promise.all([
+    listAccounts(), listCategories(), listAllTransactions(), listRules(), listMonthCloses(),
+    listPlans(), listAllOptions(), listGoals(), getSettings(),
   ]);
-  return new Blob([buildExportJson({ accounts, categories, transactions, recurring_rules, month_closes, settings })], { type: 'application/json' });
+  return new Blob([buildExportJson({ accounts, categories, transactions, recurring_rules, month_closes, purchase_plans, purchase_options, savings_goals, settings })], { type: 'application/json' });
 }
 
 export async function exportTransactionsCsv(): Promise<Blob> {

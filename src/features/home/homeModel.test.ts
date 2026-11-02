@@ -17,7 +17,7 @@ const rule = (id: string, kind: RecurringRule['kind'], amt: number, start: strin
 const rules = [rule('salary', 'income', 600_000_00, '2026-01-10'), rule('rent', 'expense', 200_000_00, '2026-01-01'), rule('netflix', 'expense', 5_000_00, '2026-01-15')];
 const settings: Settings = {
   base_currency: 'HUF', monthly_savings_target_minor: 100_000_00, monthly_investment_amount_minor: 30_000_00,
-  emergency_fund_months: 3, week_start: 'monday', digest_time: '20:00', timezone: 'Europe/Budapest',
+  emergency_fund_months: 3, week_start: 'monday', digest_time: '20:00', timezone: 'Europe/Budapest', month_overrides: {}, has_expensive_debt: null,
 };
 const txns = [
   mk('expense', '2026-11-02', 15_000_00),

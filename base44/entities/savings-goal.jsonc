@@ -1,0 +1,19 @@
+{
+  "name": "SavingsGoal",
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "kind": { "type": "string", "enum": ["emergency", "custom"] },
+    "target_minor": { "type": ["integer", "null"] },
+    "account_id": { "type": "string" },
+    "priority": { "type": "integer" },
+    "icon": { "type": "string" }
+  },
+  "required": ["name", "kind", "account_id", "priority"],
+  "rls": {
+    "create": true,
+    "read": { "created_by_id": "{{user.id}}" },
+    "update": { "created_by_id": "{{user.id}}" },
+    "delete": { "created_by_id": "{{user.id}}" }
+  }
+}

@@ -33,6 +33,21 @@
     },
     "timezone": {
       "type": "string"
+    },
+    "month_overrides": {
+      "type": "object"
+    },
+    "has_expensive_debt": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "guide_cache": {
+      "type": [
+        "object",
+        "null"
+      ]
     }
   }
 }
