@@ -11,6 +11,16 @@ import {
   validateBody,
 } from './logic.ts';
 
+// Log only safe fields: SDK (axios) errors carry request bodies containing the SMS text.
+const safeErr = (err: unknown) => {
+  const e = err as { name?: string; status?: number; response?: { status?: number }; message?: unknown } | null;
+  return {
+    name: e?.name,
+    status: e?.status ?? e?.response?.status,
+    message: String(e?.message ?? '').slice(0, 200),
+  };
+};
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
@@ -27,6 +37,7 @@ export default async function (req: Request): Promise<Response> {
     const keyRows = await db.ApiKey.filter({ key_hash: await sha256Hex(key) });
     const keyRow = (keyRows ?? []).find((r: { revoked?: boolean }) => r.revoked !== true);
     if (!keyRow) return json({ error: 'invalid_key' }, 401);
+    if (typeof keyRow.owner_id !== 'string' || !keyRow.owner_id) return json({ error: 'invalid_key' }, 401);
     const ownerId: string = keyRow.owner_id;
 
     // 2. Body.
@@ -50,10 +61,10 @@ export default async function (req: Request): Promise<Response> {
       try {
         await db.ApiKey.update(keyRow.id, { last_used_at: new Date().toISOString() });
       } catch (err) {
-        console.error('last_used_at update failed', err);
+        console.error('last_used_at update failed', safeErr(err));
       }
     };
-    const base = { owner_id: ownerId, sender, text_hash, received_at };
+    const base = { owner_id: ownerId, sender, text_hash, received_at: new Date(received_at).toISOString() };
 
     // 4. Cheap pre-filter: no money amount.
     if (!looksLikeMoney(text)) {
@@ -66,7 +77,9 @@ export default async function (req: Request): Promise<Response> {
     type Cat = { name?: string; kind?: string; created_by_id?: string };
     let cats: Cat[];
     try {
-      cats = await db.Category.filter({ created_by_id: ownerId });
+      cats = ((await db.Category.filter({ created_by_id: ownerId })) ?? []).filter(
+        (c: Cat) => c.created_by_id === ownerId,
+      );
     } catch {
       const all: Cat[] = await db.Category.list();
       cats = (all ?? []).filter((c) => c.created_by_id === ownerId);
@@ -84,7 +97,7 @@ export default async function (req: Request): Promise<Response> {
       });
       result = normalizeParsed(raw, budapestDate(received_at), names);
     } catch (err) {
-      console.error('llm call failed', err);
+      console.error('llm call failed', safeErr(err));
       result = { status: 'failed', reason: 'llm_error' };
     }
 
@@ -120,7 +133,7 @@ export default async function (req: Request): Promise<Response> {
     await touchKey();
     return json({ status: result.status });
   } catch (err) {
-    console.error('ingest-sms error', err);
+    console.error('ingest-sms error', safeErr(err));
     return json({ error: 'internal' }, 500);
   }
 }
