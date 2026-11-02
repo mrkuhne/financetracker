@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createGoal, deleteGoal, updateGoal } from '@/data/savingsGoals';
+import { updateSettings } from '@/data/settings';
 import { savingsTargetFor } from '@/domain/allowance';
 import { monthsCovered, monthsToReach, type GoalProgress } from '@/domain/savings';
 import { huf, hufNum } from '@/features/home/fmt';
@@ -8,10 +9,14 @@ import { Icon } from '@/features/shell/Icons';
 import { Screen } from '@/features/shell/Screen';
 import { CatIcon } from '@/features/transactions/CatIcon';
 import { parseAmountInput } from '@/lib/amountInput';
+import { upcomingOverrides } from './budgets';
 import { usePlanData, type PlanData } from './usePlanData';
 
 const shortDate = (iso: string) =>
   new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(Date.parse(`${iso}T12:00:00Z`));
+
+const monthYear = (ym: string) =>
+  new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(Date.parse(`${ym}-01T12:00:00Z`));
 
 interface Draft { name: string; targetText: string; accountId: string }
 
@@ -22,6 +27,7 @@ export function SavingsScreen() {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [overrideError, setOverrideError] = useState('');
   const [awaiting, setAwaiting] = useState<((d: PlanData) => boolean) | null>(null);
 
   useEffect(() => {
@@ -55,6 +61,7 @@ export function SavingsScreen() {
     .filter((t) => t.kind === 'transfer_in' && savingsIds.has(t.account_id))
     .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id))
     .slice(0, 10);
+  const overrides = upcomingOverrides(settings, data.categories, month);
 
   async function run(fn: () => Promise<unknown>, expect: (d: PlanData) => boolean) {
     setBusy(true);
@@ -67,6 +74,21 @@ export function SavingsScreen() {
       return;
     }
     setAwaiting(() => expect);
+    void reload();
+  }
+
+  async function resetMonth(ym: string) {
+    setBusy(true);
+    setOverrideError('');
+    try {
+      const { [ym]: _removed, ...rest } = settings.month_overrides ?? {};
+      await updateSettings({ month_overrides: rest });
+    } catch {
+      setOverrideError('Could not reset this month. Try again.');
+      setBusy(false);
+      return;
+    }
+    setAwaiting(() => (d: PlanData) => !(ym in (d.home.settings.month_overrides ?? {})));
     void reload();
   }
 
@@ -201,6 +223,26 @@ export function SavingsScreen() {
           : <div className="card sub">Add a savings account first. <Link className="link" to="/accounts">Go to accounts</Link></div>)}
         {error && <p className="err" role="alert">{error}</p>}
       </div>
+
+      {overrides.length > 0 && (
+        <div className="sec">
+          <div className="sechd"><h2>Changes for one month</h2></div>
+          <div className="list">
+            {overrides.map((o) => (
+              <div className="li" key={o.month}>
+                <span className="tx">
+                  <strong>{monthYear(o.month)}</strong>
+                  {o.savingsTargetMinor !== null && <span className="num">· Savings {huf(o.savingsTargetMinor)}</span>}
+                  {o.categories.map((c) => <span className="num" key={c.id}>· {c.name} budget {huf(c.budgetMinor)}</span>)}
+                </span>
+                <button type="button" className="btn ghost" style={{ width: 'auto', height: 36, padding: '0 14px', fontSize: 13 }}
+                  disabled={busy} onClick={() => void resetMonth(o.month)} aria-label={`Reset ${monthYear(o.month)}`}>Reset</button>
+              </div>
+            ))}
+          </div>
+          {overrideError && <p className="err" role="alert">{overrideError}</p>}
+        </div>
+      )}
 
       {history.length > 0 && (
         <div className="sec">

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { Category } from '@/data/categories';
 import type { Settings, Txn } from '@/domain/types';
-import { categoryBudgetRows, effectiveCategoryBudget } from './budgets';
+import { categoryBudgetRows, effectiveCategoryBudget, upcomingOverrides } from './budgets';
 
 const BASE_SETTINGS: Settings = {
   base_currency: 'HUF', monthly_savings_target_minor: 0, monthly_investment_amount_minor: 0,
@@ -32,5 +32,26 @@ describe('category budgets', () => {
     ], s, '2026-12');
     expect(rows.map((r) => [r.category.name, r.budgetMinor, r.isMonthOnly, r.spentMinor, r.leftMinor]))
       .toEqual([['Groceries', null, false, 0, null], ['Dining out', 2_000_000, true, 1_500_700, 499_300]]);
+  });
+});
+
+describe('upcomingOverrides', () => {
+  test('lists this and later months with a change, oldest first, with category names', () => {
+    const settings: Settings = { ...BASE_SETTINGS, month_overrides: {
+      '2027-01': { category_budgets: { c1: 1_000_000, gone: 5 } },
+      '2026-10': { savings_target_minor: 1 },
+      '2026-12': { savings_target_minor: 5_000_000, category_budgets: { c2: 2_000_000 } },
+      '2026-11': { category_budgets: {} },
+      '2027-02': { category_budgets: { gone: 5 } },
+    } };
+    expect(upcomingOverrides(settings, [dining, groceries, salary], '2026-11')).toEqual([
+      { month: '2026-12', savingsTargetMinor: 5_000_000, categories: [{ id: 'c2', name: 'Groceries', budgetMinor: 2_000_000 }] },
+      { month: '2027-01', savingsTargetMinor: null, categories: [{ id: 'c1', name: 'Dining out', budgetMinor: 1_000_000 }] },
+    ]);
+  });
+  test('includes the current month and handles no overrides', () => {
+    expect(upcomingOverrides({ ...BASE_SETTINGS, month_overrides: { '2026-11': { savings_target_minor: 0 } } }, [], '2026-11'))
+      .toEqual([{ month: '2026-11', savingsTargetMinor: 0, categories: [] }]);
+    expect(upcomingOverrides(BASE_SETTINGS, [], '2026-11')).toEqual([]);
   });
 });

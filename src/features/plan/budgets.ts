@@ -33,3 +33,23 @@ export function categoryBudgetRows(categories: Category[], txns: Txn[], settings
       };
     });
 }
+
+export interface UpcomingOverride {
+  month: YearMonth; savingsTargetMinor: number | null; categories: { id: string; name: string; budgetMinor: number }[];
+}
+
+/** One-month changes for the current month and later, oldest first; months with nothing to show are left out. */
+export function upcomingOverrides(settings: Settings, categories: Category[], currentMonth: YearMonth): UpcomingOverride[] {
+  return Object.entries(settings.month_overrides ?? {})
+    .filter(([month]) => month >= currentMonth)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, o]) => ({
+      month,
+      savingsTargetMinor: typeof o.savings_target_minor === 'number' ? o.savings_target_minor : null,
+      categories: Object.entries(o.category_budgets ?? {}).flatMap(([id, budgetMinor]) => {
+        const c = categories.find((x) => x.id === id);
+        return c ? [{ id, name: c.name, budgetMinor }] : [];
+      }),
+    }))
+    .filter((o) => o.savingsTargetMinor !== null || o.categories.length > 0);
+}
