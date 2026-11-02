@@ -39,16 +39,9 @@ export default async function (req: Request): Promise<Response> {
     if (!keyRow) return json({ error: 'invalid_key' }, 401);
     // Owner = the server-set creator, never the client-set owner_id alone (else a key row
     // could claim another user's id). owner_id must agree with created_by_id.
-    let ownerId: string;
-    if (typeof keyRow.created_by_id === 'string' && keyRow.created_by_id) {
-      if (keyRow.owner_id !== keyRow.created_by_id) return json({ error: 'invalid_key' }, 401);
-      ownerId = keyRow.created_by_id;
-    } else {
-      // TEMPORARY FALLBACK until the live spike confirms service-role rows carry created_by_id:
-      // trust owner_id. Remove this branch (return 401 instead) once confirmed.
-      if (typeof keyRow.owner_id !== 'string' || !keyRow.owner_id) return json({ error: 'invalid_key' }, 401);
-      ownerId = keyRow.owner_id;
-    }
+    if (typeof keyRow.created_by_id !== 'string' || !keyRow.created_by_id) return json({ error: 'invalid_key' }, 401);
+    if (keyRow.owner_id !== keyRow.created_by_id) return json({ error: 'invalid_key' }, 401);
+    const ownerId: string = keyRow.created_by_id;
 
     // 2. Body.
     let rawBody: unknown = null;
