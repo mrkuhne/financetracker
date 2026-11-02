@@ -207,3 +207,8 @@ svg.i { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-widt
 .eq div.tot span{color:var(--ink);font-weight:600}
 .eq div.tot b{font-family:var(--display);font-size:28px;font-weight:400}
 .wb.past { opacity: .45; }
+
+.smsraw { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; line-height: 1.5; background: var(--surf2); border-radius: 14px; padding: 12px; color: var(--ink); }
+.code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; background: var(--surf2); border-radius: 10px; padding: 10px 12px; word-break: break-all; user-select: all; }
+.note svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-size: 13px; font-weight: 600; z-index: 50; max-width: 90vw; }

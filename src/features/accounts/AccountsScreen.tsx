@@ -123,6 +123,7 @@ function subtitle(a: Account): string {
   const parts: string[] = [a.type[0].toUpperCase() + a.type.slice(1), a.currency];
   if (a.is_default) parts.push('Default');
   if (a.is_savings_target) parts.push('Savings target');
+  if (a.sms_sender) parts.push('SMS automation on');
   if (a.archived) parts.push('Archived');
   return parts.join(' · ');
 }

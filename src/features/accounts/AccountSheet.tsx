@@ -24,6 +24,7 @@ export function AccountSheet({ account, currencyLocked = false, onSave, onClose 
   const [isDefault, setIsDefault] = useState(account?.is_default ?? false);
   const [isTarget, setIsTarget] = useState(account?.is_savings_target ?? false);
   const [archived, setArchived] = useState(account?.archived ?? false);
+  const [smsSender, setSmsSender] = useState(account?.sms_sender ?? '');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -44,7 +45,7 @@ export function AccountSheet({ account, currencyLocked = false, onSave, onClose 
         is_default: isDefault,
         is_savings_target: type === 'savings' && isTarget,
         archived,
-        sms_sender: account?.sms_sender ?? null,
+        sms_sender: smsSender.trim() || null,
       });
     } catch (e) {
       setError(e instanceof Error && e.message.startsWith('You need') ? e.message : 'Could not save. Try again.');
@@ -66,7 +67,12 @@ export function AccountSheet({ account, currencyLocked = false, onSave, onClose 
             <span>Opening balance</span>
             <input value={opening} onChange={(e) => setOpening(e.target.value)} inputMode="decimal" placeholder="0" />
           </label>
+          <label className="field">
+            <span>SMS sender</span>
+            <input value={smsSender} onChange={(e) => setSmsSender(e.target.value)} placeholder="MBH Bank" maxLength={40} />
+          </label>
         </div>
+        <span className="sub">SMS from this sender land in this account</span>
         <div className="sec">
           <span className="ov">Type</span>
           <div className="seg">

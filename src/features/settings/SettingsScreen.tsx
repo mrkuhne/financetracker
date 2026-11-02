@@ -8,6 +8,8 @@ import { formatMoney } from '@/domain/money';
 import { parseAmountInput } from '@/lib/amountInput';
 import { exportAllJson, exportTransactionsCsv, saveBlob } from '@/data/export';
 import { todayInTz } from '@/domain/dates';
+import { listApiKeys } from '@/data/apiKeys';
+import { listRecentSms } from '@/data/smsMessages';
 import type { Settings } from '@/domain/types';
 
 const STEP = 1_000_000; // 10 000 Ft in minor units
@@ -52,6 +54,20 @@ export function SettingsScreen() {
         }
       });
   }
+
+  const [smsSub, setSmsSub] = useState('Off');
+  useEffect(() => {
+    (async () => {
+      try {
+        const keys = await listApiKeys();
+        if (!keys.some((k) => !k.revoked)) return setSmsSub('Off');
+        const last = (await listRecentSms(1))[0];
+        setSmsSub(last ? `On · last one ${fmtWhen(last.received_at)}` : 'On');
+      } catch {
+        /* keep the default subtitle */
+      }
+    })();
+  }, []);
 
   const [exportMsg, setExportMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -114,6 +130,16 @@ export function SettingsScreen() {
               <Link to="/accounts" className="li">
                 <span className="ci" style={{ ['--c' as string]: 'var(--accent)' }}><Icon name="wallet" /></span>
                 <span className="tx"><strong>Accounts</strong><span>Balances, currencies, default account</span></span>
+                <Icon name="chev" />
+              </Link>
+            </div>
+          </div>
+          <div className="sec">
+            <span className="ov">Automation</span>
+            <div className="list">
+              <Link to="/settings/sms" className="li">
+                <span className="ci" style={{ ['--c' as string]: 'var(--accent)' }}><Icon name="sms" /></span>
+                <span className="tx"><strong>SMS automation</strong><span>{smsSub}</span></span>
                 <Icon name="chev" />
               </Link>
             </div>
@@ -189,4 +215,13 @@ function AmountField({ label, minor, optional = false, onChange }: { label: stri
       </div>
     </div>
   );
+}
+
+function fmtWhen(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const now = new Date();
+  return d.toDateString() === now.toDateString()
+    ? d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }

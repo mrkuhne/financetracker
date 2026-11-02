@@ -9,6 +9,7 @@ import {
 import { BreakdownScreen } from '@/features/home/HomeScreen';
 import { AccountsScreen } from '@/features/accounts/AccountsScreen';
 import { SettingsScreen } from '@/features/settings/SettingsScreen';
+import { SmsAutomationScreen } from '@/features/sms/SmsAutomationScreen';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
             <Route path="/recurring" element={<RecurringScreen />} />
             <Route path="/accounts" element={<AccountsScreen />} />
             <Route path="/settings" element={<SettingsScreen />} />
+            <Route path="/settings/sms" element={<SmsAutomationScreen />} />
           </Route>
         </Routes>
       </BrowserRouter>
