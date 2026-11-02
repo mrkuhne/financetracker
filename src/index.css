@@ -110,6 +110,8 @@ svg.i { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-widt
 .sechd h2 { font-size: 15px; font-weight: 600; margin: 0; }
 .link { color: var(--accent); font-weight: 600; font-size: 13px; }
 .neg { color: var(--bad); } .pos { color: var(--good); }
+.warnc { color: var(--warn); }
+.btn.ai { background: var(--ai); color: var(--bg); }
 .pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600; background: var(--surf2); color: var(--sub); }
 .btn { display: flex; align-items: center; justify-content: center; gap: 8px; height: 50px; border-radius: 16px; background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 15px; width: 100%; }
 .btn.ghost { background: var(--surf2); color: var(--ink); }

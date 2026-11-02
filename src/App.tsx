@@ -13,6 +13,7 @@ import { SmsAutomationScreen } from '@/features/sms/SmsAutomationScreen';
 import { ReviewSmsScreen } from '@/features/sms/ReviewSmsScreen';
 import { PlanScreen } from '@/features/plan/PlanScreen';
 import { PlanEditScreen } from '@/features/plan/PlanEditScreen';
+import { PlanImpactScreen } from '@/features/plan/PlanImpactScreen';
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="/recurring" element={<RecurringScreen />} />
             <Route path="/plan" element={<PlanScreen />} />
             <Route path="/plan/new" element={<PlanEditScreen />} />
+            <Route path="/plan/:id" element={<PlanImpactScreen />} />
             <Route path="/plan/:id/edit" element={<PlanEditScreen />} />
             <Route path="/accounts" element={<AccountsScreen />} />
             <Route path="/review/:id" element={<ReviewSmsScreen />} />
