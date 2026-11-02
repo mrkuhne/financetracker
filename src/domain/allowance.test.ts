@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeMonthlyAllowance, computeWeeklyAllowance } from './allowance';
+import { computeMonthlyAllowance, computeWeeklyAllowance, savingsTargetFor } from './allowance';
 import type { RecurringRule, Settings, Txn } from './types';
 
 const base = {
@@ -133,5 +133,14 @@ describe('allowance', () => {
       const r = [weekly({ last_materialized_date: '2026-11-15' })];
       expect(month(r, []).recurringExpensesMinor).toBe(3 * 10_000_00); // 16, 23, 30
     });
+  });
+
+  it('month override replaces the savings target for that month only', () => {
+    const s = { ...settings, monthly_savings_target_minor: 10_000_000, month_overrides: { '2026-12': { savings_target_minor: 5_000_000 } } };
+    expect(savingsTargetFor(s, '2026-12')).toBe(5_000_000);
+    expect(savingsTargetFor(s, '2026-11')).toBe(10_000_000);
+    expect(savingsTargetFor(s, '2027-01')).toBe(10_000_000);
+    expect(computeMonthlyAllowance({ month: '2026-12', rules: [], txns: [], settings: s, previousDeficitMinor: 0 }).savingsTargetMinor).toBe(5_000_000);
+    expect(computeMonthlyAllowance({ month: '2027-01', rules: [], txns: [], settings: s, previousDeficitMinor: 0 }).savingsTargetMinor).toBe(10_000_000);
   });
 });

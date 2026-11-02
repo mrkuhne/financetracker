@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   todayInTz, addDays, monthOf, daysInMonth, firstDay, lastDay,
-  nextMonth, prevMonth, weekStart, daysBetweenInclusive, compareDates,
+  nextMonth, prevMonth, addMonths, monthsBetween, weekStart, daysBetweenInclusive, compareDates,
 } from './dates';
 
 describe('dates', () => {
@@ -21,6 +21,12 @@ describe('dates', () => {
     expect(lastDay('2026-11')).toBe('2026-11-30');
     expect(nextMonth('2026-12')).toBe('2027-01');
     expect(prevMonth('2026-01')).toBe('2025-12');
+  });
+  it('addMonths and monthsBetween', () => {
+    expect(addMonths('2026-11', 2)).toBe('2027-01');
+    expect(addMonths('2026-01', -1)).toBe('2025-12');
+    expect(monthsBetween('2026-11', '2027-01')).toBe(2);
+    expect(monthsBetween('2026-11', '2026-10')).toBe(-1);
   });
   it('day arithmetic', () => {
     expect(addDays('2026-11-30', 1)).toBe('2026-12-01');

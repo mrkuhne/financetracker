@@ -41,6 +41,11 @@ function recurringTotal(rules: RecurringRule[], inMonth: Txn[], kind: RecurringR
 
 const isSpend = (t: Txn) => t.kind === 'expense' && t.recurring_rule_id === null;
 
+export function savingsTargetFor(settings: Settings, month: YearMonth): number {
+  const o = settings.month_overrides?.[month]?.savings_target_minor;
+  return typeof o === 'number' ? o : settings.monthly_savings_target_minor;
+}
+
 export function computeMonthlyAllowance(i: {
   month: YearMonth; rules: RecurringRule[]; txns: Txn[]; settings: Settings; previousDeficitMinor: number;
 }): MonthlyAllowance {
@@ -50,7 +55,7 @@ export function computeMonthlyAllowance(i: {
   const oneOffIncomeMinor = sum(
     inMonth.filter((t) => t.kind === 'income' && t.recurring_rule_id === null).map((t) => t.amount_huf_minor),
   );
-  const savingsTargetMinor = i.settings.monthly_savings_target_minor;
+  const savingsTargetMinor = savingsTargetFor(i.settings, i.month);
   const investmentMinor = i.settings.monthly_investment_amount_minor ?? 0;
   const freeMinor =
     recurringIncomeMinor + oneOffIncomeMinor - recurringExpensesMinor - savingsTargetMinor - investmentMinor - i.previousDeficitMinor;

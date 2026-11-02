@@ -66,3 +66,16 @@ export function daysBetweenInclusive(a: ISODate, b: ISODate): number {
 export function compareDates(a: ISODate, b: ISODate): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
+
+export function addMonths(m: YearMonth, n: number): YearMonth {
+  const [y, mo] = m.split('-').map(Number);
+  const idx = y * 12 + (mo - 1) + n;
+  return `${pad(Math.floor(idx / 12), 4)}-${pad((idx % 12 + 12) % 12 + 1)}`;
+}
+
+/** Whole months from `from` to `to`; negative when `to` is earlier. */
+export function monthsBetween(from: YearMonth, to: YearMonth): number {
+  const [fy, fm] = from.split('-').map(Number);
+  const [ty, tm] = to.split('-').map(Number);
+  return (ty - fy) * 12 + (tm - fm);
+}
