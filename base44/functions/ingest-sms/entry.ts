@@ -14,7 +14,7 @@ import {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
-Deno.serve(async (req: Request) => {
+export default async function (req: Request): Promise<Response> {
   try {
     if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
@@ -123,4 +123,4 @@ Deno.serve(async (req: Request) => {
     console.error('ingest-sms error', err);
     return json({ error: 'internal' }, 500);
   }
-});
+}
