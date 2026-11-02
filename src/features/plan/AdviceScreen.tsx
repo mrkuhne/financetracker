@@ -13,6 +13,7 @@ import { Icon, type IconName } from '@/features/shell/Icons';
 import { Screen } from '@/features/shell/Screen';
 import { ADVICE_SCHEMA, adviceCutsMinor, adviceFingerprint, buildAdvicePrompt, normalizeAdvice } from './advice';
 import { planApply } from './applyChanges';
+import { effectiveCategoryBudget } from './budgets';
 import { optionLetter, usePlanData, type PlanData } from './usePlanData';
 
 const monthName = (ym: YearMonth) =>
@@ -60,7 +61,10 @@ function AdviceBody({ data, plan, reload }: { data: PlanData; plan: PurchasePlan
   const started = useRef(false);
   const advice = generated;
 
-  const effectiveBudget = (cid: string) => categories.find((c) => c.id === cid)?.monthly_budget_minor ?? null;
+  const effectiveBudget = (cid: string) => {
+    const c = categories.find((x) => x.id === cid);
+    return c ? effectiveCategoryBudget(c, settings, currentMonth) : null;
+  };
 
   async function generate() {
     setLoading(true);
@@ -85,7 +89,7 @@ function AdviceBody({ data, plan, reload }: { data: PlanData; plan: PurchasePlan
         emergencyMonthsCovered: monthsCovered(data.emergency?.savedMinor ?? 0, planning.avgExpensesMinor),
         emergencyGoalMonths: settings.emergency_fund_months,
         categories: categories.filter((c) => c.kind === 'expense').map((c) => ({
-          name: c.name, budgetMinor: c.monthly_budget_minor, spentThisMonthMinor: spent.get(c.id) ?? 0,
+          name: c.name, budgetMinor: effectiveCategoryBudget(c, settings, currentMonth), spentThisMonthMinor: spent.get(c.id) ?? 0,
         })),
       });
       const raw = await invokeLlm(prompt, ADVICE_SCHEMA);
