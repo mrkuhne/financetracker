@@ -15,8 +15,12 @@ function major(minor: number): string {
   return `${sign}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, '0')}`;
 }
 
-/** RFC 4180: quote when the field contains a comma, quote, CR or LF; double inner quotes. */
+/**
+ * For user/bank-supplied text only. Neutralizes spreadsheet formulas (prefix ' when the field starts
+ * with = + - @ tab or CR), then RFC 4180: quote when it contains a comma, quote, CR or LF; double inner quotes.
+ */
 export function csvField(v: string): string {
+  if (/^[=+\-@\t\r]/.test(v)) v = `'${v}`;
   return /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 
@@ -26,20 +30,19 @@ export function buildTransactionsCsv(txns: Txn[], accounts: Pick<Account, 'id' |
   const sorted = [...txns].sort(
     (a, b) => a.date.localeCompare(b.date) || (a.created_date ?? '').localeCompare(b.created_date ?? ''),
   );
+  // Generated columns (date, kind, amounts, currency, source) are joined as-is so negatives keep their minus.
   const rows = sorted.map((t) =>
     [
       t.date,
-      acc.get(t.account_id) ?? '',
+      csvField(acc.get(t.account_id) ?? ''),
       t.kind,
       major(t.amount_minor),
       t.currency,
       major(t.amount_huf_minor),
-      t.category_id ? (cat.get(t.category_id) ?? '') : '',
-      t.note ?? '',
+      csvField(t.category_id ? (cat.get(t.category_id) ?? '') : ''),
+      csvField(t.note ?? ''),
       t.source,
-    ]
-      .map(csvField)
-      .join(','),
+    ].join(','),
   );
   return [CSV_HEADER, ...rows].join('\r\n') + '\r\n';
 }

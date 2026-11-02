@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildTransactionsCsv, buildExportJson, CSV_HEADER } from '@/data/export';
+import { buildTransactionsCsv, buildExportJson, csvField, CSV_HEADER } from '@/data/export';
 import type { Txn } from '@/domain/types';
 
 const base: Txn = {
@@ -22,6 +22,19 @@ describe('buildTransactionsCsv', () => {
     const lines = buildTransactionsCsv([base, eur], accounts, categories).trim().split('\r\n');
     expect(lines[1]).toBe('2026-10-01,Revolut,expense,10.50,EUR,4200.00,,,manual');
     expect(lines[2].startsWith('2026-11-02')).toBe(true);
+  });
+});
+
+describe('csv formula guard', () => {
+  const expenseTxn: Txn = { ...base, kind: 'expense', amount_minor: -1200, amount_huf_minor: -1200 };
+  it('csvField neutralizes spreadsheet formulas in text fields', () => {
+    expect(csvField('=HYPERLINK("x")')).toBe(`"'=HYPERLINK(""x"")"`);
+    expect(csvField('+36 30 123')).toBe("'+36 30 123");
+    expect(csvField('@SUM(A1)')).toBe("'@SUM(A1)");
+    expect(csvField('Aldi')).toBe('Aldi');
+  });
+  it('amount column keeps its minus sign', () => {
+    expect(buildTransactionsCsv([expenseTxn], accounts, categories)).toMatch(/,-12\.00,/);
   });
 });
 

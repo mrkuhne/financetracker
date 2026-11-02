@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Screen } from '@/features/shell/Screen';
 import { Icon } from '@/features/shell/Icons';
 import { listAccounts } from '@/data/accounts';
@@ -15,6 +15,7 @@ import { TXNS_CHANGED } from './events';
 import { dayLabel, groupByDay, monthLabel } from './txLogic';
 
 export function TransactionsScreen() {
+  const nav = useNavigate();
   const [today, setToday] = useState('');
   const [month, setMonth] = useState<YearMonth>('');
   const [txns, setTxns] = useState<Txn[] | null>(null);
@@ -73,7 +74,7 @@ export function TransactionsScreen() {
       : t.note || cat?.name || 'Uncategorised';
     const sign = t.kind === 'income' || t.kind === 'transfer_in' ? '+' : '−';
     return (
-      <button key={t.id} className={`li${t.needs_review ? ' rev' : ''}`} onClick={() => setEditing(t)}>
+      <button key={t.id} className={`li${t.needs_review ? ' rev' : ''}`} onClick={() => (t.needs_review && t.sms_message_id ? nav(`/review/${t.id}`) : setEditing(t))}>
         <CatIcon category={cat} icon={transfer ? 'swap' : undefined} />
         <span className="tx">
           <strong>{name}</strong>

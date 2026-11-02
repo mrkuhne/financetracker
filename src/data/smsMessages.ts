@@ -41,3 +41,12 @@ export async function listPendingSms(): Promise<SmsMessageRow[]> {
 export async function markSmsConverted(id: string, transactionId: string): Promise<void> {
   await base44.entities.SmsMessage.update(id, { status: 'converted', transaction_id: transactionId });
 }
+
+export async function getSms(id: string): Promise<SmsMessageRow | null> {
+  try {
+    const rows = await base44.entities.SmsMessage.filter({ id });
+    return rows[0] ? toRow(rows[0]) : null;
+  } catch {
+    return null;
+  }
+}

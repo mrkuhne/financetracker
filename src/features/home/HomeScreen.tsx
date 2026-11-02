@@ -58,13 +58,16 @@ export function HomeScreen() {
   const max = Math.max(m.dailyShareMinor, ...m.bars.map((b) => b.spentMinor)) * 1.15 || 1;
   const share = Math.max(0, Math.min(100, mo.freeMinor > 0 ? (mo.spentMinor / mo.freeMinor) * 100 : mo.spentMinor > 0 ? 100 : 0));
 
+  const firstSms = m.needsReview.find((t) => t.sms_message_id);
+  const reviewTarget = firstSms ? `/review/${firstSms.id}` : '/transactions';
+
   const row = (t: Txn) => {
     const cat = t.category_id ? catById.get(t.category_id) : undefined;
     const transfer = t.kind === 'transfer_in' || t.kind === 'transfer_out';
     const name = transfer ? `Transfer ${t.kind === 'transfer_out' ? 'out' : 'in'}` : t.note || cat?.name || 'Uncategorised';
     const plus = t.kind === 'income' || t.kind === 'transfer_in';
     return (
-      <Link key={t.id} to="/transactions" className={`li${t.needs_review ? ' rev' : ''}`}>
+      <Link key={t.id} to={t.needs_review && t.sms_message_id ? `/review/${t.id}` : '/transactions'} className={`li${t.needs_review ? ' rev' : ''}`}>
         <CatIcon category={cat} icon={transfer ? 'swap' : undefined} />
         <span className="tx">
           <strong>{name}</strong>
@@ -120,7 +123,7 @@ export function HomeScreen() {
         <div className="bar"><b style={{ width: `${share}%` }} /></div>
       </button>
       {m.needsReview.length > 0 && (
-        <Link to="/transactions" className="banner" style={{ background: 'color-mix(in srgb,var(--warn) 13%,var(--surf))' }}>
+        <Link to={reviewTarget} className="banner" style={{ background: 'color-mix(in srgb,var(--warn) 13%,var(--surf))' }}>
           <span className="bi" style={{ color: 'var(--warn)' }}><Icon name="sms" /></span>
           <div>
             <strong>{m.needsReview.length} from SMS to check</strong>

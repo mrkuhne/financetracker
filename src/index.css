@@ -212,3 +212,5 @@ svg.i { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-widt
 .code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; background: var(--surf2); border-radius: 10px; padding: 10px 12px; word-break: break-all; user-select: all; }
 .note svg { width: 16px; height: 16px; flex: 0 0 auto; }
 .toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-size: 13px; font-weight: 600; z-index: 50; max-width: 90vw; }
+
+.pill.ai { background: color-mix(in srgb, var(--accent) 16%, var(--surf2)); color: var(--accent); margin-left: 4px; }
