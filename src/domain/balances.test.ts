@@ -4,7 +4,7 @@ import type { Account, Txn } from './types';
 
 const acct = (o: Partial<Account> = {}): Account => ({
   id: 'a1', name: 'Main', type: 'checking', currency: 'HUF', opening_balance_minor: 0,
-  is_default: true, is_savings_target: false, archived: false, ...o,
+  is_default: true, is_savings_target: false, archived: false, sms_sender: null, ...o,
 });
 const mk = (kind: Txn['kind'], amount: number, o: Partial<Txn> = {}): Txn => ({
   id: 't', account_id: 'a1', kind, amount_minor: amount, currency: 'HUF', amount_huf_minor: amount,

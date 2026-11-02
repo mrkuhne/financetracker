@@ -6,9 +6,9 @@ import { pick, stripNulls } from '@/data/records';
 
 const KEYS = [
   'account_id', 'kind', 'amount_minor', 'currency', 'amount_huf_minor', 'category_id', 'date',
-  'note', 'source', 'needs_review', 'recurring_rule_id', 'transfer_pair_id',
+  'note', 'source', 'needs_review', 'recurring_rule_id', 'transfer_pair_id', 'sms_message_id',
 ];
-const NULLABLE = ['category_id', 'recurring_rule_id', 'transfer_pair_id'];
+const NULLABLE = ['category_id', 'recurring_rule_id', 'transfer_pair_id', 'sms_message_id'];
 const toTxn = (r: Record<string, unknown>): Txn => ({
   ...pick<Txn>(r, KEYS, NULLABLE),
   needs_review: !!r.needs_review,

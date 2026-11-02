@@ -1,0 +1,27 @@
+{
+  "name": "SmsMessage",
+  "type": "object",
+  "properties": {
+    "owner_id": { "type": "string" },
+    "sender": { "type": "string" },
+    "text": { "type": ["string", "null"] },
+    "text_hash": { "type": "string" },
+    "received_at": { "type": "string", "format": "date-time" },
+    "status": { "type": "string", "enum": ["parsed", "ignored", "failed", "converted"] },
+    "reason": { "type": ["string", "null"] },
+    "kind": { "type": ["string", "null"], "enum": ["expense", "income", null] },
+    "amount_minor": { "type": ["integer", "null"] },
+    "currency": { "type": ["string", "null"] },
+    "merchant": { "type": ["string", "null"] },
+    "date": { "type": ["string", "null"], "format": "date" },
+    "category_name": { "type": ["string", "null"] },
+    "transaction_id": { "type": ["string", "null"] }
+  },
+  "required": ["owner_id", "sender", "text_hash", "received_at", "status"],
+  "rls": {
+    "create": false,
+    "read": { "data.owner_id": "{{user.id}}" },
+    "update": { "data.owner_id": "{{user.id}}" },
+    "delete": { "data.owner_id": "{{user.id}}" }
+  }
+}

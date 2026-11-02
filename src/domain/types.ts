@@ -16,6 +16,7 @@ export interface Txn {
   needs_review: boolean;
   recurring_rule_id: string | null;
   transfer_pair_id: string | null;
+  sms_message_id?: string | null;
   /** Server creation timestamp; read-only, used only as a sort tiebreak. */
   created_date?: string;
 }
@@ -64,4 +65,5 @@ export interface Account {
   is_default: boolean;
   is_savings_target: boolean;
   archived: boolean;
+  sms_sender: string | null;
 }

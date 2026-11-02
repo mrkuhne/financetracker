@@ -61,6 +61,12 @@
         "string",
         "null"
       ]
+    },
+    "sms_message_id": {
+      "type": [
+        "string",
+        "null"
+      ]
     }
   },
   "required": [

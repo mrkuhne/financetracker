@@ -28,7 +28,7 @@ const txns = [
   mk('expense', '2026-11-06', 1_000_00, { currency: 'EUR', amount_minor: 2_53, amount_huf_minor: 1_000_00, needs_review: true }),
 ];
 const acct = (id: string, over: Partial<Account> = {}): Account => ({
-  id, name: id, type: 'checking', currency: 'HUF', opening_balance_minor: 0, is_default: false, is_savings_target: false, archived: false, ...over,
+  id, name: id, type: 'checking', currency: 'HUF', opening_balance_minor: 0, is_default: false, is_savings_target: false, archived: false, sms_sender: null, ...over,
 });
 
 describe('buildHomeModel', () => {

@@ -44,6 +44,7 @@ export function AccountSheet({ account, currencyLocked = false, onSave, onClose 
         is_default: isDefault,
         is_savings_target: type === 'savings' && isTarget,
         archived,
+        sms_sender: account?.sms_sender ?? null,
       });
     } catch (e) {
       setError(e instanceof Error && e.message.startsWith('You need') ? e.message : 'Could not save. Try again.');

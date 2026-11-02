@@ -4,11 +4,11 @@ import type { Account } from '@/domain/types';
 
 const acc = (o: Partial<Account> & { id: string }): Account => ({
   name: o.id, type: 'checking', currency: 'HUF', opening_balance_minor: 0,
-  is_default: false, is_savings_target: false, archived: false, ...o,
+  is_default: false, is_savings_target: false, archived: false, sms_sender: null, ...o,
 });
 const draft = (o: Partial<AccountDraft>): AccountDraft => ({
   name: 'X', type: 'checking', currency: 'HUF', opening_balance_minor: 0,
-  is_default: false, is_savings_target: false, archived: false, ...o,
+  is_default: false, is_savings_target: false, archived: false, sms_sender: null, ...o,
 });
 
 describe('planAccountSave', () => {

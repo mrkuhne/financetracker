@@ -28,6 +28,12 @@
     },
     "archived": {
       "type": "boolean"
+    },
+    "sms_sender": {
+      "type": [
+        "string",
+        "null"
+      ]
     }
   },
   "required": [
