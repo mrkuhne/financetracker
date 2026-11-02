@@ -161,11 +161,11 @@ function AdviceBody({ data, plan, reload }: { data: PlanData; plan: PurchasePlan
   }
   const mon = monthName(advice.month);
   const hasSettingChange = advice.changes.some((c) => c.type !== 'postpone');
-  // "From now on" writes the permanent values: show and apply only real cuts of those.
-  const shown = appliedChanges ?? changesForMode(advice.changes, mode, {
-    savingsTargetMinor: settings.monthly_savings_target_minor,
-    budget: (cid) => categories.find((x) => x.id === cid)?.monthly_budget_minor ?? null,
-  });
+  // Rebased on the current values the chosen mode writes over (the advice month's, or the permanent
+  // ones), so stale stored advice can never show a false "from" or apply a raise.
+  const shown = appliedChanges ?? changesForMode(advice.changes, mode === 'month'
+    ? { savingsTargetMinor: savingsTargetFor(settings, advice.month), budget: (cid) => effectiveBudget(cid, advice.month) }
+    : { savingsTargetMinor: settings.monthly_savings_target_minor, budget: (cid) => categories.find((x) => x.id === cid)?.monthly_budget_minor ?? null });
   const cuts = adviceCutsMinor(shown);
   const emergencySaved = data.emergency?.savedMinor ?? 0;
   const after = emergencyAfterMinor({

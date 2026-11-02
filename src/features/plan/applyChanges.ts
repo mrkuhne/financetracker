@@ -26,20 +26,20 @@ export function planApply(i: { changes: AdviceChange[]; mode: 'month' | 'permane
 }
 
 /**
- * The changes as they apply in a mode. "From now on" writes the permanent values, so `from` is the
- * permanent value there, and a change that is not a cut of it is left out. Postpone always stays.
+ * The changes rebased on the values the chosen mode writes over: the advice month's values for
+ * "Just for <month>", the permanent values for "From now on". `from` becomes that current value,
+ * and a change that is no longer a cut of it is left out. Postpone always stays.
  */
 export function changesForMode(
-  changes: AdviceChange[], mode: 'month' | 'permanent',
-  permanent: { savingsTargetMinor: number; budget: (categoryId: string) => number | null },
+  changes: AdviceChange[],
+  current: { savingsTargetMinor: number; budget: (categoryId: string) => number | null },
 ): AdviceChange[] {
-  if (mode === 'month') return changes;
   const out: AdviceChange[] = [];
   for (const c of changes) {
     if (c.type === 'savings_target') {
-      if (c.to_minor < permanent.savingsTargetMinor) out.push({ ...c, from_minor: permanent.savingsTargetMinor });
+      if (c.to_minor < current.savingsTargetMinor) out.push({ ...c, from_minor: current.savingsTargetMinor });
     } else if (c.type === 'category_budget') {
-      const from = permanent.budget(c.category_id);
+      const from = current.budget(c.category_id);
       if (from === null || c.to_minor < from) out.push({ ...c, from_minor: from });
     } else out.push(c);
   }

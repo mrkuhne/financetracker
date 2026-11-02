@@ -20,7 +20,7 @@ test('month mode keeps existing overrides of the same month', () => {
 });
 
 describe('changesForMode', () => {
-  const permanent = { savingsTargetMinor: 8_000_000, budget: (id: string) => (id === 'c1' ? 1_000_000 : id === 'c2' ? null : 9_000_000) };
+  const current = { savingsTargetMinor: 8_000_000, budget: (id: string) => (id === 'c1' ? 1_000_000 : id === 'c2' ? null : 9_000_000) };
   const list: AdviceChange[] = [
     { type: 'savings_target', from_minor: 10_000_000, to_minor: 5_000_000 },
     { type: 'category_budget', category_id: 'c1', category_name: 'Dining out', from_minor: 6_000_000, to_minor: 2_000_000 },
@@ -28,13 +28,17 @@ describe('changesForMode', () => {
     { type: 'category_budget', category_id: 'c3', category_name: 'Transport', from_minor: null, to_minor: 4_000_000 },
     { type: 'postpone', month: '2026-12' },
   ];
-  test('month mode keeps the changes as they are', () => expect(changesForMode(list, 'month', permanent)).toBe(list));
-  test('from now on: from is the permanent value, and non-cuts are dropped', () => expect(changesForMode(list, 'permanent', permanent)).toEqual([
+  test('from is the current value, and changes that are no longer cuts are dropped', () => expect(changesForMode(list, current)).toEqual([
     { type: 'savings_target', from_minor: 8_000_000, to_minor: 5_000_000 },
     { type: 'category_budget', category_id: 'c2', category_name: 'Groceries', from_minor: null, to_minor: 3_000_000 },
     { type: 'category_budget', category_id: 'c3', category_name: 'Transport', from_minor: 9_000_000, to_minor: 4_000_000 },
     { type: 'postpone', month: '2026-12' },
   ]));
-  test('from now on: a savings change at or above the permanent target is dropped', () =>
-    expect(changesForMode([list[0]], 'permanent', { ...permanent, savingsTargetMinor: 5_000_000 })).toEqual([]));
+  test('stale month value: stored "100 000 -> 40 000" with the month since lowered to 30 000 is dropped, not applied as a raise', () => {
+    const stale: AdviceChange[] = [{ type: 'savings_target', from_minor: 10_000_000, to_minor: 4_000_000 }];
+    expect(changesForMode(stale, { ...current, savingsTargetMinor: 3_000_000 })).toEqual([]);
+    expect(changesForMode(stale, { ...current, savingsTargetMinor: 5_000_000 })).toEqual([{ type: 'savings_target', from_minor: 5_000_000, to_minor: 4_000_000 }]);
+  });
+  test('a savings change at or above the current target is dropped', () =>
+    expect(changesForMode([list[0]], { ...current, savingsTargetMinor: 5_000_000 })).toEqual([]));
 });

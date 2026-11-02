@@ -236,7 +236,7 @@ export function SavingsScreen() {
                   {o.categories.map((c) => <span className="num" key={c.id}>· {c.name} budget {huf(c.budgetMinor)}</span>)}
                 </span>
                 <button type="button" className="btn ghost" style={{ width: 'auto', height: 36, padding: '0 14px', fontSize: 13 }}
-                  disabled={busy} onClick={() => void resetMonth(o.month)} aria-label={`Reset ${monthYear(o.month)}`}>Reset</button>
+                  disabled={busy || editing !== null} onClick={() => void resetMonth(o.month)} aria-label={`Reset ${monthYear(o.month)}`}>Reset</button>
               </div>
             ))}
           </div>
