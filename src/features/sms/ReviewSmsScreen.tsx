@@ -5,9 +5,7 @@ import { Icon } from '@/features/shell/Icons';
 import { listAccounts } from '@/data/accounts';
 import { listCategories, type Category } from '@/data/categories';
 import { getSms, type SmsMessageRow } from '@/data/smsMessages';
-import { getSettings } from '@/data/settings';
-import { getTransaction, listTransactions, updateTransaction } from '@/data/transactions';
-import { firstDay, lastDay, monthOf, todayInTz } from '@/domain/dates';
+import { getTransaction, listReviewTxns, updateTransaction } from '@/data/transactions';
 import { formatMoney } from '@/domain/money';
 import type { Account, Txn } from '@/domain/types';
 import { TransactionForm } from '@/features/transactions/TransactionForm';
@@ -18,6 +16,10 @@ const niceDate = (d: string) =>
 
 export function ReviewSmsScreen() {
   const { id = '' } = useParams();
+  return <ReviewSmsInner key={id} id={id} />;
+}
+
+function ReviewSmsInner({ id }: { id: string }) {
   const nav = useNavigate();
   const [txn, setTxn] = useState<Txn | null | undefined>(undefined); // undefined = loading
   const [sms, setSms] = useState<SmsMessageRow | null>(null);
@@ -63,17 +65,21 @@ export function ReviewSmsScreen() {
     setError('');
     try {
       await updateTransaction(id, { needs_review: false });
-      notifyTxnsChanged();
-      const s = await getSettings();
-      const m = monthOf(todayInTz(s.timezone));
-      const rest = (await listTransactions({ from: firstDay(m), to: lastDay(m) }))
-        .filter((t) => t.needs_review && t.sms_message_id && t.id !== id)
-        .sort((a, b) => a.date.localeCompare(b.date));
-      nav(rest[0] ? `/review/${rest[0].id}` : '/');
     } catch {
       setError('Could not save. Try again.');
       setBusy(false);
+      return;
     }
+    notifyTxnsChanged();
+    let next: Txn | undefined;
+    try {
+      next = (await listReviewTxns())
+        .filter((t) => t.sms_message_id && t.id !== id)
+        .sort((x, y) => x.date.localeCompare(y.date))[0];
+    } catch {
+      next = undefined;
+    }
+    nav(next ? `/review/${next.id}` : '/');
   }
 
   return (

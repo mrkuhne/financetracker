@@ -26,15 +26,22 @@ describe('buildTransactionsCsv', () => {
 });
 
 describe('csv formula guard', () => {
-  const expenseTxn: Txn = { ...base, kind: 'expense', amount_minor: -1200, amount_huf_minor: -1200 };
+  const expenseTxn: Txn = { ...base, kind: 'expense', amount_minor: 1200, amount_huf_minor: 1200 };
   it('csvField neutralizes spreadsheet formulas in text fields', () => {
     expect(csvField('=HYPERLINK("x")')).toBe(`"'=HYPERLINK(""x"")"`);
     expect(csvField('+36 30 123')).toBe("'+36 30 123");
     expect(csvField('@SUM(A1)')).toBe("'@SUM(A1)");
     expect(csvField('Aldi')).toBe('Aldi');
   });
-  it('amount column keeps its minus sign', () => {
-    expect(buildTransactionsCsv([expenseTxn], accounts, categories)).toMatch(/,-12\.00,/);
+  it('generated columns are not guarded', () => {
+    expect(buildTransactionsCsv([expenseTxn], accounts, categories)).toContain(',expense,12.00,');
+    const neg: Txn = { ...base, amount_minor: -1200, amount_huf_minor: -1200 };
+    expect(buildTransactionsCsv([neg], accounts, categories)).toMatch(/,-12\.00,/);
+  });
+  it('guards note and account in the built CSV', () => {
+    const csv = buildTransactionsCsv([{ ...expenseTxn, note: '-5', account_id: 'x' }], [{ id: 'x', name: '=x' }], categories);
+    expect(csv).toContain(",'=x,");
+    expect(csv).toContain(",'-5,");
   });
 });
 
