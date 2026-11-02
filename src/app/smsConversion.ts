@@ -32,7 +32,7 @@ export function planSmsTxn(
   const converted = origCurrency !== account.currency;
   const amountMinor = converted ? convertMinor(origMinor, rates.msg, rates.account) : origMinor;
   const catName = msg.category_name ? norm(msg.category_name) : null;
-  const category = catName ? categories.find((c) => norm(c.name) === catName) : undefined;
+  const category = catName ? categories.find((c) => c.kind === msg.kind && norm(c.name) === catName) : undefined;
   const note = [msg.merchant ?? '', converted ? formatMoney(origMinor, origCurrency) : '']
     .filter((p) => p !== '')
     .join(' · ');
@@ -51,4 +51,32 @@ export function planSmsTxn(
     transfer_pair_id: null,
     sms_message_id: msg.id,
   };
+}
+
+const olderFirst = (a: SmsMessageRow, b: SmsMessageRow): number =>
+  a.received_at.localeCompare(b.received_at) || (a.created_date ?? '').localeCompare(b.created_date ?? '');
+
+/**
+ * Split pending SMS into ones to convert and duplicates. Per text_hash the oldest (received_at,
+ * then created_date) is kept; the rest point at it (`of`). A hash already converted earlier is a
+ * duplicate with `of: null`. `convert` keeps the input order.
+ */
+export function dedupePending(
+  pending: SmsMessageRow[],
+  convertedHashes: Set<string>,
+): { convert: SmsMessageRow[]; duplicates: { msg: SmsMessageRow; of: SmsMessageRow | null }[] } {
+  const keep = new Map<string, SmsMessageRow>();
+  for (const m of pending) {
+    if (convertedHashes.has(m.text_hash)) continue;
+    const cur = keep.get(m.text_hash);
+    if (!cur || olderFirst(m, cur) < 0) keep.set(m.text_hash, m);
+  }
+  const convert: SmsMessageRow[] = [];
+  const duplicates: { msg: SmsMessageRow; of: SmsMessageRow | null }[] = [];
+  for (const m of pending) {
+    const kept = keep.get(m.text_hash);
+    if (kept === m) convert.push(m);
+    else duplicates.push({ msg: m, of: kept ?? null });
+  }
+  return { convert, duplicates };
 }

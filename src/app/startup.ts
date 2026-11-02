@@ -68,7 +68,8 @@ export function runStartup(): Promise<StartupResult> {
     } catch (e) {
       console.error('Could not load settings for materialization', e);
     }
-    await convertSms();
+    // Not awaited: conversion can be slow (FX lookups) and notifies on its own when done.
+    void convertSms();
     listenForResume();
     done = { ok: true };
     return done;

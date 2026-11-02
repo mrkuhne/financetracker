@@ -57,6 +57,34 @@ it('normalizeParsed: not a transaction → ignored; garbage → failed', () => {
   expect(normalizeParsed({ is_transaction: true, direction: 'sideways', amount: 5, currency: 'HUF' }, '2026-11-12', CATS)).toMatchObject({ status: 'failed' });
   expect(normalizeParsed('oops', '2026-11-12', CATS)).toMatchObject({ status: 'failed' });
 });
+it('normalizeParsed: only an explicit is_transaction false is ignored; other non-true values fail', () => {
+  const D = { direction: 'debit', amount: 5, currency: 'HUF' };
+  expect(normalizeParsed({ ...D, is_transaction: 'false' }, '2026-11-12', CATS)).toEqual({ status: 'failed', reason: 'bad_shape' });
+  expect(normalizeParsed({ ...D }, '2026-11-12', CATS)).toEqual({ status: 'failed', reason: 'bad_shape' });
+  expect(normalizeParsed({ ...D, is_transaction: null }, '2026-11-12', CATS)).toEqual({ status: 'failed', reason: 'bad_shape' });
+  expect(normalizeParsed({ ...D, is_transaction: 1 }, '2026-11-12', CATS)).toEqual({ status: 'failed', reason: 'bad_shape' });
+});
+it('normalizeParsed: amount must be a safe integer of minor units up to 1 billion major units', () => {
+  const T = { is_transaction: true, direction: 'debit', currency: 'HUF' };
+  expect(normalizeParsed({ ...T, amount: 1_000_000_000 }, '2026-11-12', CATS)).toMatchObject({ status: 'parsed', amount_minor: 100_000_000_000 });
+  expect(normalizeParsed({ ...T, amount: 1_000_000_000.01 }, '2026-11-12', CATS)).toEqual({ status: 'failed', reason: 'bad_amount' });
+  expect(normalizeParsed({ ...T, amount: 1e300 }, '2026-11-12', CATS)).toEqual({ status: 'failed', reason: 'bad_amount' });
+});
+it('normalizeParsed: currency must be on the whitelist', () => {
+  const T = { is_transaction: true, direction: 'debit', amount: 5 };
+  expect(normalizeParsed({ ...T, currency: 'FTS' }, '2026-11-12', CATS)).toEqual({ status: 'failed', reason: 'bad_currency' });
+  expect(normalizeParsed({ ...T, currency: 'forint' }, '2026-11-12', CATS)).toEqual({ status: 'failed', reason: 'bad_currency' });
+  for (const c of ['huf', 'EUR', 'usd', 'GBP', 'chf'])
+    expect(normalizeParsed({ ...T, currency: c }, '2026-11-12', CATS)).toMatchObject({ status: 'parsed', currency: c.toUpperCase() });
+});
+it('normalizeParsed: an LLM date more than 7 days from the fallback is replaced', () => {
+  const T = { is_transaction: true, direction: 'debit', amount: 5, currency: 'HUF' };
+  expect(normalizeParsed({ ...T, date: '2026-11-05' }, '2026-11-12', CATS)).toMatchObject({ date: '2026-11-05' });
+  expect(normalizeParsed({ ...T, date: '2026-11-19' }, '2026-11-12', CATS)).toMatchObject({ date: '2026-11-19' });
+  expect(normalizeParsed({ ...T, date: '2026-11-04' }, '2026-11-12', CATS)).toMatchObject({ date: '2026-11-12' });
+  expect(normalizeParsed({ ...T, date: '2026-11-20' }, '2026-11-12', CATS)).toMatchObject({ date: '2026-11-12' });
+  expect(normalizeParsed({ ...T, date: '2025-11-12' }, '2026-11-12', CATS)).toMatchObject({ date: '2026-11-12' });
+});
 it('buildPrompt carries the text, sender and only the category names', () => {
   const p = buildPrompt(S1, 'MBH Bank', CATS);
   for (const s of [S1, 'MBH Bank', 'Groceries', 'Transport', 'Dining']) expect(p).toContain(s);

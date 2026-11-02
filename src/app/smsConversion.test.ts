@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Account } from '@/domain/types';
 import type { Category } from '@/data/categories';
 import type { SmsMessageRow } from '@/data/smsMessages';
-import { pickSmsAccount, planSmsTxn } from './smsConversion';
+import { dedupePending, pickSmsAccount, planSmsTxn } from './smsConversion';
 
 const acct = (o: Partial<Account>): Account => ({
   id: 'a1', name: 'Account', type: 'checking', currency: 'HUF', opening_balance_minor: 0,
@@ -16,6 +16,8 @@ const msg = (o: Partial<SmsMessageRow>): SmsMessageRow => ({
 const cats: Category[] = [
   { id: 'cat-groceries', name: 'Groceries', kind: 'expense', icon: 'x', monthly_budget_minor: null },
   { id: 'cat-transport', name: 'Transport', kind: 'expense', icon: 'x', monthly_budget_minor: null },
+  { id: 'cat-other-in', name: 'Other', kind: 'income', icon: 'x', monthly_budget_minor: null },
+  { id: 'cat-other-out', name: 'Other', kind: 'expense', icon: 'x', monthly_budget_minor: null },
 ];
 
 describe('smsConversion', () => {
@@ -43,5 +45,31 @@ describe('smsConversion', () => {
   it('planSmsTxn: converted with no merchant has no leading separator', () => {
     const t = planSmsTxn(msg({ amount_minor: 1250, currency: 'EUR', merchant: null }), acct({ currency: 'HUF' }), cats, { msg: 400, account: 1 });
     expect(t.note).toMatch(/^12[.,]50/);
+  });
+  it('planSmsTxn: category matched by name and kind', () => {
+    expect(planSmsTxn(msg({ kind: 'expense', category_name: 'Other' }), acct({}), cats, { msg: 1, account: 1 }).category_id).toBe('cat-other-out');
+    expect(planSmsTxn(msg({ kind: 'income', category_name: 'other' }), acct({}), cats, { msg: 1, account: 1 }).category_id).toBe('cat-other-in');
+    expect(planSmsTxn(msg({ kind: 'income', category_name: 'Groceries' }), acct({}), cats, { msg: 1, account: 1 }).category_id).toBeNull();
+  });
+  it('dedupePending: keeps the oldest per hash, flags in-batch and already-converted duplicates', () => {
+    const a = msg({ id: 'a', text_hash: 'h1', received_at: '2026-11-11T10:00:05Z', created_date: '2026-11-11T10:00:06Z' });
+    const b = msg({ id: 'b', text_hash: 'h1', received_at: '2026-11-11T10:00:00Z', created_date: '2026-11-11T10:00:09Z' });
+    const c = msg({ id: 'c', text_hash: 'h1', received_at: '2026-11-11T10:00:00Z', created_date: '2026-11-11T10:00:07Z' });
+    const d = msg({ id: 'd', text_hash: 'h2' });
+    const e = msg({ id: 'e', text_hash: 'h3' });
+    const f = msg({ id: 'f', text_hash: 'h3' });
+    const { convert, duplicates } = dedupePending([a, b, c, d, e, f], new Set(['h3']));
+    expect(convert.map((m) => m.id)).toEqual(['c', 'd']);
+    expect(duplicates.map((x) => [x.msg.id, x.of?.id ?? null])).toEqual([
+      ['a', 'c'],
+      ['b', 'c'],
+      ['e', null],
+      ['f', null],
+    ]);
+  });
+  it('dedupePending: nothing to dedupe passes everything through', () => {
+    const { convert, duplicates } = dedupePending([msg({ id: 'x', text_hash: 'h1' }), msg({ id: 'y', text_hash: 'h2' })], new Set());
+    expect(convert.map((m) => m.id)).toEqual(['x', 'y']);
+    expect(duplicates).toEqual([]);
   });
 });

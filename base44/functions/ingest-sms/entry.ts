@@ -37,8 +37,18 @@ export default async function (req: Request): Promise<Response> {
     const keyRows = await db.ApiKey.filter({ key_hash: await sha256Hex(key) });
     const keyRow = (keyRows ?? []).find((r: { revoked?: boolean }) => r.revoked !== true);
     if (!keyRow) return json({ error: 'invalid_key' }, 401);
-    if (typeof keyRow.owner_id !== 'string' || !keyRow.owner_id) return json({ error: 'invalid_key' }, 401);
-    const ownerId: string = keyRow.owner_id;
+    // Owner = the server-set creator, never the client-set owner_id alone (else a key row
+    // could claim another user's id). owner_id must agree with created_by_id.
+    let ownerId: string;
+    if (typeof keyRow.created_by_id === 'string' && keyRow.created_by_id) {
+      if (keyRow.owner_id !== keyRow.created_by_id) return json({ error: 'invalid_key' }, 401);
+      ownerId = keyRow.created_by_id;
+    } else {
+      // TEMPORARY FALLBACK until the live spike confirms service-role rows carry created_by_id:
+      // trust owner_id. Remove this branch (return 401 instead) once confirmed.
+      if (typeof keyRow.owner_id !== 'string' || !keyRow.owner_id) return json({ error: 'invalid_key' }, 401);
+      ownerId = keyRow.owner_id;
+    }
 
     // 2. Body.
     let rawBody: unknown = null;
@@ -54,8 +64,11 @@ export default async function (req: Request): Promise<Response> {
 
     // 3. Duplicate check.
     const text_hash = await dedupeHash(sender, text);
-    const existing = await db.SmsMessage.filter({ owner_id: ownerId, text_hash });
-    if (existing && existing.length > 0) return json({ status: 'duplicate' });
+    const isDuplicate = async () => {
+      const existing = await db.SmsMessage.filter({ owner_id: ownerId, text_hash });
+      return !!existing && existing.length > 0;
+    };
+    if (await isDuplicate()) return json({ status: 'duplicate' });
 
     const touchKey = async () => {
       try {
@@ -101,7 +114,9 @@ export default async function (req: Request): Promise<Response> {
       result = { status: 'failed', reason: 'llm_error' };
     }
 
-    // 7. Store.
+    // 7. Store. Re-check duplicates first: the LLM call is slow, so this narrows the race
+    // with a concurrent identical request (the client dedupes whatever still slips through).
+    if (await isDuplicate()) return json({ status: 'duplicate' });
     if (result.status === 'parsed') {
       await db.SmsMessage.create({
         ...base,

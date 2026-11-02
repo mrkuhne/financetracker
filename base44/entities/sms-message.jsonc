@@ -9,7 +9,7 @@
     "received_at": { "type": "string", "format": "date-time" },
     "status": { "type": "string", "enum": ["parsed", "ignored", "failed", "converted"] },
     "reason": { "type": ["string", "null"] },
-    "kind": { "type": ["string", "null"], "enum": ["expense", "income", null] },
+    "kind": { "type": "string", "enum": ["expense", "income"] },
     "amount_minor": { "type": ["integer", "null"] },
     "currency": { "type": ["string", "null"] },
     "merchant": { "type": ["string", "null"] },

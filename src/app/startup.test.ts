@@ -9,6 +9,8 @@ vi.mock('@/data/settings', () => ({ getSettings: async () => ({ timezone: 'Europ
 const notify = vi.fn();
 vi.mock('@/features/transactions/events', () => ({ notifyTxnsChanged: () => notify() }));
 const today = vi.fn(() => '2026-11-01');
+const convert = vi.fn(async () => 0);
+vi.mock('./runConvertSms', () => ({ runConvertSms: () => convert() }));
 vi.mock('@/domain/dates', () => ({ todayInTz: () => today() }));
 
 describe('runStartup', () => {
@@ -16,6 +18,7 @@ describe('runStartup', () => {
     ensure.mockClear();
     materialize.mockClear();
     notify.mockClear();
+    convert.mockClear();
     today.mockReturnValue('2026-11-01');
     vi.resetModules();
   });
@@ -56,5 +59,16 @@ describe('runStartup', () => {
     expect(notify).toHaveBeenCalledTimes(1);
     await resumeIfNewDay();
     expect(materialize).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not wait for SMS conversion; notifies when it converts something', async () => {
+    const { runStartup } = await import('./startup');
+    let finish: (n: number) => void = () => {};
+    convert.mockImplementationOnce(() => new Promise<number>((r) => (finish = r)));
+    await expect(runStartup()).resolves.toMatchObject({ ok: true });
+    expect(convert).toHaveBeenCalledTimes(1);
+    expect(notify).not.toHaveBeenCalled();
+    finish(1);
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(1));
   });
 });

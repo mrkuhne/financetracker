@@ -106,26 +106,40 @@ function isRealDate(s: string): boolean {
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
 }
 
+// Same set looksLikeMoney recognizes (Ft is HUF).
+const CURRENCIES = new Set(['HUF', 'EUR', 'USD', 'GBP', 'CHF']);
+const MAX_AMOUNT_MINOR = 100_000_000_000; // 1 billion major units
+const MAX_DATE_DRIFT_DAYS = 7;
+
+function daysApart(a: string, b: string): number {
+  return Math.abs(Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / 86_400_000;
+}
+
 export function normalizeParsed(raw: unknown, fallbackDate: string, categoryNames: string[]): Normalized {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return { status: 'failed', reason: 'bad_shape' };
   const r = raw as Record<string, unknown>;
-  if (r.is_transaction !== true) return { status: 'ignored', reason: 'not_a_transaction' };
+  if (r.is_transaction === false) return { status: 'ignored', reason: 'not_a_transaction' };
+  if (r.is_transaction !== true) return { status: 'failed', reason: 'bad_shape' };
   if (r.direction !== 'debit' && r.direction !== 'credit') return { status: 'failed', reason: 'bad_direction' };
   if (typeof r.amount !== 'number' || !Number.isFinite(r.amount) || r.amount <= 0)
     return { status: 'failed', reason: 'bad_amount' };
   const amount_minor = Math.round(r.amount * 100);
-  if (amount_minor <= 0) return { status: 'failed', reason: 'bad_amount' };
-  if (typeof r.currency !== 'string' || !/^[A-Za-z]{3}$/.test(r.currency))
-    return { status: 'failed', reason: 'bad_currency' };
+  if (!Number.isSafeInteger(amount_minor) || amount_minor <= 0 || amount_minor > MAX_AMOUNT_MINOR)
+    return { status: 'failed', reason: 'bad_amount' };
+  const currency = typeof r.currency === 'string' ? r.currency.trim().toUpperCase() : '';
+  if (!CURRENCIES.has(currency)) return { status: 'failed', reason: 'bad_currency' };
   const merchantRaw = typeof r.merchant === 'string' ? r.merchant.trim().slice(0, 80).trim() : '';
-  const date = typeof r.date === 'string' && isRealDate(r.date) ? r.date : fallbackDate;
+  const date =
+    typeof r.date === 'string' && isRealDate(r.date) && daysApart(r.date, fallbackDate) <= MAX_DATE_DRIFT_DAYS
+      ? r.date
+      : fallbackDate;
   const cat = typeof r.category === 'string' ? r.category.trim().toLowerCase() : '';
   const category_name = (cat && categoryNames.find((n) => n.toLowerCase() === cat)) || null;
   return {
     status: 'parsed',
     kind: r.direction === 'debit' ? 'expense' : 'income',
     amount_minor,
-    currency: r.currency.toUpperCase(),
+    currency,
     merchant: merchantRaw || null,
     date,
     category_name,

@@ -38,7 +38,15 @@ export async function listPendingSms(): Promise<SmsMessageRow[]> {
   return (await base44.entities.SmsMessage.filter({ status: 'parsed' }, '-created_date')).map(toRow);
 }
 
-export async function markSmsConverted(id: string, transactionId: string): Promise<void> {
+export async function listConvertedSmsByHashes(hashes: string[]): Promise<SmsMessageRow[]> {
+  if (hashes.length === 0) return [];
+  return (
+    await base44.entities.SmsMessage.filter({ status: 'converted', text_hash: { $in: hashes } }, '-created_date', 5000)
+  ).map(toRow);
+}
+
+/** A null transactionId marks a duplicate whose original transaction is unknown. */
+export async function markSmsConverted(id: string, transactionId: string | null): Promise<void> {
   await base44.entities.SmsMessage.update(id, { status: 'converted', transaction_id: transactionId });
 }
 

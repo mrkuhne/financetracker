@@ -38,8 +38,6 @@ export async function revokeApiKey(id: string): Promise<void> {
 }
 
 export async function createApiKey(name: string): Promise<{ key: string; row: ApiKeyRow }> {
-  const existing = await base44.entities.ApiKey.list('-created_date');
-  for (const k of existing) if (!k.revoked) await revokeApiKey(k.id as string);
   const me = await base44.auth.me();
   const { key, hash, last4 } = await generateApiKey();
   const created = await base44.entities.ApiKey.create({
@@ -49,5 +47,8 @@ export async function createApiKey(name: string): Promise<{ key: string; row: Ap
     owner_id: me.id,
     revoked: false,
   });
+  // Revoke the others only after the new key exists, so a failed create never leaves the user keyless.
+  const existing = await base44.entities.ApiKey.list('-created_date');
+  for (const k of existing) if (!k.revoked && k.id !== created.id) await revokeApiKey(k.id as string);
   return { key, row: toRow(created) };
 }

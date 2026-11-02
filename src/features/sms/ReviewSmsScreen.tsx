@@ -71,6 +71,11 @@ function ReviewSmsInner({ id }: { id: string }) {
       return;
     }
     notifyTxnsChanged();
+    await goNext();
+  }
+
+  /** Open the oldest other SMS item still waiting for a check, else Home. */
+  async function goNext() {
     let next: Txn | undefined;
     try {
       next = (await listReviewTxns())
@@ -103,7 +108,15 @@ function ReviewSmsInner({ id }: { id: string }) {
         <button className="btn" disabled={busy} onClick={() => void approve()}><Icon name="check" />Looks right</button>
       </div>
       <p className="note"><Icon name="info" />SMS items count toward your allowance right away. Checking only confirms the details.</p>
-      {editing && <TransactionForm txn={txn} accounts={accounts} categories={categories} onClose={() => nav('/')} />}
+      {editing && (
+        <TransactionForm
+          txn={txn}
+          accounts={accounts}
+          categories={categories}
+          onClose={() => setEditing(false)}
+          onDone={() => void goNext()}
+        />
+      )}
     </Screen>
   );
 }

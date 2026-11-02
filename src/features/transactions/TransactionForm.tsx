@@ -13,7 +13,8 @@ import { needsHufRecompute } from './txLogic';
 const SOURCE: Record<Txn['source'], string> = { manual: 'Added by you', sms: 'SMS', recurring: 'Recurring rule' };
 
 /** Edit sheet for one transaction. Transfer legs are read-only except delete (deleting removes both legs). */
-export function TransactionForm({ txn, accounts, categories, onClose }: { txn: Txn; accounts: Account[]; categories: Category[]; onClose: () => void }) {
+/** `onClose` = dismissed without a change; `onDone` (default `onClose`) = after a successful save or delete. */
+export function TransactionForm({ txn, accounts, categories, onClose, onDone }: { txn: Txn; accounts: Account[]; categories: Category[]; onClose: () => void; onDone?: () => void }) {
   const isTransfer = txn.kind === 'transfer_in' || txn.kind === 'transfer_out';
   const [kind, setKind] = useState<'expense' | 'income'>(txn.kind === 'income' ? 'income' : 'expense');
   const [amount, setAmount] = useState(String(fromMinor(txn.amount_minor)));
@@ -36,7 +37,7 @@ export function TransactionForm({ txn, accounts, categories, onClose }: { txn: T
     try {
       await fn();
       notifyTxnsChanged();
-      onClose();
+      (onDone ?? onClose)();
     } catch {
       setError('Could not save. Try again.');
       setBusy(false);

@@ -206,6 +206,7 @@ export function SmsAutomationScreen() {
         <span className="ov">3 · Test it</span>
         <div className="smsraw">{SAMPLE_SMS}</div>
         <button className="btn" disabled={busy} onClick={() => void sendTest()}>Send a test message</button>
+        <span className="sub">This adds a sample expense. Delete it afterwards.</span>
         {!fullKey && key !== undefined && <span className="sub">Create a new key to test from here</span>}
       </div>
 
