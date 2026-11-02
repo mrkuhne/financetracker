@@ -40,4 +40,8 @@ describe('smsConversion', () => {
     expect(t.category_id).toBeNull();
     expect(t.note ?? '').toBe('');
   });
+  it('planSmsTxn: converted with no merchant has no leading separator', () => {
+    const t = planSmsTxn(msg({ amount_minor: 1250, currency: 'EUR', merchant: null }), acct({ currency: 'HUF' }), cats, { msg: 400, account: 1 });
+    expect(t.note).toMatch(/^12[.,]50/);
+  });
 });

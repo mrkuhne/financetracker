@@ -33,8 +33,9 @@ export function planSmsTxn(
   const amountMinor = converted ? convertMinor(origMinor, rates.msg, rates.account) : origMinor;
   const catName = msg.category_name ? norm(msg.category_name) : null;
   const category = catName ? categories.find((c) => norm(c.name) === catName) : undefined;
-  const merchant = msg.merchant ?? '';
-  const note = converted ? `${merchant} · ${formatMoney(origMinor, origCurrency)}`.trim() : merchant;
+  const note = [msg.merchant ?? '', converted ? formatMoney(origMinor, origCurrency) : '']
+    .filter((p) => p !== '')
+    .join(' · ');
   return {
     account_id: account.id,
     kind: msg.kind as 'expense' | 'income',
