@@ -32,6 +32,10 @@ export async function listCategories(): Promise<Category[]> {
   return (await base44.entities.Category.list()).map(toCategory);
 }
 
+export async function updateCategory(id: string, patch: Partial<Omit<Category, 'id'>>): Promise<Category> {
+  return toCategory(await base44.entities.Category.update(id, patch));
+}
+
 let seeding: Promise<void> | null = null;
 
 export function ensureDefaultCategories(): Promise<void> {

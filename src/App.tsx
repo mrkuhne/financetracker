@@ -14,6 +14,7 @@ import { ReviewSmsScreen } from '@/features/sms/ReviewSmsScreen';
 import { PlanScreen } from '@/features/plan/PlanScreen';
 import { PlanEditScreen } from '@/features/plan/PlanEditScreen';
 import { PlanImpactScreen } from '@/features/plan/PlanImpactScreen';
+import { AdviceScreen } from '@/features/plan/AdviceScreen';
 
 export default function App() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
             <Route path="/plan/new" element={<PlanEditScreen />} />
             <Route path="/plan/:id" element={<PlanImpactScreen />} />
             <Route path="/plan/:id/edit" element={<PlanEditScreen />} />
+            <Route path="/plan/:id/advice" element={<AdviceScreen />} />
             <Route path="/accounts" element={<AccountsScreen />} />
             <Route path="/review/:id" element={<ReviewSmsScreen />} />
             <Route path="/settings" element={<SettingsScreen />} />
