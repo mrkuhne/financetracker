@@ -180,7 +180,11 @@ export function SavingsScreen() {
       <div className="card">
         <span className="ov">Savings account</span>
         <div className="big num" style={{ fontSize: 52, marginTop: 6 }}>{hufNum(balanceMinor)}<small>Ft</small></div>
-        <div className="sub">+{huf(planned)} planned every month</div>
+        <div className="sub">
+          {planned === settings.monthly_savings_target_minor
+            ? `+${huf(planned)} planned every month`
+            : `+${huf(planned)} planned this month · usually ${huf(settings.monthly_savings_target_minor)}`}
+        </div>
       </div>
 
       <div className="sec">
