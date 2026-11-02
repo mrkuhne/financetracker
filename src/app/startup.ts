@@ -3,6 +3,7 @@ import { getSettings } from '@/data/settings';
 import { todayInTz } from '@/domain/dates';
 import type { ISODate } from '@/domain/types';
 import { notifyTxnsChanged } from '@/features/transactions/events';
+import { runConvertSms } from './runConvertSms';
 import { runMaterialize } from './runMaterialize';
 
 export interface StartupResult {
@@ -26,6 +27,15 @@ async function materializeFor(today: ISODate): Promise<number> {
   }
 }
 
+/** Turn pending parsed SMS into transactions. Never throws. */
+async function convertSms(): Promise<void> {
+  try {
+    if ((await runConvertSms()) > 0) notifyTxnsChanged();
+  } catch (e) {
+    console.error('SMS conversion failed', e);
+  }
+}
+
 /** On returning to the app: if the day (in the user's timezone) changed since the last run, materialize again. */
 export async function resumeIfNewDay(): Promise<void> {
   try {
@@ -41,7 +51,9 @@ function listenForResume() {
   if (listening || typeof document === 'undefined') return;
   listening = true;
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') void resumeIfNewDay();
+    if (document.visibilityState !== 'visible') return;
+    void resumeIfNewDay();
+    void convertSms();
   });
 }
 
@@ -56,6 +68,7 @@ export function runStartup(): Promise<StartupResult> {
     } catch (e) {
       console.error('Could not load settings for materialization', e);
     }
+    await convertSms();
     listenForResume();
     done = { ok: true };
     return done;

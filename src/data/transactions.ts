@@ -30,6 +30,11 @@ export async function listAllTransactions(): Promise<Txn[]> {
   return (await base44.entities.Transaction.list('-date', MAX)).map(toTxn);
 }
 
+export async function listTransactionsBySmsIds(ids: string[]): Promise<Txn[]> {
+  if (ids.length === 0) return [];
+  return (await base44.entities.Transaction.filter({ sms_message_id: { $in: ids } })).map(toTxn);
+}
+
 export async function createTransaction(t: Omit<Txn, 'id'>): Promise<Txn> {
   return toTxn(await base44.entities.Transaction.create(stripNulls(t)));
 }
