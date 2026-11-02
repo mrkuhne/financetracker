@@ -214,3 +214,32 @@ svg.i { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-widt
 .toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-size: 13px; font-weight: 600; z-index: 50; max-width: 90vw; }
 
 .pill.ai { background: color-mix(in srgb, var(--accent) 16%, var(--surf2)); color: var(--accent); margin-left: 4px; }
+
+/* planner */
+.opt{background:var(--surf);border-radius:20px;padding:14px;display:grid;gap:10px;text-align:left;width:100%;box-shadow:inset 0 0 0 1px var(--hair)}
+.opt.sel{box-shadow:inset 0 0 0 2px var(--accent)}
+.opt .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.opt .top strong{font-size:15px;font-weight:600}
+.opt .top b{font-size:15px;font-weight:600}
+.kv{display:grid;grid-template-columns:1fr auto;gap:6px 10px;font-size:13px}
+.kv span{color:var(--sub)}
+.kv b{font-weight:600;text-align:right}
+.aibox{background:color-mix(in srgb,var(--ai) 11%,var(--surf));border-radius:20px;padding:15px;display:grid;gap:10px}
+.aibox p{margin:0;line-height:1.5;font-size:14px}
+.aibox .who{display:flex;align-items:center;gap:7px;color:var(--ai);font-weight:600;font-size:12.5px}
+.change{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.change+.change{border-top:1px solid var(--hair)}
+.change div{flex:1;display:grid;gap:2px}
+.change strong{font-weight:500}
+.change span{font-size:12.5px;color:var(--sub)}
+.steps{display:flex;gap:6px}
+.steps i{height:4px;flex:1;border-radius:3px;background:var(--surf2)}
+.steps i.on{background:var(--accent)}
+.ladder{display:grid;gap:0}
+.rung{display:grid;grid-template-columns:34px 1fr;gap:12px;padding:12px 0;position:relative}
+.rung .n{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:700;background:var(--surf2);color:var(--sub);z-index:1}
+.rung.done .n{background:var(--good);color:var(--bg)}
+.rung.now .n{background:var(--accent);color:var(--accent-ink)}
+.rung:not(:last-child)::before{content:"";position:absolute;left:16.5px;top:46px;bottom:-10px;border-left:2px solid var(--hair)}
+.rung strong{display:block;font-weight:600;margin-top:6px}
+.rung p{margin:4px 0 0;font-size:13px;color:var(--sub);line-height:1.45}
