@@ -25,12 +25,10 @@ export function suggestInvestment(i: {
   trackedMonths: number; avgIncomeMinor: number; avgExpensesMinor: number; savingsTargetMinor: number;
   freeBeforeInvestMinor: number; emergencyDone: boolean; settingMinor: number | null;
 }): Suggestion {
-  if (i.trackedMonths <= 0) {
-    if (i.settingMinor !== null && i.settingMinor > 0) {
-      return { kind: 'amount', amountMinor: i.settingMinor, source: 'setting', emergencyDone: i.emergencyDone };
-    }
-    return { kind: 'no_data' };
+  if (i.settingMinor !== null && i.settingMinor > 0) {
+    return { kind: 'amount', amountMinor: i.settingMinor, source: 'setting', emergencyDone: i.emergencyDone };
   }
+  if (i.trackedMonths <= 0) return { kind: 'no_data' };
   const surplus = i.avgIncomeMinor - i.avgExpensesMinor - i.savingsTargetMinor;
   const available = Math.min(surplus, i.freeBeforeInvestMinor);
   if (available <= 0) return { kind: 'nothing_spare' };
@@ -100,11 +98,12 @@ export function splitInvestment(
     if (dest !== only) parts[only] = 0;
     if (dest === only) return { parts, tooSmall };
   }
-  // The type that ends up holding the money is not "too small".
-  return { parts, tooSmall: tooSmall.filter((t) => parts[t] === 0) };
+  // A holder that meets its own minimum is not "too small"; one below it still is.
+  return { parts, tooSmall: tooSmall.filter((t) => parts[t] < mins[t]) };
 }
 
-export interface Position { holding: Holding; quantity: number | null; costMinor: number; firstBuy: ISODate | null }
+export interface Lot { date: ISODate; costMinor: number }
+export interface Position { holding: Holding; quantity: number | null; costMinor: number; firstBuy: ISODate | null; lots: Lot[] }
 
 export function positionOf(holding: Holding, txns: InvestmentTxn[]): Position {
   const mine = txns
@@ -113,25 +112,29 @@ export function positionOf(holding: Holding, txns: InvestmentTxn[]): Position {
   const buys = mine.filter((t) => t.side === 'buy');
   const quantityKnown = buys.length > 0 && buys.every((t) => t.quantity !== null);
   let quantity = 0;
-  let cost = 0;
+  const lots: Lot[] = [];
+  const total = () => lots.reduce((s, l) => s + l.costMinor, 0);
+  const shrink = (keep: number) => { for (const l of lots) l.costMinor *= keep; };
   for (const t of mine) {
     if (t.side === 'buy') {
       quantity += t.quantity ?? 0;
-      cost += t.amount_huf_minor;
+      lots.push({ date: t.date, costMinor: t.amount_huf_minor });
     } else if (quantityKnown && t.quantity !== null && quantity > 0) {
       const sold = Math.min(t.quantity, quantity);
-      cost -= cost * (sold / quantity);
+      shrink(1 - sold / quantity);
       quantity -= sold;
     } else {
-      cost = Math.max(0, cost - t.amount_huf_minor);
+      const cost = total();
+      if (cost > 0) shrink(Math.max(0, 1 - t.amount_huf_minor / cost));
       if (quantityKnown && t.quantity !== null) quantity = Math.max(0, quantity - t.quantity);
     }
   }
   return {
     holding,
     quantity: quantityKnown ? quantity : null,
-    costMinor: Math.max(0, Math.round(cost)),
+    costMinor: Math.max(0, Math.round(total())),
     firstBuy: buys.length ? buys[0].date : null,
+    lots,
   };
 }
 
@@ -147,8 +150,12 @@ export function holdingValue(p: Position, quote: PriceQuote | null, hufPerUnit: 
   const h = p.holding;
   if (h.asset_type === 'bond') {
     if (h.bond_rate_pct === null || p.firstBuy === null) return valuation(cost, cost, false);
-    const days = Math.max(0, daysBetweenInclusive(p.firstBuy, today) - 1);
-    return valuation(Math.round(cost * (1 + (h.bond_rate_pct / 100) * (days / 365))), cost, true);
+    const rate = h.bond_rate_pct / 100;
+    const value = p.lots.reduce((sum, l) => {
+      const days = Math.max(0, daysBetweenInclusive(l.date, today) - 1);
+      return sum + l.costMinor * (1 + rate * (days / 365));
+    }, 0);
+    return valuation(Math.round(value), cost, true);
   }
   if (quote && p.quantity !== null && hufPerUnit !== null) {
     return valuation(Math.round(quote.price * p.quantity * hufPerUnit * 100), cost, true);

@@ -29,6 +29,10 @@ describe('suggestInvestment', () => {
     expect(suggestInvestment({ ...base, emergencyDone: true, freeBeforeInvestMinor: 8_000_000 }))
       .toMatchObject({ amountMinor: 4_800_000 });
   });
+  it('a manual setting overrides the computed amount even with data', () => {
+    expect(suggestInvestment({ ...base, settingMinor: 2_000_000 }))
+      .toEqual({ kind: 'amount', amountMinor: 2_000_000, source: 'setting', emergencyDone: false });
+  });
   it('nothing spare when the surplus is not positive', () => {
     expect(suggestInvestment({ ...base, avgExpensesMinor: 56_000_000 })).toEqual({ kind: 'nothing_spare' });
   });
@@ -69,6 +73,12 @@ describe('splitInvestment', () => {
   it('keeps everything on the top-weight type when no minimum is met', () => {
     const s = splitInvestment(100_000, 'cautious', zero);
     expect(s.parts).toEqual({ bond: 100_000, etf: 0, stock: 0, crypto: 0 });
+  });
+  it('flags a lone holder below its own minimum as too small', () => {
+    const s = splitInvestment(100_000, 'cautious', { ...zero, etf: 10_000_000 });
+    expect(sum(s.parts)).toBe(100_000);
+    const holder = ASSET_TYPES.find((t) => s.parts[t] > 0)!;
+    expect(s.tooSmall).toContain(holder);
   });
   it('never has a non-zero part below its minimum when some minimum is met', () => {
     for (const amount of [300_000, 700_000, 2_000_000, 5_000_000, 12_345_600]) {
@@ -121,7 +131,7 @@ describe('positionOf', () => {
 });
 
 const quote = (price: number): PriceQuote => ({ id: 'q', ticker: 'X', price, currency: 'EUR', as_of: '2026-11-01' });
-const pos = (over: Partial<Position> = {}): Position => ({ holding: holding(), quantity: 2, costMinor: 7_000_000, firstBuy: '2026-01-01', ...over });
+const pos = (over: Partial<Position> = {}): Position => ({ holding: holding(), quantity: 2, costMinor: 7_000_000, firstBuy: '2026-01-01', lots: [{ date: '2026-01-01', costMinor: 7_000_000 }], ...over });
 
 describe('holdingValue', () => {
   it('values from quote x quantity x FX', () => {
@@ -136,9 +146,20 @@ describe('holdingValue', () => {
     expect(holdingValue(pos({ quantity: null }), quote(100), 400, '2026-11-03')).toMatchObject({ priced: false });
   });
   it('accrues bonds simply', () => {
-    const bond = pos({ holding: holding({ asset_type: 'bond', bond_rate_pct: 6.5 }), quantity: null, costMinor: 1_000_000, firstBuy: '2025-11-03' });
+    const bond = pos({ holding: holding({ asset_type: 'bond', bond_rate_pct: 6.5 }), quantity: null, costMinor: 1_000_000, firstBuy: '2025-11-03', lots: [{ date: '2025-11-03', costMinor: 1_000_000 }] });
     expect(holdingValue(bond, null, null, '2026-11-03').valueMinor).toBe(1_065_000);
     expect(holdingValue(bond, null, null, '2025-11-03').valueMinor).toBe(1_000_000);
+  });
+  it('accrues each bond lot from its own buy date', () => {
+    const h = holding({ asset_type: 'bond', bond_rate_pct: 6.5 });
+    const buys = [
+      txn({ amount_huf_minor: 1_000_000, date: '2025-11-03' }),
+      txn({ amount_huf_minor: 1_000_000, date: '2026-11-03' }),
+    ];
+    expect(holdingValue(positionOf(h, buys), null, null, '2026-11-03').valueMinor).toBe(2_065_000);
+    const sold = positionOf(h, [...buys, txn({ side: 'sell', amount_huf_minor: 1_000_000, date: '2026-11-03' })]);
+    expect(sold.costMinor).toBe(1_000_000);
+    expect(holdingValue(sold, null, null, '2026-11-03').valueMinor).toBe(1_032_500);
   });
   it('has no gain ratio at zero cost', () => {
     expect(holdingValue(pos({ costMinor: 0 }), null, null, '2026-11-03').gainRatio).toBeNull();
