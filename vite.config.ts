@@ -10,6 +10,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false, // registered in src/main.tsx
+
       includeAssets: ['icons/apple-touch-icon-180.png'],
       workbox: {
         // Precache only the built app shell. No runtimeCaching: Base44 API calls must always hit the network.

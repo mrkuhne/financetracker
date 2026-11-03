@@ -48,6 +48,14 @@ export default function App() {
             <Route path="/review/:id" element={<ReviewSmsScreen />} />
             <Route path="/settings" element={<SettingsScreen />} />
             <Route path="/settings/sms" element={<SmsAutomationScreen />} />
+            <Route
+              path="*"
+              element={
+                <Screen title="Not found" back="/">
+                  <div className="card sub">This page does not exist. Go back to Home.</div>
+                </Screen>
+              }
+            />
           </Route>
         </Routes>
       </BrowserRouter>
