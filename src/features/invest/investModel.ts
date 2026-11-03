@@ -70,6 +70,8 @@ export interface InvestCore {
   valuations: Map<string, Valuation>; summary: PortfolioSummary;
   /** Loaded quotes by catalog symbol. */
   quotes: Map<string, PriceQuote>; suggestion: Suggestion; split: Split | null;
+  /** Open market-priced positions without a quantity (counted in `summary.unpriced` too). */
+  noQuantity: number;
   card: ReturnType<typeof monthCard> | null; emergencyDone: boolean; checkinDue: boolean;
   /** The portfolio as it stood before this month (txns dated before the 1st, at today's prices): the split's basis. */
   basis: { summary: PortfolioSummary; costByType: Record<AssetType, number> };
@@ -123,6 +125,7 @@ export function buildInvestCore(i: {
   const firstBuys = positions.map((p) => p.firstBuy).filter((d): d is ISODate => d !== null).sort();
   return {
     holdings: i.holdings, txns: i.txns, positions, valuations, summary, quotes: quoteBy, suggestion, split, card, basis,
+    noQuantity: positions.filter((p) => needsQuantity(p.holding, p.quantity)).length,
     emergencyDone: i.emergencyDone,
     checkinDue: checkinDue({
       profile: i.settings.risk_profile, firstBuy: firstBuys[0] ?? null, lastCheckin: i.settings.risk_checkin_at, today: i.today,
@@ -157,10 +160,28 @@ export function holdingDetail(core: Pick<InvestCore, 'holdings' | 'txns' | 'valu
   };
 }
 
-/** Where the value comes from; null without a valuation (sold out). */
-export function priceLine(h: Holding, v: Valuation | null, quote: PriceQuote | null): string | null {
+export const ADD_QUANTITY = 'Add the quantity to track its price';
+
+/** A market-priced holding (ETF, stock, crypto) without a quantity: it can never be priced (older buys). */
+export function needsQuantity(h: Holding, quantity: number | null): boolean {
+  return h.asset_type !== 'bond' && !!findProduct(h.product_id)?.quote_symbol && quantity === null;
+}
+
+/** The portfolio card's notes on holdings shown at what was paid: stale prices and missing quantities. */
+export function portfolioPriceNotes(summary: Pick<PortfolioSummary, 'unpriced'>, noQuantity: number): string[] {
+  // A holding without a quantity is always unpriced; it is not a stale price.
+  const stale = summary.unpriced - noQuantity;
+  const n = (k: number) => `${k} holding${k > 1 ? 's' : ''}`;
+  const out: string[] = [];
+  if (stale > 0) out.push(`Price not updated for ${n(stale)}: shown at what you paid.`);
+  if (noQuantity > 0) out.push(`${ADD_QUANTITY} (${n(noQuantity)}): shown at what you paid.`);
+  return out;
+}
+
+/** Where the value comes from; null without a valuation (sold out). `quantity` is the position's. */
+export function priceLine(h: Holding, v: Valuation | null, quote: PriceQuote | null, quantity: number | null): string | null {
   if (!v) return null;
-  if (!v.priced) return 'Price not updated';
+  if (!v.priced) return needsQuantity(h, quantity) ? ADD_QUANTITY : 'Price not updated';
   if (h.asset_type === 'bond') {
     // holdingValue leaves a bond without a rate unpriced (above); this guards a priced one anyway.
     return h.bond_rate_pct !== null ? `Estimated from the ${h.bond_rate_pct}% yearly rate` : 'Estimated value';

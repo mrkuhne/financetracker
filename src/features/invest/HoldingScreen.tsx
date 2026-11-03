@@ -35,7 +35,7 @@ export function HoldingScreen() {
 function HoldingBody({ detail, data }: { detail: HoldingDetail; data: InvestModel }) {
   const { holding: h, position: p, valuation: v, quote, history } = detail;
   const info = TYPE_INFO[h.asset_type];
-  const price = priceLine(h, v, quote);
+  const price = priceLine(h, v, quote, p.quantity);
   const [selling, setSelling] = useState(false);
   const close = useCallback(() => setSelling(false), []);
 

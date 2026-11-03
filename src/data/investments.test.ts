@@ -98,7 +98,7 @@ describe('recordBuy', () => {
   });
 
   it('a non-bond holding gets the quote symbol and no bond rate; a bond keeps an entered rate', async () => {
-    await recordBuy(buy({ productId: 'bitcoin', platform: 'revolut' }), null);
+    await recordBuy(buy({ productId: 'bitcoin', platform: 'revolut', quantity: 0.01 }), null);
     expect(ent.holdingCreate).toHaveBeenLastCalledWith(expect.objectContaining({ ticker: 'BTC-EUR', asset_type: 'crypto' }));
     expect(ent.holdingCreate.mock.calls[0][0]).not.toHaveProperty('bond_rate_pct');
     await recordBuy(buy({ bondRatePct: 6.1 }), null);
@@ -149,6 +149,18 @@ describe('recordBuy', () => {
     await expect(recordBuy(buy({}), 'sms-t')).rejects.toThrow('boom');
     expect(tx.update).toHaveBeenLastCalledWith('sms-t', { kind: 'expense', category_id: 'cat-other', needs_review: true, note: 'MBH' });
     expect(tx.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe('recordBuy without a quantity', () => {
+  it('derives the quantity from the price, converting the account currency into the quote currency', async () => {
+    // 40 000 Ft from MBH at 400 Ft/EUR = 100 EUR; VWCE at 125 EUR a unit = 0.8 units
+    await recordBuy(buy({ productId: 'vanguard-ftse-all-world-acc', platform: 'revolut', amountMinor: 4_000_000, price: 125 }), null);
+    expect(ent.itxnCreate).toHaveBeenCalledWith(expect.objectContaining({ quantity: 0.8, price: 125 }));
+  });
+  it('refuses an ETF with neither quantity nor price', async () => {
+    await expect(recordBuy(buy({ productId: 'vanguard-ftse-all-world-acc', platform: 'revolut' }), null)).rejects.toThrow('Add the quantity or the price per unit');
+    expect(tx.create).not.toHaveBeenCalled();
   });
 });
 

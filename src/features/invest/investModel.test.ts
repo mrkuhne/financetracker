@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import type { MonthlyAllowance } from '@/domain/allowance';
 import type { Holding, InvestmentTxn, SavingsGoal, Settings, Txn } from '@/domain/types';
 import {
-  adviceFor, buildInvestCore, deleteConfirmCopy, holdingDetail, priceLine, sharedCall, pctSigned, platformOf, costByType, freeBeforeInvestMinor, investedThisMonthMinor, isEmergencyDone, nextProfile, quoteSymbolsFor, sharesOf,
+  adviceFor, buildInvestCore, deleteConfirmCopy, holdingDetail, portfolioPriceNotes, priceLine, sharedCall, pctSigned, platformOf, costByType, freeBeforeInvestMinor, investedThisMonthMinor, isEmergencyDone, nextProfile, quoteSymbolsFor, sharesOf,
 } from './investModel';
 
 const settings: Settings = {
@@ -206,7 +206,7 @@ describe('holding page helpers', () => {
     const m = buildInvestCore({ ...base, holdings: hs, txns: [buy('b', 10_000_000, '2026-10-01')], quotes: [] });
     const d = holdingDetail(m, 'b')!;
     expect(d.valuation).toMatchObject({ valueMinor: 10_000_000, priced: false });
-    expect(priceLine(d.holding, d.valuation, d.quote)).toBe('Price not updated');
+    expect(priceLine(d.holding, d.valuation, d.quote, d.position.quantity)).toBe('Price not updated');
   });
 
   test('an unknown holding, or one with no txns left, is null', () => {
@@ -219,14 +219,34 @@ describe('holding page helpers', () => {
     const v = (priced: boolean) => ({ valueMinor: 1, costMinor: 1, gainMinor: 0, gainRatio: 0, priced });
     const etf = holding('e', 'vanguard-ftse-all-world-acc', 'etf');
     const bond = holding('b', 'fix-map', 'bond', { bond_rate_pct: 5.5 });
-    expect(priceLine(etf, v(true), quote)).toBe('Price from 2026-11-02');
-    expect(priceLine(etf, v(false), quote)).toBe('Price not updated');
-    expect(priceLine(etf, v(false), null)).toBe('Price not updated');
-    expect(priceLine(bond, v(true), null)).toBe('Estimated from the 5.5% yearly rate');
-    expect(priceLine({ ...bond, bond_rate_pct: 5 }, v(true), null)).toBe('Estimated from the 5% yearly rate');
-    expect(priceLine({ ...bond, bond_rate_pct: null }, v(false), null)).toBe('Price not updated');
-    expect(priceLine({ ...bond, bond_rate_pct: null }, v(true), null)).toBe('Estimated value');
-    expect(priceLine(etf, null, quote)).toBeNull();
+    expect(priceLine(etf, v(true), quote, 1)).toBe('Price from 2026-11-02');
+    expect(priceLine(etf, v(false), quote, 1)).toBe('Price not updated');
+    expect(priceLine(etf, v(false), null, 1)).toBe('Price not updated');
+    expect(priceLine(bond, v(true), null, null)).toBe('Estimated from the 5.5% yearly rate');
+    expect(priceLine({ ...bond, bond_rate_pct: 5 }, v(true), null, null)).toBe('Estimated from the 5% yearly rate');
+    expect(priceLine({ ...bond, bond_rate_pct: null }, v(false), null, null)).toBe('Price not updated');
+    expect(priceLine({ ...bond, bond_rate_pct: null }, v(true), null, null)).toBe('Estimated value');
+    expect(priceLine(etf, null, quote, 1)).toBeNull();
+  });
+
+  test('a market-priced holding without a quantity asks for it instead of a stale price', () => {
+    const v = { valueMinor: 1, costMinor: 1, gainMinor: 0, gainRatio: 0, priced: false };
+    expect(priceLine(holding('e', 'vanguard-ftse-all-world-acc', 'etf'), v, quote, null)).toBe('Add the quantity to track its price');
+    expect(priceLine(holding('c', 'bitcoin', 'crypto'), v, null, null)).toBe('Add the quantity to track its price');
+  });
+
+  test('the portfolio counts holdings without a quantity apart from stale prices', () => {
+    const hs = [holding('e', 'vanguard-ftse-all-world-acc', 'etf'), holding('s', 'apple', 'stock', { currency: 'USD' }), holding('b', 'fix-map', 'bond', { bond_rate_pct: null, currency: 'HUF' })];
+    const txns = [buy('e', 4_000_000, '2026-11-01'), buy('s', 1_000_000, '2026-11-01', 0.5), buy('b', 10_000_000, '2026-11-01')];
+    const m = buildInvestCore({ ...base, holdings: hs, txns, quotes: [{ id: 'q1', ticker: 'VWCE.DE', price: 110, currency: 'EUR', as_of: '2026-11-03' }], hufPerUnit: { EUR: 400 } });
+    expect(m.summary.unpriced).toBe(3);
+    expect(m.noQuantity).toBe(1);
+    expect(portfolioPriceNotes(m.summary, m.noQuantity)).toEqual([
+      'Price not updated for 2 holdings: shown at what you paid.',
+      'Add the quantity to track its price (1 holding): shown at what you paid.',
+    ]);
+    expect(portfolioPriceNotes({ unpriced: 1 }, 1)).toEqual(['Add the quantity to track its price (1 holding): shown at what you paid.']);
+    expect(portfolioPriceNotes({ unpriced: 0 }, 0)).toEqual([]);
   });
 
   test('delete confirmation names what happens to the money movement', () => {

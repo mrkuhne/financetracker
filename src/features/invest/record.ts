@@ -29,11 +29,24 @@ export function payableAccounts(accounts: Account[]): Account[] {
 
 /** Error copy for an invalid buy, or null. */
 export function validateBuy(i: BuyInput, accounts: Account[]): string | null {
-  if (!findProduct(i.productId)) return 'Pick a product from the list';
+  const product = findProduct(i.productId);
+  if (!product) return 'Pick a product from the list';
   if (!Number.isInteger(i.amountMinor) || i.amountMinor <= 0) return 'Enter the amount you paid';
   if (i.quantity !== null && !(i.quantity > 0)) return 'Enter a quantity above 0';
+  // A market-priced product is valued from its quantity: without one (or a price to derive it) it is never priced.
+  if (product.type !== 'bond' && i.quantity === null && i.price === null) return 'Add the quantity or the price per unit';
   if (!payableAccounts(accounts).some((a) => a.id === i.accountId)) return 'Pay from a current account or cash';
   return null;
+}
+
+/**
+ * Units bought when only the price is known: the amount (minor units, account currency) converted to
+ * HUF and then into the quote currency, divided by the price per unit (a plain number in the quote
+ * currency). Rounded to 8 decimals.
+ */
+export function deriveQuantity(amountMinor: number, accountHufPerUnit: number, quoteHufPerUnit: number, price: number): number {
+  const inQuote = ((amountMinor / 100) * accountHufPerUnit) / quoteHufPerUnit;
+  return Number((inQuote / price).toFixed(8));
 }
 
 const daysApart = (a: ISODate, b: ISODate): number => Math.abs(daysBetweenInclusive(a, b) - 1);

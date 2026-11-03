@@ -7,7 +7,7 @@ import { huf, hufNum, hufSigned } from '@/features/home/fmt';
 import { Icon, type IconName } from '@/features/shell/Icons';
 import { Screen } from '@/features/shell/Screen';
 import { TYPE_INFO } from './catalog';
-import { DISCLAIMER, TYPE_COLOR, introTemplate, nextProfile, pctSigned, platformOf, sharesOf } from './investModel';
+import { DISCLAIMER, TYPE_COLOR, introTemplate, nextProfile, pctSigned, platformOf, portfolioPriceNotes, sharesOf } from './investModel';
 import { investFacts, useInvestAdvice, useInvestData, type InvestModel } from './useInvestData';
 
 const TYPE_ICON: Record<AssetType, IconName> = { bond: 'shield', etf: 'globe', stock: 'chart', crypto: 'coin' };
@@ -99,7 +99,7 @@ function InvestBody({ data, reload }: { data: InvestModel; reload: () => Promise
               {hufSigned(data.summary.gainMinor)}{data.summary.gainRatio !== null && ` (${pctSigned(data.summary.gainRatio)})`}
             </b>{' '}since you started
           </span>
-          {data.summary.unpriced > 0 && <span className="sub">Price not updated for {data.summary.unpriced} holding{data.summary.unpriced > 1 ? 's' : ''}: shown at what you paid.</span>}
+          {portfolioPriceNotes(data.summary, data.noQuantity).map((note) => <span key={note} className="sub">{note}</span>)}
           <div className="alloc" aria-hidden="true">
             {ASSET_TYPES.filter((t) => shares[t] > 0).map((t) => <i key={t} style={{ width: `${shares[t] * 100}%`, background: TYPE_COLOR[t] }} />)}
           </div>

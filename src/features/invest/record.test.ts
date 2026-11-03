@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Account, Holding, InvestmentTxn, Txn } from '@/domain/types';
 import { positionOf } from '@/domain/invest';
-import { findSmsCandidates, payableAccounts, planSell, validateBuy, type BuyInput } from './record';
+import { deriveQuantity, findSmsCandidates, payableAccounts, planSell, validateBuy, type BuyInput } from './record';
 
 const acct = (o: Partial<Account>): Account => ({
   id: 'mbh', name: 'MBH', type: 'checking', currency: 'HUF', opening_balance_minor: 0,
@@ -49,6 +49,25 @@ describe('validateBuy', () => {
   });
   it('rejects an unknown product', () => {
     expect(validateBuy(buy({ productId: 'dogecoin' }), accounts)).not.toBeNull();
+  });
+  it('an ETF, stock or crypto needs a quantity or a price; a bond needs neither', () => {
+    for (const productId of ['vanguard-ftse-all-world-acc', 'apple', 'bitcoin']) {
+      expect(validateBuy(buy({ productId }), accounts)).toBe('Add the quantity or the price per unit');
+      expect(validateBuy(buy({ productId, quantity: 0.5 }), accounts)).toBeNull();
+      expect(validateBuy(buy({ productId, price: 100 }), accounts)).toBeNull();
+    }
+    expect(validateBuy(buy({}), accounts)).toBeNull();
+  });
+});
+
+describe('deriveQuantity', () => {
+  it('converts the amount into the quote currency and divides by the price', () => {
+    // 40 000 Ft at 400 Ft/EUR = 100 EUR; at 110 EUR a unit
+    expect(deriveQuantity(4_000_000, 1, 400, 110)).toBeCloseTo(100 / 110, 8);
+    // 100 EUR from a EUR account, quoted in USD (360 Ft/USD): 40 000 Ft = 111.11 USD at 200
+    expect(deriveQuantity(10_000, 400, 360, 200)).toBeCloseTo(40_000 / 360 / 200, 8);
+    // Same currency both sides
+    expect(deriveQuantity(10_000, 400, 400, 50)).toBe(2);
   });
 });
 

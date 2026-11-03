@@ -143,11 +143,11 @@ export function BuySheet({ type, productId, partMinor, accounts, moneyTxns, txns
                 <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0" disabled={busy} />
               </label>
               <label className="field">
-                <span>Quantity (optional)</span>
+                <span>{product.type === 'bond' ? 'Quantity (optional)' : 'Quantity (or the price below)'}</span>
                 <input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" placeholder="e.g. 0.5" disabled={busy} />
               </label>
               <label className="field">
-                <span>Price per unit (optional)</span>
+                <span>{product.quote_currency ? `Price per unit (${product.quote_currency})` : 'Price per unit (optional)'}</span>
                 <input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" placeholder="—" disabled={busy} />
               </label>
               {product.type === 'bond' && (
