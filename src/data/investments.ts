@@ -7,7 +7,7 @@ import { createTransaction, deleteTransaction, getTransaction, updateTransaction
 import { positionOf } from '@/domain/invest';
 import { toHufMinor } from '@/domain/money';
 import { findProduct } from '@/features/invest/catalog';
-import { payableAccounts, planSell, validateBuy, type BuyInput } from '@/features/invest/record';
+import { findSmsCandidates, payableAccounts, planSell, validateBuy, type BuyInput } from '@/features/invest/record';
 
 const HOLDING_KEYS = ['asset_type', 'product_id', 'name', 'ticker', 'platform', 'platform_name', 'currency', 'bond_rate_pct'];
 const HOLDING_NULLABLE = ['ticker', 'platform_name', 'bond_rate_pct'];
@@ -84,7 +84,8 @@ async function rollback(steps: (() => Promise<unknown>)[]): Promise<void> {
  * Record a buy: find or create the Holding (by product and platform), book the money movement as an
  * `invest_buy` Transaction and add the InvestmentTxn. `i.amountMinor` is in the pay-from account's
  * currency; the HUF value uses that day's rate. With `linkTxnId` the bank's SMS expense (one of
- * `findSmsCandidates`) becomes the buy instead of a second debit. A failure undoes what was written.
+ * `findSmsCandidates`, re-checked here) becomes the buy instead of a second debit, and the buy takes
+ * that transaction's (bank) date so it never carries two dates. A failure undoes what was written.
  */
 export async function recordBuy(i: BuyInput, linkTxnId: string | null): Promise<void> {
   const accounts = await listAccounts();
@@ -95,10 +96,12 @@ export async function recordBuy(i: BuyInput, linkTxnId: string | null): Promise<
 
   let linked: Txn | null = null;
   if (linkTxnId) {
-    linked = await getTransaction(linkTxnId);
-    if (!linked || linked.kind !== 'expense' || linked.account_id !== account.id || linked.amount_minor !== i.amountMinor) {
+    // Re-check with the same rules the candidate list used: it may have changed since it was shown.
+    const fresh = await getTransaction(linkTxnId);
+    if (!fresh || findSmsCandidates(i, [fresh], accounts).length === 0) {
       throw new Error('That bank payment no longer matches this buy');
     }
+    linked = fresh;
   }
 
   const undo: (() => Promise<unknown>)[] = [];
@@ -135,7 +138,7 @@ export async function recordBuy(i: BuyInput, linkTxnId: string | null): Promise<
 
     await createInvestmentTxn({
       holding_id: holding.id, side: 'buy', amount_huf_minor: txn.amount_huf_minor, quantity: i.quantity, price: i.price,
-      currency: account.currency, date: i.date, account_id: account.id, transaction_id: txn.id,
+      currency: account.currency, date: linked ? linked.date : i.date, account_id: account.id, transaction_id: txn.id,
     });
   } catch (e) {
     await rollback(undo);

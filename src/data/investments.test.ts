@@ -110,13 +110,20 @@ describe('recordBuy', () => {
     await recordBuy(buy({}), 'sms-t');
     expect(tx.create).not.toHaveBeenCalled();
     expect(tx.update).toHaveBeenCalledWith('sms-t', { kind: 'invest_buy', category_id: null, needs_review: false, note: 'Magyar Állampapír Plusz (MÁP Plusz)' });
-    expect(ent.itxnCreate).toHaveBeenCalledWith(expect.objectContaining({ transaction_id: 'sms-t', amount_huf_minor: 10_000_000 }));
+    expect(ent.itxnCreate).toHaveBeenCalledWith(expect.objectContaining({ transaction_id: 'sms-t', amount_huf_minor: 10_000_000, date: '2026-11-04' }));
   });
 
   it('refuses a link that is not a matching expense on the account', async () => {
     tx.get.mockResolvedValue(txn({ amount_minor: 9_000_000 }));
     await expect(recordBuy(buy({}), 'sms-t')).rejects.toThrow();
-    tx.get.mockResolvedValue(txn({ kind: 'invest_buy' }));
+    for (const stale of [
+      txn({ kind: 'invest_buy' }), txn({ source: 'manual' }), txn({ recurring_rule_id: 'r1' }),
+      txn({ date: '2026-11-07' }), txn({ account_id: 'rev' }),
+    ]) {
+      tx.get.mockResolvedValue(stale);
+      await expect(recordBuy(buy({}), 'sms-t')).rejects.toThrow('That bank payment no longer matches this buy');
+    }
+    tx.get.mockResolvedValue(null);
     await expect(recordBuy(buy({}), 'sms-t')).rejects.toThrow();
     expect(tx.update).not.toHaveBeenCalled();
     expect(ent.holdingCreate).not.toHaveBeenCalled();
@@ -155,9 +162,13 @@ describe('recordSell', () => {
     expect(ent.itxnCreate).toHaveBeenCalledWith(expect.objectContaining({ side: 'sell', amount_huf_minor: 2_000_000, quantity: 1, transaction_id: 'new-t' }));
   });
 
-  it('checks a no-quantity sell against the HUF cost', async () => {
+  it('a no-quantity sell above cost (a gain) is booked; a closed position refuses', async () => {
     itxns.push({ ...itxn({ amount_huf_minor: 3_000_000 }) });
-    await expect(recordSell(holding, { amountMinor: 10_000, quantity: null, price: null, date: '2026-11-03', accountId: 'rev' })).rejects.toThrow(/at cost/);
+    await recordSell(holding, { amountMinor: 10_000, quantity: null, price: null, date: '2026-11-03', accountId: 'rev' });
+    expect(tx.create).toHaveBeenCalledWith(expect.objectContaining({ kind: 'invest_sell', amount_huf_minor: 4_000_000 }));
+    itxns.push({ ...itxn({ id: 'i2', side: 'sell', amount_huf_minor: 4_000_000, date: '2026-11-03' }) });
+    tx.create.mockClear();
+    await expect(recordSell(holding, { amountMinor: 10_000, quantity: null, price: null, date: '2026-11-04', accountId: 'rev' })).rejects.toThrow('Nothing left to sell');
     expect(tx.create).not.toHaveBeenCalled();
   });
 

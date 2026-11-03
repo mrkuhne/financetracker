@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Account, Holding, InvestmentTxn, Txn } from '@/domain/types';
 import { positionOf } from '@/domain/invest';
-import { formatMoney } from '@/domain/money';
 import { findSmsCandidates, payableAccounts, planSell, validateBuy, type BuyInput } from './record';
 
 const acct = (o: Partial<Account>): Account => ({
@@ -87,9 +86,14 @@ describe('planSell', () => {
     const p = positionOf(holding({}), [itxn({})]);
     expect(planSell(p, { amountMinor: 1_000_000, quantity: 1 })).not.toBeNull();
   });
-  it('amount sell above cost on a position without quantity says the cost held', () => {
+  it('a sell without quantity on a no-quantity position closes it: any amount, even above cost, is valid', () => {
     const p = positionOf(holding({}), [itxn({ amount_huf_minor: 10_000_000 })]);
-    expect(planSell(p, { amountMinor: 10_000_100, quantity: null })).toBe(`You hold ${formatMoney(10_000_000, 'HUF')} at cost`);
+    expect(planSell(p, { amountMinor: 10_000_100, quantity: null })).toBeNull();
+    expect(planSell(p, { amountMinor: 1, quantity: null })).toBeNull();
+  });
+  it('a closed no-quantity position has nothing left to sell', () => {
+    const p = positionOf(holding({}), [itxn({}), itxn({ id: 'i2', side: 'sell', date: '2026-10-02' })]);
+    expect(planSell(p, { amountMinor: 1_000_000, quantity: null })).toBe('Nothing left to sell');
   });
   it('a valid sell is null', () => {
     const withQty = positionOf(holding({}), [itxn({ quantity: 2, price: 100 })]);

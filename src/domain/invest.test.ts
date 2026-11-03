@@ -132,13 +132,16 @@ describe('positionOf', () => {
     expect(p.costMinor).toBe(21_333);
     expect(p.firstBuy).toBe('2026-02-01');
   });
-  it('without quantities the cost drops by the sell amount, floored at 0', () => {
-    const buys = [txn({ amount_huf_minor: 50_000, date: '2026-01-01' })];
-    const p = positionOf(holding(), [...buys, txn({ side: 'sell', amount_huf_minor: 20_000, date: '2026-02-01' })]);
-    expect(p.quantity).toBeNull();
-    expect(p.costMinor).toBe(30_000);
-    const q = positionOf(holding(), [...buys, txn({ side: 'sell', amount_huf_minor: 80_000, date: '2026-02-01' })]);
-    expect(q.costMinor).toBe(0);
+  it('without quantities a sell closes the whole position, whatever the amount', () => {
+    const buys = [txn({ amount_huf_minor: 50_000, date: '2026-01-01' }), txn({ amount_huf_minor: 30_000, date: '2026-01-15' })];
+    for (const amount of [20_000, 80_000, 95_000]) {
+      const p = positionOf(holding(), [...buys, txn({ side: 'sell', amount_huf_minor: amount, date: '2026-02-01' })]);
+      expect(p.quantity).toBeNull();
+      expect(p.costMinor).toBe(0);
+      expect(p.lots.every((l) => l.costMinor === 0)).toBe(true);
+    }
+    const reopened = positionOf(holding(), [...buys, txn({ side: 'sell', amount_huf_minor: 1, date: '2026-02-01' }), txn({ amount_huf_minor: 10_000, date: '2026-03-01' })]);
+    expect(reopened.costMinor).toBe(10_000);
   });
   it('ignores other holdings and has no first buy without buys', () => {
     const p = positionOf(holding(), [txn({ holding_id: 'other', amount_huf_minor: 5 })]);
@@ -174,8 +177,9 @@ describe('holdingValue', () => {
     ];
     expect(holdingValue(positionOf(h, buys), null, null, '2026-11-03').valueMinor).toBe(2_065_000);
     const sold = positionOf(h, [...buys, txn({ side: 'sell', amount_huf_minor: 1_000_000, date: '2026-11-03' })]);
-    expect(sold.costMinor).toBe(1_000_000);
-    expect(holdingValue(sold, null, null, '2026-11-03').valueMinor).toBe(1_032_500);
+    // R13: a sell without quantity closes the whole bond position.
+    expect(sold.costMinor).toBe(0);
+    expect(holdingValue(sold, null, null, '2026-11-03').valueMinor).toBe(0);
   });
   it('has no gain ratio at zero cost', () => {
     expect(holdingValue(pos({ costMinor: 0 }), null, null, '2026-11-03').gainRatio).toBeNull();

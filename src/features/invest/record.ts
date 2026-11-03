@@ -1,6 +1,5 @@
 import { daysBetweenInclusive } from '@/domain/dates';
 import type { Position } from '@/domain/invest';
-import { formatMoney } from '@/domain/money';
 import type { Account, ISODate, Platform, Txn } from '@/domain/types';
 import { findProduct } from './catalog';
 
@@ -59,8 +58,8 @@ const fmtQty = (q: number): string => String(Number(q.toFixed(8)));
 
 /**
  * Error copy for an invalid sell, or null. `amountMinor` is the sell's HUF value (the caller
- * converts from the pay-into account's currency), because a no-quantity sell is checked against the
- * position's HUF cost.
+ * converts from the pay-into account's currency). A sell without a quantity on a position without
+ * quantity closes the whole position, so it has no upper cap.
  */
 export function planSell(position: Position, i: { amountMinor: number; quantity: number | null }): string | null {
   if (!Number.isInteger(i.amountMinor) || i.amountMinor <= 0) return 'Enter the amount you received';
@@ -70,8 +69,7 @@ export function planSell(position: Position, i: { amountMinor: number; quantity:
     if (i.quantity > position.quantity + EPS) return `You hold ${fmtQty(position.quantity)}`;
     return null;
   }
-  if (position.quantity === null && i.amountMinor > position.costMinor) {
-    return `You hold ${formatMoney(position.costMinor, 'HUF')} at cost`;
-  }
+  // A no-quantity sell closes the whole position, so any amount (a gain included) is fine.
+  if (position.quantity === null && position.costMinor === 0) return 'Nothing left to sell';
   return null;
 }

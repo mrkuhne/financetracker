@@ -123,6 +123,9 @@ export function positionOf(holding: Holding, txns: InvestmentTxn[]): Position {
       const sold = Math.min(t.quantity, quantity);
       shrink(1 - sold / quantity);
       quantity -= sold;
+    } else if (!quantityKnown && t.quantity === null) {
+      // No quantity to go by: a sell closes the whole position (bonds redeem above cost).
+      shrink(0);
     } else {
       const cost = total();
       if (cost > 0) shrink(Math.max(0, 1 - t.amount_huf_minor / cost));
