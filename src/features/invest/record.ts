@@ -39,7 +39,7 @@ export function validateBuy(i: BuyInput, accounts: Account[]): string | null {
 const daysApart = (a: ISODate, b: ISODate): number => Math.abs(daysBetweenInclusive(a, b) - 1);
 
 /**
- * Bank SMS debits that may be this buy: SMS-sourced, non-recurring expenses on the same account with
+ * Bank SMS debits that may be this buy: SMS-sourced (or SMS-linked), non-recurring expenses on the same account with
  * exactly `amountMinor` (account currency) within ±3 days. Empty when the account receives no SMS.
  */
 export function findSmsCandidates(
@@ -53,7 +53,7 @@ export function findSmsCandidates(
     (t) =>
       t.account_id === i.accountId &&
       t.kind === 'expense' &&
-      t.source === 'sms' &&
+      (t.source === 'sms' || !!t.sms_message_id) &&
       t.recurring_rule_id === null &&
       t.amount_minor === i.amountMinor &&
       daysApart(t.date, i.date) <= SMS_MATCH_DAYS,

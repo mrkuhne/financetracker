@@ -61,7 +61,7 @@ describe('findSmsCandidates', () => {
   });
   it('excludes non-SMS rows, other accounts, other amounts, day +4, recurring rows and invest_buy rows', () => {
     const rows = [
-      txn({ id: 'manual', source: 'manual' }),
+      txn({ id: 'manual', source: 'manual', sms_message_id: null }),
       txn({ id: 'other-acct', account_id: 'rev' }),
       txn({ id: 'other-amount', amount_minor: 9_999_900 }),
       txn({ id: 'day+4', date: '2026-11-07' }),
@@ -71,6 +71,9 @@ describe('findSmsCandidates', () => {
       txn({ id: 'income', kind: 'income' }),
     ];
     expect(findSmsCandidates(q, rows, accounts)).toEqual([]);
+  });
+  it('offers a manual row that carries a bank SMS (a buy linked by a late SMS, then deleted)', () => {
+    expect(findSmsCandidates(q, [txn({ id: 'linked', source: 'manual', sms_message_id: 'sms9' })], accounts).map((t) => t.id)).toEqual(['linked']);
   });
   it('returns [] when the account has no sms_sender', () => {
     expect(findSmsCandidates({ ...q, accountId: 'rev' }, [txn({ account_id: 'rev' })], accounts)).toEqual([]);

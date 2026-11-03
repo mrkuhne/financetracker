@@ -117,7 +117,7 @@ describe('recordBuy', () => {
     tx.get.mockResolvedValue(txn({ amount_minor: 9_000_000 }));
     await expect(recordBuy(buy({}), 'sms-t')).rejects.toThrow();
     for (const stale of [
-      txn({ kind: 'invest_buy' }), txn({ source: 'manual' }), txn({ recurring_rule_id: 'r1' }),
+      txn({ kind: 'invest_buy' }), txn({ source: 'manual', sms_message_id: null }), txn({ recurring_rule_id: 'r1' }),
       txn({ date: '2026-11-07' }), txn({ account_id: 'rev' }),
     ]) {
       tx.get.mockResolvedValue(stale);

@@ -5,9 +5,24 @@ import { getSettings } from '@/data/settings';
 import { listConvertedSmsByHashes, listPendingSms, markSmsConverted } from '@/data/smsMessages';
 import { createTransaction, listTransactions, listTransactionsBySmsIds, updateTransaction } from '@/data/transactions';
 import { addDays, todayInTz } from '@/domain/dates';
+import type { Txn } from '@/domain/types';
 import { dedupePending, matchInvestTxnForSms, pickSmsAccount, planSmsTxn } from './smsConversion';
 
 let inflight: Promise<number> | null = null;
+
+/**
+ * A buy recorded before its bank SMS arrived: link the SMS to it instead of a second debit. The buy
+ * becomes SMS-sourced, so deleting it later reverts it to a bank expense the next buy can link to.
+ * Returns the linked transaction id, or null when no recorded buy matches.
+ */
+export async function linkSmsToInvestBuy(msgId: string, planned: Omit<Txn, 'id'>): Promise<string | null> {
+  const nearby = await listTransactions({ from: addDays(planned.date, -3), to: addDays(planned.date, 3) });
+  const match = matchInvestTxnForSms(planned, nearby);
+  if (!match) return null;
+  await updateTransaction(match.id, { sms_message_id: msgId, source: 'sms' });
+  await markSmsConverted(msgId, match.id);
+  return match.id;
+}
 
 async function convertAll(): Promise<number> {
   const pending = await listPendingSms();
@@ -47,13 +62,9 @@ async function convertAll(): Promise<number> {
       };
       const planned = planSmsTxn({ ...msg, date }, account, categories, rates);
       if (planned.kind === 'expense') {
-        // A buy recorded before its bank SMS arrived: link the SMS to it instead of a second debit.
-        const nearby = await listTransactions({ from: addDays(date, -3), to: addDays(date, 3) });
-        const match = matchInvestTxnForSms(planned, nearby);
-        if (match) {
-          await updateTransaction(match.id, { sms_message_id: msg.id });
-          await markSmsConverted(msg.id, match.id);
-          txnByMsg.set(msg.id, match.id);
+        const linkedId = await linkSmsToInvestBuy(msg.id, planned);
+        if (linkedId) {
+          txnByMsg.set(msg.id, linkedId);
           continue;
         }
       }
