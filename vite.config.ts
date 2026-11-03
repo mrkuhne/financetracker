@@ -18,6 +18,9 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
+        // With injectRegister: false the plugin no longer turns these on for autoUpdate; without them a new SW waits forever.
+        skipWaiting: true,
+        clientsClaim: true,
       },
       manifest: {
         name: 'Finance Tracker',
