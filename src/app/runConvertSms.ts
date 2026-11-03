@@ -3,9 +3,9 @@ import { listCategories } from '@/data/categories';
 import { getHufPerUnit } from '@/data/fx';
 import { getSettings } from '@/data/settings';
 import { listConvertedSmsByHashes, listPendingSms, markSmsConverted } from '@/data/smsMessages';
-import { createTransaction, listTransactionsBySmsIds } from '@/data/transactions';
-import { todayInTz } from '@/domain/dates';
-import { dedupePending, pickSmsAccount, planSmsTxn } from './smsConversion';
+import { createTransaction, listTransactions, listTransactionsBySmsIds, updateTransaction } from '@/data/transactions';
+import { addDays, todayInTz } from '@/domain/dates';
+import { dedupePending, matchInvestTxnForSms, pickSmsAccount, planSmsTxn } from './smsConversion';
 
 let inflight: Promise<number> | null = null;
 
@@ -45,7 +45,19 @@ async function convertAll(): Promise<number> {
         msg: await getHufPerUnit(msg.currency, date),
         account: await getHufPerUnit(account.currency, date),
       };
-      const txn = await createTransaction(planSmsTxn({ ...msg, date }, account, categories, rates));
+      const planned = planSmsTxn({ ...msg, date }, account, categories, rates);
+      if (planned.kind === 'expense') {
+        // A buy recorded before its bank SMS arrived: link the SMS to it instead of a second debit.
+        const nearby = await listTransactions({ from: addDays(date, -3), to: addDays(date, 3) });
+        const match = matchInvestTxnForSms(planned, nearby);
+        if (match) {
+          await updateTransaction(match.id, { sms_message_id: msg.id });
+          await markSmsConverted(msg.id, match.id);
+          txnByMsg.set(msg.id, match.id);
+          continue;
+        }
+      }
+      const txn = await createTransaction(planned);
       await markSmsConverted(msg.id, txn.id);
       txnByMsg.set(msg.id, txn.id);
       created++;

@@ -1,5 +1,6 @@
 import type { Category } from '@/data/categories';
 import type { SmsMessageRow } from '@/data/smsMessages';
+import { daysBetweenInclusive } from '@/domain/dates';
 import { formatMoney, toHufMinor } from '@/domain/money';
 import type { Account, Txn } from '@/domain/types';
 
@@ -51,6 +52,28 @@ export function planSmsTxn(
     transfer_pair_id: null,
     sms_message_id: msg.id,
   };
+}
+
+const daysApart = (a: string, b: string): number => Math.abs(daysBetweenInclusive(a, b) - 1);
+
+/**
+ * A buy recorded before its bank SMS arrived: for a planned SMS expense, the `invest_buy` on the same
+ * account with the same `amount_minor` (account currency), no SMS linked yet and a date within ±3
+ * days. The closest date wins. null when there is none (the SMS then becomes a normal expense).
+ */
+export function matchInvestTxnForSms(planned: Omit<Txn, 'id'>, txns: Txn[]): Txn | null {
+  if (planned.kind !== 'expense') return null;
+  const hits = txns
+    .filter(
+      (t) =>
+        t.kind === 'invest_buy' &&
+        t.account_id === planned.account_id &&
+        t.amount_minor === planned.amount_minor &&
+        !t.sms_message_id &&
+        daysApart(t.date, planned.date) <= 3,
+    )
+    .sort((a, b) => daysApart(a.date, planned.date) - daysApart(b.date, planned.date) || a.date.localeCompare(b.date));
+  return hits[0] ?? null;
 }
 
 const olderFirst = (a: SmsMessageRow, b: SmsMessageRow): number =>

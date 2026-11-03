@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { Account } from '@/domain/types';
+import type { Account, Txn } from '@/domain/types';
 import type { Category } from '@/data/categories';
 import type { SmsMessageRow } from '@/data/smsMessages';
-import { dedupePending, pickSmsAccount, planSmsTxn } from './smsConversion';
+import { dedupePending, matchInvestTxnForSms, pickSmsAccount, planSmsTxn } from './smsConversion';
 
 const acct = (o: Partial<Account>): Account => ({
   id: 'a1', name: 'Account', type: 'checking', currency: 'HUF', opening_balance_minor: 0,
@@ -71,5 +71,30 @@ describe('smsConversion', () => {
     const { convert, duplicates } = dedupePending([msg({ id: 'x', text_hash: 'h1' }), msg({ id: 'y', text_hash: 'h2' })], new Set());
     expect(convert.map((m) => m.id)).toEqual(['x', 'y']);
     expect(duplicates).toEqual([]);
+  });
+  describe('matchInvestTxnForSms', () => {
+    const planned = planSmsTxn(msg({ amount_minor: 10_000_000, date: '2026-11-05' }), acct({ id: 'mbh' }), cats, { msg: 1, account: 1 });
+    const buy = (o: Partial<Txn>): Txn => ({
+      id: 'b1', account_id: 'mbh', kind: 'invest_buy', amount_minor: 10_000_000, currency: 'HUF', amount_huf_minor: 10_000_000,
+      category_id: null, date: '2026-11-03', note: 'MÁP Plusz', source: 'manual', needs_review: false, recurring_rule_id: null,
+      transfer_pair_id: null, sms_message_id: null, ...o,
+    });
+    it('returns an unlinked invest_buy on the same account and amount within ±3 days', () => {
+      expect(matchInvestTxnForSms(planned, [buy({ date: '2026-11-02' })])?.id).toBe('b1');
+      expect(matchInvestTxnForSms(planned, [buy({ date: '2026-11-08' })])?.id).toBe('b1');
+    });
+    it('prefers the closest date', () => {
+      expect(matchInvestTxnForSms(planned, [buy({ id: 'far', date: '2026-11-02' }), buy({ id: 'near', date: '2026-11-05' })])?.id).toBe('near');
+    });
+    it('null for a planned income, a linked buy, another account, another amount, day ±4 or a non-buy', () => {
+      expect(matchInvestTxnForSms({ ...planned, kind: 'income' }, [buy({})])).toBeNull();
+      expect(matchInvestTxnForSms(planned, [buy({ sms_message_id: 'sms0' })])).toBeNull();
+      expect(matchInvestTxnForSms(planned, [buy({ account_id: 'rev' })])).toBeNull();
+      expect(matchInvestTxnForSms(planned, [buy({ amount_minor: 10_000_100 })])).toBeNull();
+      expect(matchInvestTxnForSms(planned, [buy({ date: '2026-11-01' })])).toBeNull();
+      expect(matchInvestTxnForSms(planned, [buy({ date: '2026-11-09' })])).toBeNull();
+      expect(matchInvestTxnForSms(planned, [buy({ kind: 'expense' })])).toBeNull();
+      expect(matchInvestTxnForSms(planned, [buy({ kind: 'invest_sell' })])).toBeNull();
+    });
   });
 });
