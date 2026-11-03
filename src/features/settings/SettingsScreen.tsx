@@ -10,9 +10,11 @@ import { exportAllJson, exportTransactionsCsv, saveBlob } from '@/data/export';
 import { todayInTz } from '@/domain/dates';
 import { listApiKeys } from '@/data/apiKeys';
 import { listRecentSms } from '@/data/smsMessages';
-import type { Settings } from '@/domain/types';
+import type { RiskProfile, Settings } from '@/domain/types';
+import { PROFILE_LABEL } from '@/features/invest/investModel';
 
 const STEP = 1_000_000; // 10 000 Ft in minor units
+const RISK_PROFILES: RiskProfile[] = ['cautious', 'balanced', 'bold'];
 const ZONES = ['Europe/Budapest', 'Europe/London', 'Europe/Berlin', 'Europe/Vienna', 'America/New_York', 'UTC'];
 
 export function SettingsScreen() {
@@ -104,7 +106,6 @@ export function SettingsScreen() {
             <span className="ov">Monthly plan</span>
             <div className="list">
               <AmountField label="Save every month" minor={s.monthly_savings_target_minor} onChange={(f) => patch((c) => ({ monthly_savings_target_minor: f(c.monthly_savings_target_minor) ?? 0 }))} />
-              <AmountField label="Invest every month" minor={s.monthly_investment_amount_minor} optional onChange={(f) => patch((c) => ({ monthly_investment_amount_minor: f(c.monthly_investment_amount_minor) }))} />
               <div className="field">
                 <span>Emergency fund</span>
                 <div className="stepper">
@@ -123,6 +124,20 @@ export function SettingsScreen() {
               </label>
             </div>
             {saveError && <p className="err" role="alert">Could not save that change.</p>}
+          </div>
+          <div className="sec">
+            <span className="ov">Investing</span>
+            <div className="list">
+              <AmountField label="Monthly investment (optional)" minor={s.monthly_investment_amount_minor} optional onChange={(f) => patch((c) => ({ monthly_investment_amount_minor: f(c.monthly_investment_amount_minor) }))} />
+            </div>
+            <span className="sub">Leave empty to get a suggestion. It comes out of your allowance only when you record a buy.</span>
+            <span className="ov">Risk profile</span>
+            <div className="seg" role="radiogroup" aria-label="Risk profile">
+              {RISK_PROFILES.map((r) => (
+                <button key={r} type="button" role="radio" aria-checked={s.risk_profile === r} className={s.risk_profile === r ? 'on' : ''}
+                  onClick={() => patch(() => ({ risk_profile: r }))}>{PROFILE_LABEL[r]}</button>
+              ))}
+            </div>
           </div>
           <div className="sec">
             <span className="ov">Accounts</span>

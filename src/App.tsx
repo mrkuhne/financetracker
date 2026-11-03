@@ -18,6 +18,9 @@ import { PlanImpactScreen } from '@/features/plan/PlanImpactScreen';
 import { AdviceScreen } from '@/features/plan/AdviceScreen';
 import { BudgetsScreen } from '@/features/plan/BudgetsScreen';
 import { SavingsScreen } from '@/features/plan/SavingsScreen';
+import { InvestScreen } from '@/features/invest/InvestScreen';
+import { AssetTypeScreen } from '@/features/invest/AssetTypeScreen';
+import { Screen } from '@/features/shell/Screen';
 
 export default function App() {
   return (
@@ -37,6 +40,9 @@ export default function App() {
             <Route path="/guide" element={<GuideScreen />} />
             <Route path="/budgets" element={<BudgetsScreen />} />
             <Route path="/savings" element={<SavingsScreen />} />
+            <Route path="/invest" element={<InvestScreen />} />
+            <Route path="/invest/type/:type" element={<AssetTypeScreen />} />
+            <Route path="/invest/holding/:id" element={<Screen title="Holding" back="/invest"><div className="card sub">Coming soon.</div></Screen>} />
             <Route path="/accounts" element={<AccountsScreen />} />
             <Route path="/review/:id" element={<ReviewSmsScreen />} />
             <Route path="/settings" element={<SettingsScreen />} />

@@ -245,3 +245,17 @@ svg.i { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-widt
 .rung:not(:last-child)::before{content:"";position:absolute;left:16.5px;top:46px;bottom:-10px;border-left:2px solid var(--hair)}
 .rung strong{display:block;font-weight:600;margin-top:6px}
 .rung p{margin:4px 0 0;font-size:13px;color:var(--sub);line-height:1.45}
+
+/* invest (ported from prototype) */
+.alloc{display:flex;height:14px;border-radius:7px;overflow:hidden;gap:2px;background:var(--surf2)}
+.alloc i{display:block;height:100%}
+.legend{display:grid;gap:8px}
+.legend > *{display:flex;align-items:center;gap:10px;font-size:13.5px;color:inherit;text-decoration:none}
+.legend i{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+.legend span{flex:1;min-width:0}
+.legend small{color:var(--faint);font-size:11.5px}
+.legend .i{width:16px;height:16px;color:var(--faint)}
+.radio{display:flex;align-items:center;gap:12px;padding:13px 14px;width:100%;text-align:left}
+.radio + .radio{border-top:1px solid var(--hair)}
+.radio input{accent-color:var(--accent);width:18px;height:18px;margin:0}
+.radio span{flex:1}
