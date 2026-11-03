@@ -161,7 +161,10 @@ export function holdingDetail(core: Pick<InvestCore, 'holdings' | 'txns' | 'valu
 export function priceLine(h: Holding, v: Valuation | null, quote: PriceQuote | null): string | null {
   if (!v) return null;
   if (!v.priced) return 'Price not updated';
-  if (h.asset_type === 'bond') return `Estimated from the ${h.bond_rate_pct}% yearly rate`;
+  if (h.asset_type === 'bond') {
+    // holdingValue leaves a bond without a rate unpriced (above); this guards a priced one anyway.
+    return h.bond_rate_pct !== null ? `Estimated from the ${h.bond_rate_pct}% yearly rate` : 'Estimated value';
+  }
   return quote ? `Price from ${quote.as_of}` : 'Price not updated';
 }
 

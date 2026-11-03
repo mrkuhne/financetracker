@@ -201,6 +201,14 @@ describe('holding page helpers', () => {
     expect(d.history.map((t) => t.id)).toEqual([s.id, b.id]);
   });
 
+  test('a bond without a rate is unpriced, so its page never shows a null rate', () => {
+    const hs = [holding('b', 'fix-map', 'bond', { bond_rate_pct: null, currency: 'HUF' })];
+    const m = buildInvestCore({ ...base, holdings: hs, txns: [buy('b', 10_000_000, '2026-10-01')], quotes: [] });
+    const d = holdingDetail(m, 'b')!;
+    expect(d.valuation).toMatchObject({ valueMinor: 10_000_000, priced: false });
+    expect(priceLine(d.holding, d.valuation, d.quote)).toBe('Price not updated');
+  });
+
   test('an unknown holding, or one with no txns left, is null', () => {
     const m = buildInvestCore({ ...base, holdings: [holding('e', 'apple', 'stock')], txns: [], quotes: [] });
     expect(holdingDetail(m, 'e')).toBeNull();
@@ -217,6 +225,7 @@ describe('holding page helpers', () => {
     expect(priceLine(bond, v(true), null)).toBe('Estimated from the 5.5% yearly rate');
     expect(priceLine({ ...bond, bond_rate_pct: 5 }, v(true), null)).toBe('Estimated from the 5% yearly rate');
     expect(priceLine({ ...bond, bond_rate_pct: null }, v(false), null)).toBe('Price not updated');
+    expect(priceLine({ ...bond, bond_rate_pct: null }, v(true), null)).toBe('Estimated value');
     expect(priceLine(etf, null, quote)).toBeNull();
   });
 

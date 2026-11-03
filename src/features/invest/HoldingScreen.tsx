@@ -64,7 +64,7 @@ function HoldingBody({ detail, data }: { detail: HoldingDetail; data: InvestMode
 
       {v && isBigDrop(v) && (
         <div className="card dropnote">
-          <strong><Icon name="info" />{info.title} often swings like this.</strong>
+          <strong><Icon name="info" />{info.title} often swing like this.</strong>
           <p>{info.drop_note}</p>
         </div>
       )}
