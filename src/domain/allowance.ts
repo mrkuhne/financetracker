@@ -42,6 +42,9 @@ function recurringTotal(rules: RecurringRule[], inMonth: Txn[], kind: RecurringR
 /** Day-to-day spending: an expense not linked to a recurring rule. */
 export const isSpend = (t: Txn) => t.kind === 'expense' && t.recurring_rule_id === null;
 
+/** Investment movement: a recorded buy or sell. Never day-to-day spend, income or a recurring total. */
+export const isInvest = (t: Txn) => t.kind === 'invest_buy' || t.kind === 'invest_sell';
+
 export function savingsTargetFor(settings: Settings, month: YearMonth): number {
   const o = settings.month_overrides?.[month]?.savings_target_minor;
   return typeof o === 'number' ? o : settings.monthly_savings_target_minor;
@@ -57,7 +60,7 @@ export function computeMonthlyAllowance(i: {
     inMonth.filter((t) => t.kind === 'income' && t.recurring_rule_id === null).map((t) => t.amount_huf_minor),
   );
   const savingsTargetMinor = savingsTargetFor(i.settings, i.month);
-  const investmentMinor = i.settings.monthly_investment_amount_minor ?? 0;
+  const investmentMinor = sum(inMonth.filter((t) => t.kind === 'invest_buy').map((t) => t.amount_huf_minor));
   const freeMinor =
     recurringIncomeMinor + oneOffIncomeMinor - recurringExpensesMinor - savingsTargetMinor - investmentMinor - i.previousDeficitMinor;
   const spentMinor = sum(inMonth.filter(isSpend).map((t) => t.amount_huf_minor));

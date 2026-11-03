@@ -7,7 +7,8 @@ import type { Txn } from '@/domain/types';
 import { Icon } from '@/features/shell/Icons';
 import { Screen } from '@/features/shell/Screen';
 import { CatIcon } from '@/features/transactions/CatIcon';
-import { monthLabel } from '@/features/transactions/txLogic';
+import { investTitle, monthLabel } from '@/features/transactions/txLogic';
+import { isInvest } from '@/domain/allowance';
 import { AllowanceBreakdown } from './AllowanceBreakdown';
 import { huf, hufNum } from './fmt';
 import { avatarInitial, summarizeClose } from './homeModel';
@@ -64,8 +65,8 @@ export function HomeScreen() {
   const row = (t: Txn) => {
     const cat = t.category_id ? catById.get(t.category_id) : undefined;
     const transfer = t.kind === 'transfer_in' || t.kind === 'transfer_out';
-    const name = transfer ? `Transfer ${t.kind === 'transfer_out' ? 'out' : 'in'}` : t.note || cat?.name || 'Uncategorised';
-    const plus = t.kind === 'income' || t.kind === 'transfer_in';
+    const name = transfer ? `Transfer ${t.kind === 'transfer_out' ? 'out' : 'in'}` : isInvest(t) ? investTitle(t) : t.note || cat?.name || 'Uncategorised';
+    const plus = t.kind === 'income' || t.kind === 'transfer_in' || t.kind === 'invest_sell';
     return (
       <Link key={t.id} to={t.needs_review && t.sms_message_id ? `/review/${t.id}` : '/transactions'} className={`li${t.needs_review ? ' rev' : ''}`}>
         <CatIcon category={cat} icon={transfer ? 'swap' : undefined} />

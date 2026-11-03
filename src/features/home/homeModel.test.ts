@@ -20,6 +20,7 @@ const settings: Settings = {
   emergency_fund_months: 3, week_start: 'monday', digest_time: '20:00', timezone: 'Europe/Budapest', month_overrides: {}, has_expensive_debt: null, risk_profile: 'cautious', risk_checkin_at: null,
 };
 const txns = [
+  mk('invest_buy', '2026-11-04', 30_000_00),
   mk('expense', '2026-11-02', 15_000_00),
   mk('expense', '2026-11-03', 10_000_00),
   mk('income', '2026-11-20', 20_000_00),
@@ -68,7 +69,7 @@ describe('buildHomeModel', () => {
   it('balances skip archived and convert foreign currency', () => {
     expect(m.accounts.map((a) => a.account.id)).toEqual(['a1', 'a2', 'a4']);
     expect(m.totalBalanceHufMinor).toBe(
-      (1_000_000_00 - 15_000_00 - 10_000_00 - 200_000_00 - 50_000_00 - 1_000_00 + 20_000_00) + 50_000_00 + 100_00 * 400, // EUR txn on a HUF account counts at its HUF value
+      (1_000_000_00 - 15_000_00 - 10_000_00 - 200_000_00 - 50_000_00 - 1_000_00 - 30_000_00 + 20_000_00) + 50_000_00 + 100_00 * 400, // EUR txn on a HUF account counts at its HUF value
     );
   });
 

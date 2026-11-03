@@ -25,7 +25,7 @@ export function accountBalance(account: Account, txns: Txn[]): AccountBalance {
       }
       amount = t.amount_huf_minor;
     }
-    if (t.kind === 'income' || t.kind === 'transfer_in') balanceMinor += amount;
+    if (t.kind === 'income' || t.kind === 'transfer_in' || t.kind === 'invest_sell') balanceMinor += amount;
     else balanceMinor -= amount;
   }
   return { balanceMinor, skippedCount };

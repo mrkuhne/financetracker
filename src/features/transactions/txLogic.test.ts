@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Category } from '@/data/categories';
 import type { Txn } from '@/domain/types';
-import { applyKey, normalizeAmountFor, dayLabel, groupByDay, needsHufRecompute, recentCategoryIds } from './txLogic';
+import { applyKey, normalizeAmountFor, dayLabel, groupByDay, needsHufRecompute, recentCategoryIds, signedHuf } from './txLogic';
 
 const cat = (id: string, kind: 'expense' | 'income' = 'expense'): Category => ({ id, name: id, kind, icon: 'dots', monthly_budget_minor: null });
 const tx = (p: Partial<Txn>): Txn => ({
@@ -59,6 +59,13 @@ describe('recentCategoryIds', () => {
     const t = [tx({ kind: 'income', category_id: 'i1' }), tx({ category_id: 'gone' })];
     expect(recentCategoryIds(t, cats, 2)).toEqual(['a', 'b']);
     expect(recentCategoryIds(t, cats, 2, 'income')).toEqual(['i1']);
+  });
+});
+
+describe('signedHuf', () => {
+  it('invest_buy is negative and invest_sell positive', () => {
+    expect(signedHuf(tx({ kind: 'invest_buy', amount_huf_minor: 700 }))).toBe(-700);
+    expect(signedHuf(tx({ kind: 'invest_sell', amount_huf_minor: 700 }))).toBe(700);
   });
 });
 

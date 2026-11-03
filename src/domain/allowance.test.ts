@@ -29,6 +29,8 @@ const settings: Settings = {
 };
 
 const txns = [
+  mk('invest_buy', '2026-11-04', 30_000_00),
+  mk('invest_buy', '2026-12-04', 30_000_00),
   expense('2026-11-02', 15_000_00),
   expense('2026-11-03', 10_000_00),
   income('2026-11-20', 20_000_00),
@@ -36,6 +38,25 @@ const txns = [
   transferOut('2026-11-05', 50_000_00), transferIn('2026-11-05', 50_000_00),
   expense('2026-11-06', 1_000_00, { currency: 'EUR', amount_minor: 2_53, amount_huf_minor: 1_000_00 }),
 ];
+
+describe('investment txns', () => {
+  const s: Settings = { ...settings, monthly_savings_target_minor: 0, monthly_investment_amount_minor: 5_000_000 };
+  const r = [rule('salary', 'income', 60_000_000, '2026-01-10')];
+  const run = (t: Txn[]) => computeMonthlyAllowance({ month: '2026-11', rules: r, txns: t, settings: s, previousDeficitMinor: 0 });
+  it('investment comes from recorded buys, not the setting', () => {
+    const a = run([mk('invest_buy', '2026-11-05', 2_000_000)]);
+    expect(a.investmentMinor).toBe(2_000_000);
+    expect(a.freeMinor).toBe(58_000_000);
+  });
+  it('an invest_sell is not income', () => {
+    const a = run([mk('invest_sell', '2026-11-05', 1_000_000)]);
+    expect(a.oneOffIncomeMinor).toBe(0);
+    expect(a.freeMinor).toBe(run([]).freeMinor);
+  });
+  it('an invest_buy is not day-to-day spend', () => {
+    expect(run([mk('invest_buy', '2026-11-05', 2_000_000)]).spentMinor).toBe(0);
+  });
+});
 
 describe('allowance', () => {
   it('monthly', () => {

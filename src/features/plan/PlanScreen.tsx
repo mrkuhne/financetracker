@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { currentStep, guideSteps } from '@/domain/guide';
+import { currentStep, guideSteps, investedRecently } from '@/domain/guide';
 import type { PurchaseOption, PurchasePlan } from '@/domain/types';
 import { huf } from '@/features/home/fmt';
 import { Icon } from '@/features/shell/Icons';
@@ -67,7 +67,7 @@ export function PlanScreen() {
     emergency: data.emergency ? { savedMinor: data.emergency.savedMinor, targetMinor: data.emergency.targetMinor } : null,
     emergencyMonths: settings.emergency_fund_months,
     hasExpensiveDebt: settings.has_expensive_debt,
-    monthlyInvestmentMinor: settings.monthly_investment_amount_minor,
+    investedRecently: investedRecently(data.home.txns, data.home.today),
   });
   const step = currentStep(steps);
   const e = data.emergency;

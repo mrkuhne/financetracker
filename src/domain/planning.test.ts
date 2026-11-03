@@ -55,6 +55,17 @@ describe('averages', () => {
   });
 });
 
+describe('investment txns in history', () => {
+  test('completeMonthTotals ignores investment txns', () => {
+    const m = completeMonthTotals([
+      txn('2026-10-01', 'expense', 100), txn('2026-10-05', 'invest_buy', 500), txn('2026-10-06', 'invest_sell', 700),
+    ], '2026-11-15');
+    expect(m).toHaveLength(1);
+    expect(m[0].expensesMinor).toBe(100);
+    expect(m[0].incomeMinor).toBe(0);
+  });
+});
+
 describe('complete months start at the first fully tracked month', () => {
   const rec = (date: string, kind: Txn['kind'], amount: number): Txn => ({ ...txn(date, kind, amount, 'r1'), source: 'recurring' });
   test('only recurring back-fill: no complete months', () =>

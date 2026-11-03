@@ -17,6 +17,10 @@ describe('accountBalanceMinor', () => {
     expect(accountBalanceMinor(acct({ opening_balance_minor: 100_000_00 }),
       [mk('income', 600_000_00), mk('expense', 200_000_00), mk('transfer_out', 50_000_00)])).toBe(450_000_00);
   });
+  it('invest_buy subtracts and invest_sell adds', () => {
+    expect(accountBalanceMinor(acct({ opening_balance_minor: 100_000 }),
+      [mk('invest_buy', 30_000), mk('invest_sell', 10_000)])).toBe(80_000);
+  });
   it('adds transfer_in', () => {
     expect(accountBalanceMinor(acct(), [mk('transfer_in', 70)])).toBe(70);
   });

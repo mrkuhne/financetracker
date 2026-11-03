@@ -12,7 +12,8 @@ import type { Account, Txn, YearMonth } from '@/domain/types';
 import { CatIcon } from './CatIcon';
 import { TransactionForm } from './TransactionForm';
 import { TXNS_CHANGED } from './events';
-import { dayLabel, groupByDay, monthLabel } from './txLogic';
+import { isInvest } from '@/domain/allowance';
+import { dayLabel, groupByDay, investTitle, monthLabel } from './txLogic';
 
 export function TransactionsScreen() {
   const nav = useNavigate();
@@ -71,8 +72,8 @@ export function TransactionsScreen() {
     const transfer = t.kind === 'transfer_in' || t.kind === 'transfer_out';
     const name = transfer
       ? `Transfer ${t.kind === 'transfer_out' ? 'out' : 'in'}`
-      : t.note || cat?.name || 'Uncategorised';
-    const sign = t.kind === 'income' || t.kind === 'transfer_in' ? '+' : '−';
+      : isInvest(t) ? investTitle(t) : t.note || cat?.name || 'Uncategorised';
+    const sign = t.kind === 'income' || t.kind === 'transfer_in' || t.kind === 'invest_sell' ? '+' : '−';
     return (
       <button key={t.id} className={`li${t.needs_review ? ' rev' : ''}`} onClick={() => (t.needs_review && t.sms_message_id ? nav(`/review/${t.id}`) : setEditing(t))}>
         <CatIcon category={cat} icon={transfer ? 'swap' : undefined} />

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { invokeLlm } from '@/data/ai';
 import { getGuideCache, saveGuideCache, updateSettings } from '@/data/settings';
 import { savingsTargetFor } from '@/domain/allowance';
-import { guideSteps } from '@/domain/guide';
+import { guideSteps, investedRecently } from '@/domain/guide';
 import { monthsCovered, monthsToReach } from '@/domain/savings';
 import { Icon } from '@/features/shell/Icons';
 import { Screen } from '@/features/shell/Screen';
@@ -32,11 +32,11 @@ function buildFacts(data: PlanData): GuideFacts {
     emergency: emergency ? { savedMinor: emergency.savedMinor, targetMinor: emergency.targetMinor } : null,
     emergencyMonths: settings.emergency_fund_months,
     hasExpensiveDebt: settings.has_expensive_debt,
-    monthlyInvestmentMinor: settings.monthly_investment_amount_minor,
+    investedRecently: investedRecently(data.home.txns, data.home.today),
   });
   return {
     avgIncomeMinor: planning.avgIncomeMinor, avgExpensesMinor: planning.avgExpensesMinor, trackedMonths: planning.trackedMonths,
-    savingsTargetMinor, investmentMinor: settings.monthly_investment_amount_minor,
+    savingsTargetMinor, investmentMinor: data.home.model.monthly.investmentMinor,
     emergencySavedMinor: emergency?.savedMinor ?? null, emergencyTargetMinor: emergency?.targetMinor ?? null,
     emergencyMonthsCovered: emergency ? monthsCovered(emergency.savedMinor, planning.avgExpensesMinor) : null,
     emergencyGoalMonths: settings.emergency_fund_months,

@@ -4,6 +4,7 @@ import type { Category } from '@/data/categories';
 import { deleteTransaction, updateTransaction } from '@/data/transactions';
 import { getHufPerUnit } from '@/data/fx';
 import { formatMoney, fromMinor, toHufMinor } from '@/domain/money';
+import { isInvest } from '@/domain/allowance';
 import type { Account, Txn } from '@/domain/types';
 import { parseAmountInput } from '@/lib/amountInput';
 import { CatIcon } from './CatIcon';
@@ -16,6 +17,7 @@ const SOURCE: Record<Txn['source'], string> = { manual: 'Added by you', sms: 'SM
 /** `onClose` = dismissed without a change; `onDone` (default `onClose`) = after a successful save or delete. */
 export function TransactionForm({ txn, accounts, categories, onClose, onDone }: { txn: Txn; accounts: Account[]; categories: Category[]; onClose: () => void; onDone?: () => void }) {
   const isTransfer = txn.kind === 'transfer_in' || txn.kind === 'transfer_out';
+  const readOnlyInvest = isInvest(txn);
   const [kind, setKind] = useState<'expense' | 'income'>(txn.kind === 'income' ? 'income' : 'expense');
   const [amount, setAmount] = useState(String(fromMinor(txn.amount_minor)));
   const [categoryId, setCategoryId] = useState(txn.category_id ?? '');
@@ -83,7 +85,9 @@ export function TransactionForm({ txn, accounts, categories, onClose, onDone }: 
           </span>
         </div>
 
-        {isTransfer ? (
+        {readOnlyInvest ? (
+          <p className="note"><Icon name="info" />Investment. Change it from Invest.</p>
+        ) : isTransfer ? (
           <p className="note"><Icon name="info" />Transfers cannot be edited. Deleting one side removes both.</p>
         ) : (
           <>
@@ -132,13 +136,13 @@ export function TransactionForm({ txn, accounts, categories, onClose, onDone }: 
         )}
 
         {error && <p className="err" role="alert">{error}</p>}
-        {!isTransfer && (
+        {!isTransfer && !readOnlyInvest && (
           <button className="btn" disabled={busy} onClick={() => void save()}>
             <Icon name="check" />
             {txn.needs_review ? 'Looks right' : 'Save changes'}
           </button>
         )}
-        {confirming ? (
+        {readOnlyInvest ? null : confirming ? (
           <div className="row2">
             <button className="btn ghost" disabled={busy} onClick={() => setConfirming(false)}>Keep it</button>
             <button className="btn" disabled={busy} style={{ background: 'var(--bad)', color: '#fff' }} onClick={() => void run(() => deleteTransaction(txn.id))}>

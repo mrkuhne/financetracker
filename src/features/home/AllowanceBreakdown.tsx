@@ -23,7 +23,7 @@ export function AllowanceBreakdown({ model, rules }: { model: HomeModel; rules: 
           <div><span>One-off income</span><b className="num">{hufSigned(m.oneOffIncomeMinor)}</b></div>
           <div><span>Recurring expenses ({expenseRules})</span><b className="num">{huf(-m.recurringExpensesMinor)}</b></div>
           <div><span>Savings target</span><b className="num">{huf(-m.savingsTargetMinor)}</b></div>
-          <div><span>Investing</span><b className="num">{huf(-m.investmentMinor)}</b></div>
+          <div><span>Invested this month</span><b className="num">{huf(-m.investmentMinor)}</b></div>
           <div><span>Overspend from {prevName}</span><b className="num">{huf(-m.previousDeficitMinor)}</b></div>
           <div className="tot"><span>Free to spend</span><b className="num">{huf(m.freeMinor)}</b></div>
           <div><span>Spent so far (not recurring)</span><b className="num">{huf(-m.spentMinor)}</b></div>

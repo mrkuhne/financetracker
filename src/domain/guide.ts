@@ -1,3 +1,6 @@
+import { monthOf, prevMonth } from './dates';
+import type { ISODate, Txn } from './types';
+
 export type GuideKey = 'track' | 'emergency' | 'debt' | 'invest' | 'passive';
 
 export interface GuideStep { n: 1 | 2 | 3 | 4 | 5; key: GuideKey; title: string; status: 'done' | 'now' | 'todo' }
@@ -7,7 +10,7 @@ export interface GuideInput {
   emergency: { savedMinor: number; targetMinor: number } | null;
   emergencyMonths: number;
   hasExpensiveDebt: boolean | null;
-  monthlyInvestmentMinor: number | null;
+  investedRecently: boolean;
 }
 
 /** The five-step guide with each step's status derived from the user's data. */
@@ -19,7 +22,7 @@ export function guideSteps(i: GuideInput): GuideStep[] {
       done: !!i.emergency && i.emergency.targetMinor > 0 && i.emergency.savedMinor >= i.emergency.targetMinor,
     },
     { n: 3, key: 'debt', title: 'No expensive debt', done: i.hasExpensiveDebt === false },
-    { n: 4, key: 'invest', title: 'Invest every month', done: (i.monthlyInvestmentMinor ?? 0) > 0 },
+    { n: 4, key: 'invest', title: 'Invest every month', done: i.investedRecently },
     { n: 5, key: 'passive', title: 'Build passive income', done: false },
   ];
   const firstOpen = defs.findIndex((d) => !d.done);
@@ -34,4 +37,10 @@ export function guideSteps(i: GuideInput): GuideStep[] {
 /** The step to work on now; null when every step is done. */
 export function currentStep(steps: GuideStep[]): GuideStep | null {
   return steps.find((s) => s.status === 'now') ?? null;
+}
+
+/** True when an `invest_buy` is dated in the current or the previous month. */
+export function investedRecently(txns: Txn[], today: ISODate): boolean {
+  const months = [monthOf(today), prevMonth(monthOf(today))];
+  return txns.some((t) => t.kind === 'invest_buy' && months.includes(monthOf(t.date)));
 }

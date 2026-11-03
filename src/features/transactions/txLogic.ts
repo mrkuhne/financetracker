@@ -65,9 +65,15 @@ export interface DayGroup {
 
 /** Signed HUF effect of a txn on the day total; transfers net to zero and are excluded. */
 export function signedHuf(t: Txn): number {
-  if (t.kind === 'income') return t.amount_huf_minor;
-  if (t.kind === 'expense') return -t.amount_huf_minor;
+  if (t.kind === 'income' || t.kind === 'invest_sell') return t.amount_huf_minor;
+  if (t.kind === 'expense' || t.kind === 'invest_buy') return -t.amount_huf_minor;
   return 0;
+}
+
+/** Row title for an investment txn: "Invested · note" / "Sold · note". */
+export function investTitle(t: Txn): string {
+  const head = t.kind === 'invest_buy' ? 'Invested' : 'Sold';
+  return t.note ? `${head} · ${t.note}` : head;
 }
 
 /** Group by date, newest day first; keeps input order within a day. */

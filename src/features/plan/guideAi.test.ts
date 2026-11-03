@@ -4,7 +4,7 @@ import { huf } from '@/features/home/fmt';
 import { buildGuidePrompt, fallbackFact, guideCacheKey, normalizeGuide, type GuideFacts } from './guideAi';
 
 const steps = guideSteps({
-  trackedMonths: 2, emergency: { savedMinor: 100, targetMinor: 1000 }, emergencyMonths: 6, hasExpensiveDebt: null, monthlyInvestmentMinor: null,
+  trackedMonths: 2, emergency: { savedMinor: 100, targetMinor: 1000 }, emergencyMonths: 6, hasExpensiveDebt: null, investedRecently: false,
 });
 const facts: GuideFacts = {
   avgIncomeMinor: 65_000_000, avgExpensesMinor: 38_000_000, trackedMonths: 2, savingsTargetMinor: 10_000_000, investmentMinor: null,
