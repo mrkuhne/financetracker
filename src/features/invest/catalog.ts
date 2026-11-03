@@ -138,13 +138,19 @@ export const CATALOG: CatalogProduct[] = [
   },
 ];
 
-export const TYPE_INFO: Record<AssetType, { title: string; what: string; where_note: string }> = {
+/**
+ * `drop_note` is the calm card on a holding at least 15% under cost: the fall is normal for the type,
+ * selling after a fall makes the loss final, and the decision is the user's. Never "sell" or "buy more".
+ */
+export const TYPE_INFO: Record<AssetType, { title: string; what: string; where_note: string; drop_note: string }> = {
   bond: {
     title: 'Government bonds',
     what:
       'You lend money to the Hungarian state, and it pays you a set yearly interest and gives the money back at the end. These retail bonds are in forints and their interest is tax-free. They are the calmest type here, but selling before the end can cost you some of the interest.',
     where_note:
       'MBH Bank sells these bonds in its branches and by phone (TeleBank); an MBH order must be at least 100 000 Ft, and you need a securities account and a short investor questionnaire. The State Treasury (Magyar Államkincstár) also sells them directly, but that needs a separate Treasury account. Checked with MBH and allampapir.hu.',
+    drop_note:
+      'The price of a bond can dip when interest rates move, but the state still pays the set interest and gives the money back at the end. Selling after a fall locks the loss in. There is no rush: decide calmly.',
   },
   etf: {
     title: 'ETFs (index funds)',
@@ -152,6 +158,8 @@ export const TYPE_INFO: Record<AssetType, { title: string; what: string; where_n
       'An ETF is one fund that holds hundreds or thousands of companies, so one purchase spreads your money widely. Its value goes up and down with the stock markets, and it can drop for a year or more. It suits money you can leave invested for many years.',
     where_note:
       'Revolut offers EU-registered ETFs in its Invest tab, from €1 with fractional shares; search the fund name or ISIN there. Your plan includes a few commission-free orders a month, and currency exchange fees can apply. MBH also offers ETFs through its separate MBH Trading Platform account, but these funds were not checked there. Checked with Revolut and MBH.',
+    drop_note:
+      'Funds that follow the stock markets can fall 15% or more in a bad stretch, and they have recovered from such falls before, sometimes only after years. Selling after a fall locks the loss in. There is no rush: decide calmly.',
   },
   stock: {
     title: 'Stocks',
@@ -159,6 +167,8 @@ export const TYPE_INFO: Record<AssetType, { title: string; what: string; where_n
       'A stock is a small share of one company. Its price follows how that one company does, so it can rise or fall much more than a fund. These are shown as examples to learn from, not picks.',
     where_note:
       'Revolut lists US and EU stocks in its Invest tab, from €1 with fractional shares; US stocks are priced in dollars, so currency exchange fees can apply. MBH also offers foreign stocks through its separate MBH Trading Platform account, but these companies were not checked there. Checked with Revolut and MBH.',
+    drop_note:
+      'The share of a single company can fall a lot, even in a good market, and nobody knows when it turns. Selling after a fall locks the loss in. There is no rush: decide calmly.',
   },
   crypto: {
     title: 'Crypto',
@@ -166,6 +176,8 @@ export const TYPE_INFO: Record<AssetType, { title: string; what: string; where_n
       'Cryptocurrencies are digital coins with no company or government behind them. Their prices can swing wildly, and you can lose all of the money. Keep this to a small part you could afford to lose.',
     where_note:
       'Revolut has stopped crypto services for customers in Hungary, and we found no crypto offer at MBH. Buying it now needs a new account with a crypto provider licensed by the Hungarian National Bank (MNB); check the provider on mnb.hu before you sign up. Checked with Revolut and MBH.',
+    drop_note:
+      'Crypto prices often fall by a third or more and can stay down for a long time. Selling after a fall locks the loss in. There is no rush: decide calmly.',
   },
 };
 

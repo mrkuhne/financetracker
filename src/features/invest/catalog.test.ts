@@ -61,6 +61,14 @@ describe('TYPE_INFO', () => {
       expect(TYPE_INFO[t].where_note.trim()).not.toBe('');
     }
   });
+
+  test('every type has a drop note that never says to sell or buy more', () => {
+    for (const t of TYPES) {
+      const note = TYPE_INFO[t].drop_note;
+      expect(note.trim()).not.toBe('');
+      expect(note).not.toMatch(/\b(sell now|buy more|buy the dip)\b/i);
+    }
+  });
 });
 
 describe('lookups', () => {

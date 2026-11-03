@@ -15,6 +15,13 @@ export interface BuyInput {
   date: ISODate; platform: Platform; platformName: string | null; accountId: string; bondRatePct: number | null;
 }
 
+/** A typed decimal ("0,5", "1.25"); null when empty, NaN when not a number. */
+export function parseDecimal(text: string): number | null {
+  const t = text.replace(/\s/g, '').replace(',', '.');
+  if (t === '') return null;
+  return /^\d*\.?\d+$|^\d+\.$/.test(t) ? Number(t) : NaN;
+}
+
 /** Accounts a buy can be paid from (and a sell paid into): live checking and cash accounts. */
 export function payableAccounts(accounts: Account[]): Account[] {
   return accounts.filter((a) => !a.archived && (a.type === 'checking' || a.type === 'cash'));

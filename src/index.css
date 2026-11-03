@@ -259,3 +259,11 @@ svg.i { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-widt
 .radio + .radio{border-top:1px solid var(--hair)}
 .radio input{accent-color:var(--accent);width:18px;height:18px;margin:0}
 .radio span{flex:1}
+.dropnote{display:grid;gap:8px;background:color-mix(in srgb,var(--warn) 9%,var(--surf))}
+.dropnote strong{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14.5px}
+.dropnote strong svg{width:17px;height:17px;flex:0 0 auto;color:var(--warn)}
+.dropnote p{margin:0;font-size:13.5px;line-height:1.5;color:var(--sub)}
+.hrow + .hrow{border-top:1px solid var(--hair)}
+.hrow .li .ib{width:32px;height:32px;color:var(--faint);margin-right:-6px}
+.hrow .li .ib svg{width:16px;height:16px}
+.hrow .confirm{display:grid;gap:10px;padding:0 14px 14px}

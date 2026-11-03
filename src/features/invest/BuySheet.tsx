@@ -6,17 +6,10 @@ import { notifyTxnsChanged } from '@/features/transactions/events';
 import { parseAmountInput } from '@/lib/amountInput';
 import { findProduct, productsFor } from './catalog';
 import { PLATFORM_LABEL } from './investModel';
-import { findSmsCandidates, payableAccounts, validateBuy, type BuyInput } from './record';
+import { findSmsCandidates, parseDecimal, payableAccounts, validateBuy, type BuyInput } from './record';
 
 const PLATFORMS: Platform[] = ['mbh', 'revolut', 'other'];
 const LINK_GONE = 'That bank payment no longer matches this buy';
-
-/** A typed decimal ("0,5", "1.25"); null when empty, NaN when not a number. */
-function parseDecimal(text: string): number | null {
-  const t = text.replace(/\s/g, '').replace(',', '.');
-  if (t === '') return null;
-  return /^\d*\.?\d+$|^\d+\.$/.test(t) ? Number(t) : NaN;
-}
 
 /**
  * "Bought it": records a buy of one catalog product of `type`. A single matching bank SMS is linked

@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import type { MonthlyAllowance } from '@/domain/allowance';
-import type { Holding, InvestmentTxn, SavingsGoal, Settings } from '@/domain/types';
+import type { Holding, InvestmentTxn, SavingsGoal, Settings, Txn } from '@/domain/types';
 import {
-  adviceFor, buildInvestCore, sharedCall, pctSigned, platformOf, costByType, freeBeforeInvestMinor, investedThisMonthMinor, isEmergencyDone, nextProfile, quoteSymbolsFor, sharesOf,
+  adviceFor, buildInvestCore, deleteConfirmCopy, holdingDetail, priceLine, sharedCall, pctSigned, platformOf, costByType, freeBeforeInvestMinor, investedThisMonthMinor, isEmergencyDone, nextProfile, quoteSymbolsFor, sharesOf,
 } from './investModel';
 
 const settings: Settings = {
@@ -166,5 +166,69 @@ describe('sharedCall', () => {
     expect(await sharedCall(calls, 'other', run)).toBe(2);
     expect(await sharedCall(calls, 'k', run, true)).toBe(3);
     expect(runs).toBe(3);
+  });
+});
+
+describe('holding page helpers', () => {
+  const base = { today: '2026-11-03', settings, monthly, planning, emergencyDone: false, hufPerUnit: { EUR: 400 } };
+  const quote = { id: 'q1', ticker: 'VWCE.DE', price: 110, currency: 'EUR', as_of: '2026-11-02' };
+
+  test('an open holding: position, valuation, its quote and history newest first', () => {
+    const hs = [holding('e', 'vanguard-ftse-all-world-acc', 'etf'), holding('o', 'apple', 'stock')];
+    const b1 = buy('e', 4_000_000, '2026-10-01', 1);
+    const b2 = buy('e', 4_000_000, '2026-11-01', 1);
+    const s1 = buy('e', 4_200_000, '2026-11-01', 1, 'sell');
+    const other = buy('o', 1_000_000, '2026-11-02', 1);
+    const m = buildInvestCore({ ...base, holdings: hs, txns: [b1, b2, s1, other], quotes: [quote] });
+    const d = holdingDetail(m, 'e')!;
+    expect(d.holding.id).toBe('e');
+    expect(d.position.quantity).toBe(1);
+    expect(d.valuation).toMatchObject({ valueMinor: 4_400_000, priced: true });
+    expect(d.quote).toEqual(quote);
+    // Same day: the sell happened after the buy, so it is listed first.
+    expect(d.history.map((t) => t.id)).toEqual([s1.id, b2.id, b1.id]);
+  });
+
+  test('a fully sold holding still opens, without a valuation', () => {
+    const hs = [holding('e', 'vanguard-ftse-all-world-acc', 'etf')];
+    const b = buy('e', 4_000_000, '2026-10-01', 1);
+    const s = buy('e', 4_500_000, '2026-11-01', 1, 'sell');
+    const m = buildInvestCore({ ...base, holdings: hs, txns: [b, s], quotes: [quote] });
+    expect(m.positions).toEqual([]);
+    const d = holdingDetail(m, 'e')!;
+    expect(d.position.quantity).toBe(0);
+    expect(d.valuation).toBeNull();
+    expect(d.history.map((t) => t.id)).toEqual([s.id, b.id]);
+  });
+
+  test('an unknown holding, or one with no txns left, is null', () => {
+    const m = buildInvestCore({ ...base, holdings: [holding('e', 'apple', 'stock')], txns: [], quotes: [] });
+    expect(holdingDetail(m, 'e')).toBeNull();
+    expect(holdingDetail(m, 'nope')).toBeNull();
+  });
+
+  test('price line: quote date, bond rate, or not updated', () => {
+    const v = (priced: boolean) => ({ valueMinor: 1, costMinor: 1, gainMinor: 0, gainRatio: 0, priced });
+    const etf = holding('e', 'vanguard-ftse-all-world-acc', 'etf');
+    const bond = holding('b', 'fix-map', 'bond', { bond_rate_pct: 5.5 });
+    expect(priceLine(etf, v(true), quote)).toBe('Price from 2026-11-02');
+    expect(priceLine(etf, v(false), quote)).toBe('Price not updated');
+    expect(priceLine(etf, v(false), null)).toBe('Price not updated');
+    expect(priceLine(bond, v(true), null)).toBe('Estimated from the 5.5% yearly rate');
+    expect(priceLine({ ...bond, bond_rate_pct: 5 }, v(true), null)).toBe('Estimated from the 5% yearly rate');
+    expect(priceLine({ ...bond, bond_rate_pct: null }, v(false), null)).toBe('Price not updated');
+    expect(priceLine(etf, null, quote)).toBeNull();
+  });
+
+  test('delete confirmation names what happens to the money movement', () => {
+    const b = buy('e', 1, '2026-11-01');
+    const s = buy('e', 1, '2026-11-02', null, 'sell');
+    const money = (id: string, sms: string | null): Txn => ({
+      id, account_id: 'a1', kind: 'invest_buy', amount_minor: 1, currency: 'HUF', amount_huf_minor: 1, category_id: null, date: '2026-11-01',
+      source: sms ? 'sms' : 'manual', needs_review: false, recurring_rule_id: null, transfer_pair_id: null, sms_message_id: sms,
+    });
+    expect(deleteConfirmCopy(b, [money(b.transaction_id, null)])).toBe('Delete this buy? Its money movement is removed too.');
+    expect(deleteConfirmCopy(b, [money(b.transaction_id, 'm1')])).toBe('Delete this buy? The bank message goes back to Review.');
+    expect(deleteConfirmCopy(s, [])).toBe('Delete this sell? Its money movement is removed too.');
   });
 });

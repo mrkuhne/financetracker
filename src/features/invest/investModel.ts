@@ -5,7 +5,7 @@ import {
 import type { MonthlyAllowance } from '@/domain/allowance';
 import { compareDates, firstDay, monthOf } from '@/domain/dates';
 import { allocateGoals, emergencyTargetMinor } from '@/domain/savings';
-import type { AssetType, Holding, InvestCache, InvestmentTxn, ISODate, Platform, PriceQuote, RiskProfile, SavingsGoal, Settings, YearMonth } from '@/domain/types';
+import type { AssetType, Holding, InvestCache, InvestmentTxn, ISODate, Platform, PriceQuote, RiskProfile, SavingsGoal, Settings, Txn, YearMonth } from '@/domain/types';
 import { huf } from '@/features/home/fmt';
 import { findProduct, productsFor } from './catalog';
 
@@ -67,7 +67,9 @@ export function sharesOf(byType: Record<AssetType, number>): Record<AssetType, n
 
 export interface InvestCore {
   holdings: Holding[]; txns: InvestmentTxn[]; positions: Position[];
-  valuations: Map<string, Valuation>; summary: PortfolioSummary; suggestion: Suggestion; split: Split | null;
+  valuations: Map<string, Valuation>; summary: PortfolioSummary;
+  /** Loaded quotes by catalog symbol. */
+  quotes: Map<string, PriceQuote>; suggestion: Suggestion; split: Split | null;
   card: ReturnType<typeof monthCard> | null; emergencyDone: boolean; checkinDue: boolean;
   /** The portfolio as it stood before this month (txns dated before the 1st, at today's prices): the split's basis. */
   basis: { summary: PortfolioSummary; costByType: Record<AssetType, number> };
@@ -120,12 +122,55 @@ export function buildInvestCore(i: {
 
   const firstBuys = positions.map((p) => p.firstBuy).filter((d): d is ISODate => d !== null).sort();
   return {
-    holdings: i.holdings, txns: i.txns, positions, valuations, summary, suggestion, split, card, basis,
+    holdings: i.holdings, txns: i.txns, positions, valuations, summary, quotes: quoteBy, suggestion, split, card, basis,
     emergencyDone: i.emergencyDone,
     checkinDue: checkinDue({
       profile: i.settings.risk_profile, firstBuy: firstBuys[0] ?? null, lastCheckin: i.settings.risk_checkin_at, today: i.today,
     }),
   };
+}
+
+export interface HoldingDetail {
+  holding: Holding; position: Position;
+  /** Null once the holding is fully sold. */
+  valuation: Valuation | null;
+  quote: PriceQuote | null;
+  /** This holding's buys and sells, newest first. */
+  history: InvestmentTxn[];
+}
+
+/** One holding for its page, sold-out ones included; null when unknown or it has no txns left. */
+export function holdingDetail(core: Pick<InvestCore, 'holdings' | 'txns' | 'valuations' | 'quotes'>, id: string): HoldingDetail | null {
+  const holding = core.holdings.find((h) => h.id === id);
+  if (!holding) return null;
+  const history = core.txns
+    .filter((t) => t.holding_id === id)
+    // Newest first; on one day a sell comes after its buys (as in positionOf), so it is listed first.
+    .sort((a, b) => compareDates(b.date, a.date) || (a.side === b.side ? 0 : a.side === 'sell' ? -1 : 1));
+  if (history.length === 0) return null;
+  const position = positionOf(holding, core.txns);
+  const symbol = findProduct(holding.product_id)?.quote_symbol ?? null;
+  return {
+    holding, position, history,
+    valuation: isOpen(position) ? core.valuations.get(id) ?? null : null,
+    quote: symbol ? core.quotes.get(symbol) ?? null : null,
+  };
+}
+
+/** Where the value comes from; null without a valuation (sold out). */
+export function priceLine(h: Holding, v: Valuation | null, quote: PriceQuote | null): string | null {
+  if (!v) return null;
+  if (!v.priced) return 'Price not updated';
+  if (h.asset_type === 'bond') return `Estimated from the ${h.bond_rate_pct}% yearly rate`;
+  return quote ? `Price from ${quote.as_of}` : 'Price not updated';
+}
+
+/** In-page confirmation for deleting a buy/sell; an SMS-linked money movement goes back to Review instead. */
+export function deleteConfirmCopy(t: InvestmentTxn, moneyTxns: Txn[]): string {
+  const linked = moneyTxns.find((x) => x.id === t.transaction_id);
+  // Same rule as deleteInvestmentTxn: a movement carrying a bank message is reverted, not deleted.
+  const tail = linked?.sms_message_id ? 'The bank message goes back to Review.' : 'Its money movement is removed too.';
+  return `Delete this ${t.side}? ${tail}`;
 }
 
 /** AI explanation as cached; a stored entry may lack some types. */
