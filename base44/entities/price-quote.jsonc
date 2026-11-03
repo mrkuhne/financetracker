@@ -1,0 +1,17 @@
+{
+  "name": "PriceQuote",
+  "type": "object",
+  "properties": {
+    "ticker": { "type": "string" },
+    "price": { "type": "number" },
+    "currency": { "type": "string" },
+    "as_of": { "type": "string", "format": "date" }
+  },
+  "required": ["ticker", "price", "currency", "as_of"],
+  "rls": {
+    "create": true,
+    "read": { "created_by_id": "{{user.id}}" },
+    "update": { "created_by_id": "{{user.id}}" },
+    "delete": { "created_by_id": "{{user.id}}" }
+  }
+}

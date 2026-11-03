@@ -1,0 +1,22 @@
+{
+  "name": "InvestmentTransaction",
+  "type": "object",
+  "properties": {
+    "holding_id": { "type": "string" },
+    "side": { "type": "string", "enum": ["buy", "sell"] },
+    "amount_huf_minor": { "type": "integer" },
+    "quantity": { "type": ["number", "null"] },
+    "price": { "type": ["number", "null"] },
+    "currency": { "type": "string" },
+    "date": { "type": "string", "format": "date" },
+    "account_id": { "type": "string" },
+    "transaction_id": { "type": "string" }
+  },
+  "required": ["holding_id", "side", "amount_huf_minor", "currency", "date", "account_id", "transaction_id"],
+  "rls": {
+    "create": true,
+    "read": { "created_by_id": "{{user.id}}" },
+    "update": { "created_by_id": "{{user.id}}" },
+    "delete": { "created_by_id": "{{user.id}}" }
+  }
+}

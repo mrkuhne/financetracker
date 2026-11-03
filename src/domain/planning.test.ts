@@ -18,7 +18,7 @@ const rule = (o: Partial<RecurringRule>): RecurringRule => ({
 const SETTINGS: Settings = {
   base_currency: 'HUF', monthly_savings_target_minor: 0, monthly_investment_amount_minor: 0,
   emergency_fund_months: 3, week_start: 'monday', digest_time: '20:00', timezone: 'Europe/Budapest',
-  month_overrides: {}, has_expensive_debt: null,
+  month_overrides: {}, has_expensive_debt: null, risk_profile: 'cautious', risk_checkin_at: null,
 };
 
 const hist = [txn('2026-09-01', 'expense', 30_000_000), txn('2026-09-05', 'expense', 20_000_000, 'r1'),

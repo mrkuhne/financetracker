@@ -1,0 +1,21 @@
+{
+  "name": "Holding",
+  "type": "object",
+  "properties": {
+    "asset_type": { "type": "string", "enum": ["bond", "etf", "stock", "crypto"] },
+    "product_id": { "type": "string" },
+    "name": { "type": "string" },
+    "ticker": { "type": ["string", "null"] },
+    "platform": { "type": "string", "enum": ["mbh", "revolut", "other"] },
+    "platform_name": { "type": ["string", "null"] },
+    "currency": { "type": "string" },
+    "bond_rate_pct": { "type": ["number", "null"] }
+  },
+  "required": ["asset_type", "product_id", "name", "platform", "currency"],
+  "rls": {
+    "create": true,
+    "read": { "created_by_id": "{{user.id}}" },
+    "update": { "created_by_id": "{{user.id}}" },
+    "delete": { "created_by_id": "{{user.id}}" }
+  }
+}

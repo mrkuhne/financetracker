@@ -48,6 +48,20 @@
         "object",
         "null"
       ]
+    },
+    "risk_profile": {
+      "type": "string",
+      "enum": ["cautious", "balanced", "bold"]
+    },
+    "risk_checkin_at": {
+      "type": ["string", "null"],
+      "format": "date"
+    },
+    "invest_cache": {
+      "type": [
+        "object",
+        "null"
+      ]
     }
   }
 }

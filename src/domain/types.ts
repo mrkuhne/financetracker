@@ -1,6 +1,6 @@
 export type ISODate = string; // 'YYYY-MM-DD'
 export type YearMonth = string; // 'YYYY-MM'
-export type TxnKind = 'expense' | 'income' | 'transfer_out' | 'transfer_in';
+export type TxnKind = 'expense' | 'income' | 'transfer_out' | 'transfer_in' | 'invest_buy' | 'invest_sell';
 
 export interface Txn {
   id: string;
@@ -49,6 +49,8 @@ export interface Settings {
   timezone: string;
   month_overrides: Record<YearMonth, MonthOverride>;
   has_expensive_debt: boolean | null;
+  risk_profile: RiskProfile;
+  risk_checkin_at: ISODate | null;
 }
 
 export interface MonthClose {
@@ -118,3 +120,18 @@ export type AdviceChange =
 export interface Advice { option_index: number; month: YearMonth; summary: string; others: string; changes: AdviceChange[] }
 export interface StoredAdvice { fingerprint: string; generated_at: string; advice: Advice }
 export interface GuideCache { key: string; intro: string; tips: Record<number, string>; generated_at: string }
+
+export type AssetType = 'bond' | 'etf' | 'stock' | 'crypto';
+export type RiskProfile = 'cautious' | 'balanced' | 'bold';
+export type Platform = 'mbh' | 'revolut' | 'other';
+export interface Holding {
+  id: string; asset_type: AssetType; product_id: string; name: string; ticker: string | null;
+  platform: Platform; platform_name: string | null; currency: string; bond_rate_pct: number | null;
+}
+export interface InvestmentTxn {
+  id: string; holding_id: string; side: 'buy' | 'sell'; amount_huf_minor: number;
+  quantity: number | null; price: number | null; currency: string; date: ISODate;
+  account_id: string; transaction_id: string;
+}
+export interface PriceQuote { id: string; ticker: string; price: number; currency: string; as_of: ISODate }
+export interface InvestCache { key: string; intro: string; per_type: Record<AssetType, { text: string; product_id: string }>; generated_at: string }

@@ -25,7 +25,7 @@ const rules = [
 ];
 const settings: Settings = {
   base_currency: 'HUF', monthly_savings_target_minor: 100_000_00, monthly_investment_amount_minor: 30_000_00,
-  emergency_fund_months: 3, week_start: 'monday', digest_time: '20:00', timezone: 'Europe/Budapest', month_overrides: {}, has_expensive_debt: null,
+  emergency_fund_months: 3, week_start: 'monday', digest_time: '20:00', timezone: 'Europe/Budapest', month_overrides: {}, has_expensive_debt: null, risk_profile: 'cautious', risk_checkin_at: null,
 };
 
 const txns = [

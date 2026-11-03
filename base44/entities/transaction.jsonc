@@ -11,7 +11,9 @@
         "expense",
         "income",
         "transfer_out",
-        "transfer_in"
+        "transfer_in",
+        "invest_buy",
+        "invest_sell"
       ]
     },
     "amount_minor": {
