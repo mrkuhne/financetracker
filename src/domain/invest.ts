@@ -10,7 +10,7 @@ export const INVEST_RULES = {
     balanced: { bond: 0.35, etf: 0.45, stock: 0.12, crypto: 0.08 },
     bold: { bond: 0.15, etf: 0.45, stock: 0.25, crypto: 0.15 },
   },
-  minTicketMinor: { bond: 1_000_000, etf: 200_000, stock: 200_000, crypto: 200_000 },
+  minTicketMinor: { bond: 10_000_000, etf: 200_000, stock: 200_000, crypto: 200_000 },
   roundToMinor: 100_000, // suggestions round down to 1 000 Ft
   bigDropRatio: -0.15, // value at least 15% under cost
   checkinAfterMonths: 3,

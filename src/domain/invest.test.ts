@@ -49,15 +49,28 @@ const sum = (p: Record<AssetType, number>) => ASSET_TYPES.reduce((s, t) => s + p
 
 describe('splitInvestment', () => {
   it('follows the profile weights on an empty portfolio', () => {
-    const s = splitInvestment(10_000_000, 'cautious', zero);
-    expect(s.parts).toEqual({ bond: 5_000_000, etf: 3_500_000, stock: 800_000, crypto: 700_000 });
+    const s = splitInvestment(30_000_000, 'cautious', zero);
+    expect(s.parts).toEqual({ bond: 15_000_000, etf: 10_500_000, stock: 2_400_000, crypto: 2_100_000 });
     expect(s.tooSmall).toEqual([]);
   });
+  it('keeps a bond part that meets the 100 000 Ft MBH minimum', () => {
+    expect(INVEST_RULES.minTicketMinor.bond).toBe(10_000_000);
+    const s = splitInvestment(30_000_000, 'cautious', zero);
+    expect(s.parts.bond).toBe(15_000_000);
+    expect(s.tooSmall).not.toContain('bond');
+  });
+  it('folds a 50 000 Ft bond part (below the 100 000 Ft minimum) into the biggest other part', () => {
+    const s = splitInvestment(10_000_000, 'cautious', zero);
+    expect(s.parts.bond).toBe(0);
+    expect(s.parts.etf).toBe(8_500_000);
+    expect(sum(s.parts)).toBe(10_000_000);
+    expect(s.tooSmall).toEqual(['bond']);
+  });
   it('sends new money to the laggards', () => {
-    const s = splitInvestment(4_000_000, 'cautious', { ...zero, etf: 10_000_000 });
+    const s = splitInvestment(30_000_000, 'cautious', { ...zero, etf: 30_000_000 });
     expect(s.parts.etf).toBe(0);
     expect(s.parts.bond).toBeGreaterThan(s.parts.stock);
-    expect(sum(s.parts)).toBe(4_000_000);
+    expect(sum(s.parts)).toBe(30_000_000);
   });
   it('folds tiny amounts into the one type whose minimum is met', () => {
     const s = splitInvestment(500_000, 'cautious', zero);
@@ -66,13 +79,16 @@ describe('splitInvestment', () => {
     expect(sum(s.parts)).toBe(500_000);
   });
   it('folds a bond part below its minimum into the biggest other part', () => {
+    // bond share 750 000 < 10 000 000 minimum
     const s = splitInvestment(1_500_000, 'cautious', zero);
     expect(s.parts).toEqual({ bond: 0, etf: 1_500_000, stock: 0, crypto: 0 });
     expect(s.tooSmall).toEqual(expect.arrayContaining(['bond']));
   });
   it('keeps everything on the top-weight type when no minimum is met', () => {
+    // 100 000 meets neither bond (10 000 000) nor etf/stock/crypto (200 000), so it stays on bond, flagged
     const s = splitInvestment(100_000, 'cautious', zero);
     expect(s.parts).toEqual({ bond: 100_000, etf: 0, stock: 0, crypto: 0 });
+    expect(s.tooSmall).toContain('bond');
   });
   it('flags a lone holder below its own minimum as too small', () => {
     const s = splitInvestment(100_000, 'cautious', { ...zero, etf: 10_000_000 });

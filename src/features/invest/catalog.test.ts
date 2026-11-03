@@ -64,11 +64,13 @@ describe('TYPE_INFO', () => {
 });
 
 describe('lookups', () => {
-  test('productsFor keeps catalog order and only returns that type', () => {
-    for (const t of TYPES) {
-      const expected = CATALOG.filter((p) => p.type === t);
-      expect(productsFor(t)).toEqual(expected);
-    }
+  test('productsFor returns only that type, in preference order', () => {
+    const ids = (t: AssetType) => productsFor(t).map((p) => p.id);
+    expect(ids('bond')).toEqual(['map-plusz', 'fix-map']);
+    expect(ids('etf')).toEqual(['vanguard-ftse-all-world-acc', 'ishares-core-msci-world-acc']);
+    expect(ids('stock')).toEqual(['apple', 'microsoft']);
+    expect(ids('crypto')).toEqual(['bitcoin', 'ethereum']);
+    for (const t of TYPES) for (const p of productsFor(t)) expect(p.type).toBe(t);
   });
 
   test('defaultProduct is the first product of its type', () => {
