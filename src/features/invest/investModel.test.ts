@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import type { MonthlyAllowance } from '@/domain/allowance';
 import type { Holding, InvestmentTxn, SavingsGoal, Settings } from '@/domain/types';
 import {
-  adviceFor, buildInvestCore, pctSigned, platformOf, costByType, freeBeforeInvestMinor, investedThisMonthMinor, isEmergencyDone, nextProfile, quoteSymbolsFor, sharesOf,
+  adviceFor, buildInvestCore, sharedCall, pctSigned, platformOf, costByType, freeBeforeInvestMinor, investedThisMonthMinor, isEmergencyDone, nextProfile, quoteSymbolsFor, sharesOf,
 } from './investModel';
 
 const settings: Settings = {
@@ -127,5 +127,44 @@ describe('buildInvestCore', () => {
       ...base, settings: { ...settings, risk_checkin_at: '2026-10-01' }, holdings: hs, txns: [buy('e', 1_000_000, '2026-08-03', 1)],
     });
     expect(later.checkinDue).toBe(false);
+  });
+});
+
+describe('split basis: holdings before the month', () => {
+  const base = {
+    today: '2026-11-03', settings: { ...settings, monthly_investment_amount_minor: 20_000_000 }, monthly, planning,
+    emergencyDone: false, quotes: [], hufPerUnit: {},
+  };
+  const bond = holding('b', 'fix-map', 'bond', { bond_rate_pct: 5.5, currency: 'HUF' });
+  const empty = buildInvestCore({ ...base, holdings: [], txns: [] });
+
+  test('a buy dated this month leaves the split unchanged but counts as invested', () => {
+    const m = buildInvestCore({ ...base, holdings: [bond], txns: [buy('b', 10_000_000, '2026-11-01')] });
+    expect(m.split).toEqual(empty.split);
+    expect(m.card?.investedMinor).toBe(10_000_000);
+    expect(m.basis.costByType.bond).toBe(0);
+    expect(m.summary.byType.bond).toBeGreaterThan(0); // the portfolio itself shows the buy
+  });
+  test('a buy dated last month changes the split', () => {
+    const m = buildInvestCore({ ...base, holdings: [bond], txns: [buy('b', 10_000_000, '2026-10-31')] });
+    expect(m.split).not.toEqual(empty.split);
+    expect(m.basis.costByType.bond).toBe(10_000_000);
+    expect(m.card?.investedMinor).toBe(0);
+  });
+});
+
+describe('sharedCall', () => {
+  test('one run per key; later callers share it; force runs again', async () => {
+    const calls = new Map<string, Promise<number>>();
+    let runs = 0;
+    const run = () => Promise.resolve(++runs);
+    const a = sharedCall(calls, 'k', run);
+    const b = sharedCall(calls, 'k', run);
+    expect(a).toBe(b);
+    expect(await b).toBe(1);
+    expect(await sharedCall(calls, 'k', run)).toBe(1); // settled: still not called again
+    expect(await sharedCall(calls, 'other', run)).toBe(2);
+    expect(await sharedCall(calls, 'k', run, true)).toBe(3);
+    expect(runs).toBe(3);
   });
 });

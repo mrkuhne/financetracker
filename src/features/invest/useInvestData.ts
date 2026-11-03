@@ -8,7 +8,7 @@ import { getInvestCache, saveInvestCache } from '@/data/settings';
 import { buildPlanningModel } from '@/domain/planning';
 import { useHomeData, type HomeData } from '@/features/home/useHomeData';
 import { INVEST_SCHEMA, buildInvestPrompt, investCacheKey, normalizeInvestAdvice, type InvestFacts } from './investAi';
-import { buildInvestCore, costByType, isEmergencyDone, quoteSymbolsFor, type InvestAdvice, type InvestCore } from './investModel';
+import { buildInvestCore, isEmergencyDone, quoteSymbolsFor, sharedCall, type InvestAdvice, type InvestCore } from './investModel';
 
 export interface InvestModel extends InvestCore { home: HomeData }
 
@@ -28,7 +28,7 @@ export function useInvestData() {
         // A quote failure leaves holdings unpriced rather than failing the screen.
         const quotes = await refreshQuotes(quoteSymbolsFor(holdings), home.today).catch(() => []);
         const hufPerUnit: Record<string, number | null> = {};
-        for (const c of new Set(quotes.map((q) => q.currency))) {
+        for (const c of new Set(quotes.map((q) => q.currency).filter((c) => c !== 'HUF'))) {
           try { hufPerUnit[c] = await getHufPerUnit(c, home.today); } catch { hufPerUnit[c] = null; }
         }
         if (id !== reqId.current) return;
@@ -59,46 +59,57 @@ export function investFacts(m: InvestModel): InvestFacts | null {
   if (m.suggestion.kind !== 'amount' || !m.split) return null;
   return {
     month: m.home.model.month, amountMinor: m.suggestion.amountMinor, split: m.split, profile: m.home.settings.risk_profile,
-    emergencyDone: m.emergencyDone, summary: m.summary, costByType: costByType(m.positions),
+    emergencyDone: m.emergencyDone, summary: m.basis.summary, costByType: m.basis.costByType,
   };
 }
 
+/** AI calls of this session by cache key, so a remounted screen joins a running call instead of making another. */
+const adviceCalls = new Map<string, Promise<InvestAdvice | null>>();
+
+/** One AI call for `f`: normalized, cached, null on any failure. */
+async function fetchAdvice(f: InvestFacts, key: string): Promise<InvestAdvice | null> {
+  try {
+    const result = normalizeInvestAdvice(await invokeLlm(buildInvestPrompt(f), INVEST_SCHEMA));
+    if (!result) return null;
+    await saveInvestCache({ key, ...result, generated_at: new Date().toISOString() }).catch(() => undefined);
+    return result;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * The AI explanation for `facts`. A matching cache is used as is; otherwise, when `generate` is set,
- * one call is made per facts key per mount (the ref also stops StrictMode's double mount from calling
- * twice), normalized and cached. A failure leaves `advice` null; `refresh()` is the only retry.
+ * The AI explanation for `facts`. A matching cache is used as is. Otherwise, when `generate` is set,
+ * one call is made per facts key for the whole session (`sharedCall`): StrictMode's double mount, a
+ * re-render or a remount join the same call. A screen without `generate` still joins a running call.
+ * A failure leaves `advice` null; `refresh()` is the only retry.
  */
 export function useInvestAdvice(facts: InvestFacts | null, generate: boolean) {
   const key = facts ? investCacheKey(facts) : null;
   const [advice, setAdvice] = useState<InvestAdvice | null>(null);
   const [loading, setLoading] = useState(key !== null);
   const [failed, setFailed] = useState(false);
-  const attempted = useRef<string | null>(null);
   const latest = useRef({ facts, key });
   latest.current = { facts, key };
 
-  const call = useCallback(async () => {
-    const { facts: f, key: k } = latest.current;
-    if (!f || !k) return;
+  const show = useCallback(async (k: string, pending: Promise<InvestAdvice | null>) => {
     setLoading(true);
     setFailed(false);
-    try {
-      const result = normalizeInvestAdvice(await invokeLlm(buildInvestPrompt(f), INVEST_SCHEMA));
-      if (latest.current.key !== k) return;
-      if (!result) { setFailed(true); return; }
-      setAdvice(result);
-      await saveInvestCache({ key: k, ...result, generated_at: new Date().toISOString() }).catch(() => undefined);
-    } catch {
-      if (latest.current.key === k) setFailed(true);
-    } finally {
-      if (latest.current.key === k) setLoading(false);
-    }
+    const result = await pending;
+    if (latest.current.key !== k) return;
+    setAdvice(result);
+    setFailed(result === null);
+    setLoading(false);
   }, []);
 
+  const refresh = useCallback(async () => {
+    const { facts: f, key: k } = latest.current;
+    if (!f || !k) return;
+    await show(k, sharedCall(adviceCalls, k, () => fetchAdvice(f, k), true));
+  }, [show]);
+
   useEffect(() => {
-    if (key === null) { setAdvice(null); setLoading(false); return; }
-    if (attempted.current === key) return;
-    attempted.current = key;
+    if (key === null || !facts) { setAdvice(null); setLoading(false); return; }
     setAdvice(null);
     setFailed(false);
     setLoading(true);
@@ -110,10 +121,11 @@ export function useInvestAdvice(facts: InvestFacts | null, generate: boolean) {
         setLoading(false);
         return;
       }
-      if (generate) await call();
+      if (generate || adviceCalls.has(key)) await show(key, sharedCall(adviceCalls, key, () => fetchAdvice(facts, key)));
       else setLoading(false);
     })();
-  }, [key, generate, call]);
+    // `facts` changes on every reload; the key is what matters.
+  }, [key, generate, show]);
 
-  return { advice, loading, failed, refresh: call };
+  return { advice, loading, failed, refresh };
 }

@@ -3,7 +3,7 @@ import {
   type PortfolioSummary, type Position, type Split, type Suggestion, type Valuation,
 } from '@/domain/invest';
 import type { MonthlyAllowance } from '@/domain/allowance';
-import { monthOf } from '@/domain/dates';
+import { compareDates, firstDay, monthOf } from '@/domain/dates';
 import { allocateGoals, emergencyTargetMinor } from '@/domain/savings';
 import type { AssetType, Holding, InvestCache, InvestmentTxn, ISODate, Platform, PriceQuote, RiskProfile, SavingsGoal, Settings, YearMonth } from '@/domain/types';
 import { huf } from '@/features/home/fmt';
@@ -69,6 +69,8 @@ export interface InvestCore {
   holdings: Holding[]; txns: InvestmentTxn[]; positions: Position[];
   valuations: Map<string, Valuation>; summary: PortfolioSummary; suggestion: Suggestion; split: Split | null;
   card: ReturnType<typeof monthCard> | null; emergencyDone: boolean; checkinDue: boolean;
+  /** The portfolio as it stood before this month (txns dated before the 1st, at today's prices): the split's basis. */
+  basis: { summary: PortfolioSummary; costByType: Record<AssetType, number> };
 }
 
 /**
@@ -83,17 +85,26 @@ export function buildInvestCore(i: {
   quotes: PriceQuote[]; hufPerUnit: Record<string, number | null>;
 }): InvestCore {
   const quoteBy = new Map(i.quotes.map((q) => [q.ticker, q]));
-  const positions = i.holdings.map((h) => positionOf(h, i.txns)).filter(isOpen);
-  const valuations = new Map<string, Valuation>();
-  for (const p of positions) {
+  const value = (p: Position): Valuation => {
     const symbol = findProduct(p.holding.product_id)?.quote_symbol ?? null;
     const quote = symbol ? quoteBy.get(symbol) ?? null : null;
     const rate = quote ? (quote.currency === 'HUF' ? 1 : i.hufPerUnit[quote.currency] ?? null) : null;
-    valuations.set(p.holding.id, holdingValue(p, quote, rate, i.today));
-  }
+    return holdingValue(p, quote, rate, i.today);
+  };
+  const positions = i.holdings.map((h) => positionOf(h, i.txns)).filter(isOpen);
+  const valuations = new Map<string, Valuation>();
+  for (const p of positions) valuations.set(p.holding.id, value(p));
   const summary = portfolioSummary(positions.map((p) => ({ type: p.holding.asset_type, v: valuations.get(p.holding.id)! })));
 
   const month = monthOf(i.today);
+  // This month's split is planned from the holdings before the month, so a buy recorded now does not reshuffle it.
+  const start = firstDay(month);
+  const before = i.txns.filter((t) => compareDates(t.date, start) < 0);
+  const prePositions = i.holdings.map((h) => positionOf(h, before)).filter(isOpen);
+  const basis = {
+    summary: portfolioSummary(prePositions.map((p) => ({ type: p.holding.asset_type, v: value(p) }))),
+    costByType: costByType(prePositions),
+  };
   const suggestion = suggestInvestment({
     trackedMonths: i.planning.trackedMonths,
     avgIncomeMinor: i.planning.avgIncomeMinor,
@@ -104,12 +115,12 @@ export function buildInvestCore(i: {
     settingMinor: i.settings.monthly_investment_amount_minor,
   });
   const amount = suggestion.kind === 'amount' ? suggestion.amountMinor : null;
-  const split = amount !== null ? splitInvestment(amount, i.settings.risk_profile, summary.byType) : null;
+  const split = amount !== null ? splitInvestment(amount, i.settings.risk_profile, basis.summary.byType) : null;
   const card = amount !== null ? monthCard(amount, investedThisMonthMinor(i.txns, month)) : null;
 
   const firstBuys = positions.map((p) => p.firstBuy).filter((d): d is ISODate => d !== null).sort();
   return {
-    holdings: i.holdings, txns: i.txns, positions, valuations, summary, suggestion, split, card,
+    holdings: i.holdings, txns: i.txns, positions, valuations, summary, suggestion, split, card, basis,
     emergencyDone: i.emergencyDone,
     checkinDue: checkinDue({
       profile: i.settings.risk_profile, firstBuy: firstBuys[0] ?? null, lastCheckin: i.settings.risk_checkin_at, today: i.today,
@@ -147,4 +158,16 @@ export function platformOf(h: Pick<Holding, 'platform' | 'platform_name'>): stri
 /** Intro shown while the AI explanation loads or when it is unavailable. */
 export function introTemplate(amountMinor: number, profile: RiskProfile): string {
   return `One way to split ${huf(amountMinor)} this month for a ${PROFILE_LABEL[profile].toLowerCase()} mix. Tap a type to see what it is and where to buy it.`;
+}
+
+/**
+ * Runs `run` once per `key` for the whole session: later callers (a remounted screen) get the same
+ * promise instead of a second call. `force` (the Refresh button) replaces the entry with a new run.
+ */
+export function sharedCall<T>(calls: Map<string, Promise<T>>, key: string, run: () => Promise<T>, force = false): Promise<T> {
+  const existing = calls.get(key);
+  if (existing && !force) return existing;
+  const p = run();
+  calls.set(key, p);
+  return p;
 }

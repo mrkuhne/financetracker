@@ -28,6 +28,7 @@ export function buildInvestPrompt(f: InvestFacts): string {
     'Explain, in plain, warm English, how this month\'s investment amount is split across four kinds of investment, and pick one catalog product per kind.',
     'This is educational: never certain, never promise returns, never suggest selling. Use only the numbers and products given below; never invent a number, rate or product.',
     'Only name platforms listed for a product. Crypto cannot be bought on Revolut in Hungary: never tell the user to buy crypto there.',
+    'Do not repeat exact forint amounts in your text: the screen shows them, and they can move a little during the month.',
     'Return "intro" (at most 3 sentences) and, for each of bond, etf, stock and crypto, "text" (at most 3 sentences about why this part and what to know) and "product_id" (an id from the catalog below, of the same type).',
     '',
     `Month: ${f.month}`,
@@ -74,7 +75,7 @@ export function normalizeInvestAdvice(raw: unknown):
 
 export function investCacheKey(f: InvestFacts): string {
   return [
-    f.month, f.amountMinor, ...ASSET_TYPES.map((t) => f.split.parts[t]), f.profile, f.emergencyDone ? 1 : 0,
+    f.month, f.amountMinor, f.profile, f.emergencyDone ? 1 : 0,
     ...ASSET_TYPES.map((t) => f.costByType[t]),
   ].join('|');
 }

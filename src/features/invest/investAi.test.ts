@@ -29,6 +29,7 @@ describe('investAi', () => {
     expect(p).toContain('never suggest selling');
     for (const c of CATALOG) expect(p).toContain(`${c.id} (${c.type})`);
     expect(p).toContain('never tell the user to buy crypto there');
+    expect(p).toContain('Do not repeat exact forint amounts');
     expect(p).not.toContain('bitcoin (crypto): Bitcoin (BTC); where: revolut');
   });
   test('normalize: valid advice passes through', () => {
@@ -67,7 +68,8 @@ describe('investAi', () => {
   test('cache key reacts to inputs, not to prices', () => {
     const k = investCacheKey(facts);
     expect(investCacheKey({ ...facts, amountMinor: 9_000_000 })).not.toBe(k);
-    expect(investCacheKey({ ...facts, split: { ...split, parts: { ...split.parts, etf: 4_100_000 } } })).not.toBe(k);
+    // The split moves with daily prices; the key must not, so the AI is called about monthly.
+    expect(investCacheKey({ ...facts, split: { parts: { ...split.parts, etf: 4_100_000, bond: 2_900_000 }, tooSmall: ['crypto'] } })).toBe(k);
     expect(investCacheKey({ ...facts, profile: 'bold' })).not.toBe(k);
     expect(investCacheKey({ ...facts, emergencyDone: false })).not.toBe(k);
     expect(investCacheKey({ ...facts, month: '2026-12' })).not.toBe(k);
