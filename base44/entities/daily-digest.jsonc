@@ -1,0 +1,19 @@
+{
+  "name": "DailyDigest",
+  "type": "object",
+  "properties": {
+    "owner_id": { "type": "string" },
+    "date": { "type": "string", "format": "date" },
+    "numbers": { "type": "object" },
+    "notification": { "type": ["string", "null"] },
+    "what_happened": { "type": ["string", "null"] },
+    "this_month": { "type": ["string", "null"] },
+    "news_ids": { "type": "array", "items": { "type": "string" } },
+    "incomplete": { "type": "boolean" },
+    "ai_ok": { "type": "boolean" },
+    "push_status": { "type": "string", "enum": ["sent", "failed", "skipped"] },
+    "push_error": { "type": ["string", "null"] }
+  },
+  "required": ["owner_id", "date"],
+  "rls": { "create": false, "read": { "data.owner_id": "{{user.id}}" }, "update": false, "delete": false }
+}

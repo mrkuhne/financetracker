@@ -1,0 +1,12 @@
+{
+  "name": "AiUsage",
+  "type": "object",
+  "properties": {
+    "owner_id": { "type": "string" },
+    "date": { "type": "string", "format": "date" },
+    "collect": { "type": "integer" },
+    "brief": { "type": "integer" }
+  },
+  "required": ["owner_id", "date"],
+  "rls": { "create": false, "read": { "data.owner_id": "{{user.id}}" }, "update": false, "delete": false }
+}

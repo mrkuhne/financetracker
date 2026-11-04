@@ -1,0 +1,20 @@
+{
+  "name": "NewsSource",
+  "type": "object",
+  "properties": {
+    "owner_id": { "type": "string" },
+    "name": { "type": "string" },
+    "url": { "type": "string" },
+    "default_tags": { "type": "array", "items": { "type": "string" } },
+    "active": { "type": "boolean" },
+    "last_fetched_at": { "type": ["string", "null"], "format": "date-time" },
+    "last_error": { "type": ["string", "null"] }
+  },
+  "required": ["owner_id", "name", "url"],
+  "rls": {
+    "create": false,
+    "read": { "data.owner_id": "{{user.id}}" },
+    "update": { "data.owner_id": "{{user.id}}" },
+    "delete": false
+  }
+}

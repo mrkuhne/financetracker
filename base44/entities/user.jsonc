@@ -63,6 +63,13 @@
       "type": ["string", "null"],
       "format": "date"
     },
+    "digest_enabled": {
+      "type": "boolean"
+    },
+    "news_interval_hours": {
+      "type": "integer",
+      "enum": [2, 4, 8, 12]
+    },
     "invest_cache": {
       "type": [
         "object",
