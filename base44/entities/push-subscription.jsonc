@@ -1,0 +1,20 @@
+{
+  "name": "PushSubscription",
+  "type": "object",
+  "properties": {
+    "owner_id": { "type": "string" },
+    "endpoint": { "type": "string" },
+    "p256dh": { "type": "string" },
+    "auth": { "type": "string" },
+    "device_name": { "type": "string" },
+    "active": { "type": "boolean" },
+    "last_error": { "type": ["string", "null"] }
+  },
+  "required": ["owner_id", "endpoint", "p256dh", "auth", "active"],
+  "rls": {
+    "create": true,
+    "read": { "data.owner_id": "{{user.id}}" },
+    "update": false,
+    "delete": { "data.owner_id": "{{user.id}}" }
+  }
+}

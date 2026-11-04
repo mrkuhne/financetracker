@@ -13,14 +13,13 @@ export default defineConfig({
       injectRegister: false, // registered in src/main.tsx
 
       includeAssets: ['icons/apple-touch-icon-180.png'],
-      workbox: {
+      // Custom SW (src/sw.ts) for Web Push; it keeps the old generateSW behaviour (precache, SPA fallback, skipWaiting/clientsClaim).
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      injectManifest: {
         // Precache only the built app shell. No runtimeCaching: Base44 API calls must always hit the network.
         globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
-        navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//],
-        // With injectRegister: false the plugin no longer turns these on for autoUpdate; without them a new SW waits forever.
-        skipWaiting: true,
-        clientsClaim: true,
       },
       manifest: {
         name: 'Finance Tracker',

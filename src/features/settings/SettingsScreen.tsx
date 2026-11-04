@@ -10,6 +10,7 @@ import { exportAllJson, exportTransactionsCsv, saveBlob } from '@/data/export';
 import { todayInTz } from '@/domain/dates';
 import { listApiKeys } from '@/data/apiKeys';
 import { listRecentSms } from '@/data/smsMessages';
+import { deviceName, pushSupport, sendTestPush, subscribePush, type PushSupport } from '@/data/push';
 import type { RiskProfile, Settings } from '@/domain/types';
 import { PROFILE_LABEL } from '@/features/invest/investModel';
 
@@ -159,6 +160,7 @@ export function SettingsScreen() {
               </Link>
             </div>
           </div>
+          <PushTestSection />
           <div className="sec">
             <span className="ov">Data</span>
             <div className="list">
@@ -177,6 +179,59 @@ export function SettingsScreen() {
         </>
       )}
     </Screen>
+  );
+}
+
+const PUSH_SUPPORT_TEXT: Record<PushSupport, string> = {
+  ok: 'Notifications can be turned on for this device.',
+  not_installed: 'Add the app to your Home Screen first, then open it from there.',
+  unsupported: 'This browser does not support notifications.',
+  denied: 'Notifications are blocked. Allow them in the system settings.',
+};
+
+/** Temporary push test row (replaced by the morning brief settings in Task 10). */
+function PushTestSection() {
+  const support = pushSupport();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function run(kind: 'subscribe' | 'test') {
+    if (busy) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      if (kind === 'subscribe') {
+        await subscribePush(deviceName());
+        setMsg({ ok: true, text: 'Notifications are on for this device.' });
+      } else {
+        const r = await sendTestPush();
+        setMsg(r.failed === 0 && r.sent > 0
+          ? { ok: true, text: `Sent to ${r.sent} device${r.sent === 1 ? '' : 's'}.` }
+          : { ok: false, text: r.sent + r.failed === 0 ? 'No subscribed devices yet.' : `Sent ${r.sent}, failed ${r.failed}: ${r.errors.join(', ')}` });
+      }
+    } catch (err) {
+      const m = (err as { message?: string } | null)?.message;
+      setMsg({ ok: false, text: m === 'permission_denied' ? 'Notifications were not allowed.' : 'Something went wrong. Try again.' });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="sec">
+      <span className="ov">Notifications</span>
+      <div className="list">
+        <button className="li" disabled={busy || support !== 'ok'} onClick={() => void run('subscribe')}>
+          <span className="ci" style={{ ['--c' as string]: 'var(--accent)' }}><Icon name="bell" /></span>
+          <span className="tx"><strong>Turn on notifications</strong><span>{PUSH_SUPPORT_TEXT[support]}</span></span>
+        </button>
+        <button className="li" disabled={busy} onClick={() => void run('test')}>
+          <span className="ci" style={{ ['--c' as string]: 'var(--accent)' }}><Icon name="send" /></span>
+          <span className="tx"><strong>Send test notification</strong><span>To all your subscribed devices</span></span>
+        </button>
+      </div>
+      {msg && (msg.ok ? <p className="sub" role="status">{msg.text}</p> : <p className="err" role="alert">{msg.text}</p>)}
+    </div>
   );
 }
 
