@@ -1,21 +1,26 @@
 import { createClientFromRequest } from 'npm:@base44/sdk';
-import { COLLECT_SCHEMA, SEED_SOURCES, buildCollectPrompt, collectDue, normalizeCollect, parseFeed, type ParsedItem } from '../../shared/news.ts';
+import { COLLECT_SCHEMA, buildCollectPrompt, normalizeCollect, parseFeed, type ParsedItem } from '../../shared/news.ts';
 import {
   COLLECT_DAILY_CAP,
   FETCH_BATCH,
   aiBatch,
   budapestDate,
   chunk,
+  duplicateIds,
   expiredIds,
   holdingsFromSnapshot,
   intervalHours,
+  isDue,
   lastRun,
+  missingSeeds,
   parseAction,
   planFetch,
   readCappedText,
   selectNewItems,
+  usageTotals,
   type ItemRow,
   type SourceRow,
+  type UsageRow,
 } from './logic.ts';
 
 // Log only safe fields, never payloads.
@@ -32,7 +37,6 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
 type Me = { id: string; digest_enabled?: boolean; news_interval_hours?: number; brief_snapshot?: unknown };
-type UsageRow = { id: string; collect?: number; brief?: number };
 
 const MODEL = 'gemini_3_8_flash';
 const ROW_LIMIT = 5000;
@@ -60,17 +64,21 @@ export default async function (req: Request): Promise<Response> {
     const summary = { ran: false as boolean, reason: undefined as string | undefined, fetched: 0, created: 0, summarized: 0, deleted: 0, errors: 0 };
 
     // NewsSource/NewsItem/AiUsage are never client-creatable, so owner_id alone is trustworthy.
-    let sources = ((await db.NewsSource.filter({ owner_id: ownerId }, 'created_date', ROW_LIMIT)) ?? []) as SourceRow[];
-    sources = sources.filter((s) => (s as { owner_id?: string }).owner_id === ownerId);
+    const readSources = async () =>
+      (((await db.NewsSource.filter({ owner_id: ownerId }, 'created_date', ROW_LIMIT)) ?? []) as (SourceRow & { owner_id?: string })[]).filter(
+        (s) => s.owner_id === ownerId,
+      );
+    let sources: SourceRow[] = await readSources();
 
     if (mode === 'scheduled' && me.digest_enabled !== true && sources.length === 0) {
       return json({ ...summary, reason: 'disabled' });
     }
 
-    // 1. Seed the sources if none exist.
-    if (sources.length === 0) {
-      for (const s of SEED_SOURCES) {
-        const row = (await db.NewsSource.create({
+    // 1. Seed: top up any missing seed urls, then drop newer duplicates (an overlapping run may have seeded too).
+    const toSeed = missingSeeds(sources);
+    if (toSeed.length) {
+      for (const s of toSeed) {
+        await db.NewsSource.create({
           owner_id: ownerId,
           name: s.name,
           url: s.url,
@@ -78,13 +86,18 @@ export default async function (req: Request): Promise<Response> {
           active: true,
           last_fetched_at: null,
           last_error: null,
-        })) as SourceRow;
-        sources.push(row);
+        });
       }
+      sources = await readSources();
+      const dupes = new Set(duplicateIds(sources, (s) => s.url));
+      for (const id of dupes) {
+        await db.NewsSource.delete(id).catch((err: unknown) => console.error('source dedupe failed', safeErr(err)));
+      }
+      sources = sources.filter((s) => !dupes.has(s.id));
     }
 
     // 2. Interval gate (scheduled path only).
-    if (mode === 'scheduled' && !collectDue(lastRun(sources), nowIso, intervalHours(me.news_interval_hours))) {
+    if (mode === 'scheduled' && !isDue(lastRun(sources), nowIso, intervalHours(me.news_interval_hours))) {
       return json({ ...summary, reason: 'not_due' });
     }
     summary.ran = true;
@@ -124,7 +137,12 @@ export default async function (req: Request): Promise<Response> {
       );
       for (const r of results) {
         try {
-          if ('items' in r && r.items) {
+          if ('items' in r && r.items && r.items.length === 0) {
+            // A dead feed: record it, but advance last_fetched_at so it isn't hammered every run.
+            summary.errors++;
+            console.error('news feed empty', { source_id: r.source.id });
+            await db.NewsSource.update(r.source.id, { last_fetched_at: nowIso, last_error: 'empty feed' });
+          } else if ('items' in r && r.items) {
             summary.fetched++;
             perSource.push({ source: r.source, items: r.items });
             await db.NewsSource.update(r.source.id, { last_fetched_at: nowIso, last_error: null });
@@ -140,10 +158,12 @@ export default async function (req: Request): Promise<Response> {
     }
 
     // 4. New items by link.
-    const existing = ((await db.NewsItem.filter({ owner_id: ownerId }, '-created_date', ROW_LIMIT)) ?? []) as (ItemRow & {
-      owner_id?: string;
-    })[];
-    const mine = existing.filter((r) => r.owner_id === ownerId);
+    const readItems = async () =>
+      (((await db.NewsItem.filter({ owner_id: ownerId }, '-created_date', ROW_LIMIT)) ?? []) as (ItemRow & { owner_id?: string })[]).filter(
+        (r) => r.owner_id === ownerId,
+      );
+    const mine = await readItems();
+    const removed = new Set<string>();
     const known = new Set(mine.map((r) => r.link).filter((l): l is string => typeof l === 'string'));
     const fresh = selectNewItems(perSource, known, nowIso);
     if (fresh.length) {
@@ -167,6 +187,21 @@ export default async function (req: Request): Promise<Response> {
         summary.errors++;
         console.error('news create failed', { count: fresh.length, ...safeErr(err) });
       }
+      // An overlapping run may have created the same links: keep the oldest row per link.
+      try {
+        const dupes = duplicateIds(await readItems(), (r) => r.link);
+        for (const id of dupes) {
+          try {
+            await db.NewsItem.delete(id);
+            removed.add(id);
+          } catch (err) {
+            console.error('news dedupe failed', safeErr(err));
+          }
+        }
+        summary.created = Math.max(0, summary.created - dupes.length);
+      } catch (err) {
+        console.error('news dedupe read failed', safeErr(err));
+      }
     }
 
     // 5. One AI labelling call, within the daily cap.
@@ -177,11 +212,14 @@ export default async function (req: Request): Promise<Response> {
       const batch = aiBatch(pendingRows.filter((r) => r.owner_id === ownerId));
       if (batch.length) {
         const date = budapestDate(nowIso);
-        const usageRows = ((await db.AiUsage.filter({ owner_id: ownerId, date }, '-created_date', 5)) ?? []) as UsageRow[];
-        let usage = usageRows[0];
-        if (!usage) usage = (await db.AiUsage.create({ owner_id: ownerId, date, collect: 0, brief: 0 })) as UsageRow;
-        const used = usage.collect ?? 0;
-        if (used < COLLECT_DAILY_CAP) {
+        const readUsage = async () =>
+          (((await db.AiUsage.filter({ owner_id: ownerId, date }, 'created_date', 50)) ?? []) as (UsageRow & { owner_id?: string })[]).filter(
+            (r) => r.owner_id === ownerId,
+          );
+        if ((await readUsage()).length === 0) await db.AiUsage.create({ owner_id: ownerId, date, collect: 0, brief: 0 });
+        // Re-read right before the call: an overlapping run may have used the last slot.
+        const before = usageTotals(await readUsage());
+        if (before.primary && before.collect < COLLECT_DAILY_CAP) {
           const prompt = buildCollectPrompt(
             batch.map((r, i) => ({ i, title: r.title!, source: r.source_name ?? '' })),
             holdingsFromSnapshot(me.brief_snapshot),
@@ -194,10 +232,13 @@ export default async function (req: Request): Promise<Response> {
               model: MODEL,
             } as Parameters<typeof base44.asServiceRole.integrations.Core.InvokeLLM>[0]);
           } finally {
-            // A call was made: count it even if it failed.
-            await db.AiUsage.update(usage.id, { collect: used + 1 }).catch((err: unknown) =>
-              console.error('usage update failed', safeErr(err)),
-            );
+            // A call was made: count it even if it failed. Re-read to narrow the lost-update window.
+            try {
+              const now = usageTotals(await readUsage()).primary ?? before.primary;
+              await db.AiUsage.update(now.id, { collect: (now.collect ?? 0) + 1 });
+            } catch (err) {
+              console.error('usage update failed', safeErr(err));
+            }
           }
           const entries = normalizeCollect(raw, batch.length);
           for (let i = 0; i < batch.length; i++) {
@@ -220,7 +261,7 @@ export default async function (req: Request): Promise<Response> {
     }
 
     // 6. Delete expired items.
-    for (const id of expiredIds(mine, nowIso)) {
+    for (const id of expiredIds(mine, nowIso).filter((id) => !removed.has(id))) {
       try {
         await db.NewsItem.delete(id);
         summary.deleted++;

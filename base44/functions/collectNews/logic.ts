@@ -1,5 +1,5 @@
 // Pure helpers for collectNews. No SDK imports, so vitest can cover them.
-import { SEED_SOURCES, isExpired, newItems, type ParsedItem } from '../../shared/news.ts';
+import { SEED_SOURCES, collectDue, isExpired, newItems, type ParsedItem } from '../../shared/news.ts';
 
 export const FETCH_BATCH = 6;
 export const MAX_NEW_ITEMS = 40;
@@ -7,6 +7,9 @@ export const MAX_AI_ITEMS = 40;
 export const COLLECT_DAILY_CAP = 10;
 export const MAX_BODY_CHARS = 2_000_000;
 export const DEFAULT_INTERVAL_HOURS = 4;
+export const ALLOWED_INTERVALS = [2, 4, 8, 12] as const;
+/** Slack for scheduler jitter: a run up to this much "early" against its slot still counts as due. */
+export const DUE_TOLERANCE_MS = 10 * 60_000;
 
 export type SourceRow = {
   id: string;
@@ -73,7 +76,56 @@ export function lastRun(sources: SourceRow[]): string | null {
 }
 
 export function intervalHours(raw: unknown): number {
-  return typeof raw === 'number' && raw > 0 ? raw : DEFAULT_INTERVAL_HOURS;
+  return (ALLOWED_INTERVALS as readonly unknown[]).includes(raw) ? (raw as number) : DEFAULT_INTERVAL_HOURS;
+}
+
+/** collectDue with DUE_TOLERANCE_MS of slack, so cron jitter doesn't skip a whole slot. */
+export function isDue(lastRunIso: string | null, nowIso: string, hours: number): boolean {
+  return collectDue(lastRunIso, new Date(Date.parse(nowIso) + DUE_TOLERANCE_MS).toISOString(), hours);
+}
+
+type Dated = { id: string; created_date?: string };
+
+const byAge = (a: Dated, b: Dated) => {
+  const ta = Date.parse(a.created_date ?? '');
+  const tb = Date.parse(b.created_date ?? '');
+  const na = Number.isNaN(ta) ? Infinity : ta;
+  const nb = Number.isNaN(tb) ? Infinity : tb;
+  if (na !== nb) return na - nb;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+};
+
+/** Ids of rows that repeat an earlier row's key; the oldest (created_date, then id) of each key is kept. */
+export function duplicateIds<T extends Dated>(rows: T[], key: (r: T) => unknown): string[] {
+  const seen = new Set<unknown>();
+  const out: string[] = [];
+  for (const r of [...rows].sort(byAge)) {
+    const k = key(r);
+    if (k === undefined || k === null || k === '') continue;
+    if (seen.has(k)) out.push(r.id);
+    else seen.add(k);
+  }
+  return out;
+}
+
+/** Seed sources whose url isn't present yet. */
+export function missingSeeds(sources: { url?: string }[]): typeof SEED_SOURCES {
+  const have = new Set(sources.map((s) => s.url));
+  return SEED_SOURCES.filter((s) => !have.has(s.url));
+}
+
+export type UsageRow = { id: string; created_date?: string; collect?: number; brief?: number };
+
+/** Several rows for one day (from overlapping runs) count as one: summed totals, the oldest row is written. */
+export function usageTotals(rows: UsageRow[]): { primary: UsageRow | null; collect: number; brief: number } {
+  const sorted = [...rows].sort(byAge);
+  let collect = 0;
+  let brief = 0;
+  for (const r of sorted) {
+    collect += typeof r.collect === 'number' ? r.collect : 0;
+    brief += typeof r.brief === 'number' ? r.brief : 0;
+  }
+  return { primary: sorted[0] ?? null, collect, brief };
 }
 
 export function chunk<T>(arr: T[], size: number): T[][] {

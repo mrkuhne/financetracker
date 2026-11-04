@@ -4,15 +4,19 @@ import {
   aiBatch,
   budapestDate,
   chunk,
+  duplicateIds,
   expiredIds,
   holdingsFromSnapshot,
   intervalHours,
+  isDue,
   isHttpLink,
   lastRun,
+  missingSeeds,
   parseAction,
   planFetch,
   readCappedText,
   selectNewItems,
+  usageTotals,
   type SourceRow,
 } from './logic.ts';
 
@@ -66,10 +70,10 @@ describe('lastRun / intervalHours / chunk / isHttpLink', () => {
       ]),
     ).toBe('2026-11-04T10:00:00.000Z');
   });
-  it('defaults the interval to 4 hours', () => {
+  it('accepts only 2, 4, 8 or 12 hours, else 4', () => {
     expect(intervalHours(undefined)).toBe(4);
-    expect(intervalHours(2)).toBe(2);
-    expect(intervalHours(0)).toBe(4);
+    for (const h of [2, 4, 8, 12]) expect(intervalHours(h)).toBe(h);
+    for (const h of [0, 1, 3, 5, 24, -2, 2.5, '2', null]) expect(intervalHours(h)).toBe(4);
   });
   it('chunks into batches', () => {
     expect(chunk([1, 2, 3, 4, 5, 6, 7], 6)).toEqual([[1, 2, 3, 4, 5, 6], [7]]);
@@ -174,5 +178,54 @@ describe('readCappedText', () => {
   });
   it('gives up beyond the cap', async () => {
     expect(await readCappedText(new Response('x'.repeat(101)), 100)).toEqual({ ok: false });
+  });
+});
+
+describe('isDue', () => {
+  const last = '2026-11-04T08:00:03.000Z'; // last run started 3 s after its slot
+  it('tolerates scheduler jitter up to 10 minutes', () => {
+    expect(isDue(last, '2026-11-04T12:00:00.500Z', 4)).toBe(true); // next slot, started earlier relative to it
+    expect(isDue(last, '2026-11-04T11:50:03.000Z', 4)).toBe(true);
+    expect(isDue(last, '2026-11-04T11:50:02.000Z', 4)).toBe(false);
+    expect(isDue(last, '2026-11-04T10:00:00.000Z', 4)).toBe(false); // the in-between 2 h slot
+    expect(isDue(null, '2026-11-04T10:00:00.000Z', 4)).toBe(true);
+  });
+});
+
+describe('duplicateIds', () => {
+  it('keeps the oldest row per key and returns the rest', () => {
+    const rows = [
+      { id: 'b', link: 'x', created_date: '2026-11-04T10:00:01Z' },
+      { id: 'a', link: 'x', created_date: '2026-11-04T10:00:00Z' },
+      { id: 'c', link: 'y', created_date: '2026-11-04T09:00:00Z' },
+      { id: 'd', link: 'x', created_date: '2026-11-04T10:00:00Z' }, // same time as a: id breaks the tie
+      { id: 'e', link: '', created_date: '2026-11-04T10:00:00Z' },
+      { id: 'f', link: '', created_date: '2026-11-04T11:00:00Z' },
+    ];
+    expect(duplicateIds(rows, (r) => r.link).sort()).toEqual(['b', 'd']);
+    expect(duplicateIds([], (r: { id: string }) => r.id)).toEqual([]);
+  });
+});
+
+describe('missingSeeds', () => {
+  it('lists seed urls not yet present', () => {
+    expect(missingSeeds([])).toHaveLength(SEED_SOURCES.length);
+    expect(missingSeeds(SEED_SOURCES.map((s) => ({ url: s.url })))).toEqual([]);
+    expect(missingSeeds([{ url: SEED_SOURCES[0].url }, { url: 'https://other' }]).map((s) => s.url)).toEqual(
+      SEED_SOURCES.slice(1).map((s) => s.url),
+    );
+  });
+});
+
+describe('usageTotals', () => {
+  it('sums duplicate day rows and picks the oldest to write', () => {
+    expect(usageTotals([])).toEqual({ primary: null, collect: 0, brief: 0 });
+    const t = usageTotals([
+      { id: 'n', created_date: '2026-11-04T10:00:01Z', collect: 2, brief: 1 },
+      { id: 'o', created_date: '2026-11-04T10:00:00Z', collect: 7 },
+    ]);
+    expect(t.primary?.id).toBe('o');
+    expect(t.collect).toBe(9);
+    expect(t.brief).toBe(1);
   });
 });
