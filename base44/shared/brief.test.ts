@@ -9,7 +9,7 @@ describe('pullForwardRoomMinor', () => {
   it('is capped by the remaining allowance beyond the suggestion', () =>
     expect(pullForwardRoomMinor({ ...base, remainingMinor: 5_000_000 })).toBe(1_000_000));
   it('shrinks by what was already invested above the suggestion', () =>
-    expect(pullForwardRoomMinor({ ...base, investedMinor: 5_000_000, remainingMinor: 5_000_000 })).toBe(0));
+    expect(pullForwardRoomMinor({ ...base, investedMinor: 5_000_000, remainingMinor: 5_000_000 })).toBe(1_000_000));
   it('shrinks by the excess', () =>
     expect(pullForwardRoomMinor({ ...base, investedMinor: 5_000_000 })).toBe(1_000_000));
   it('is never negative', () => {

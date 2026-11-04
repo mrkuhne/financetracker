@@ -29,7 +29,7 @@ export function pullForwardRoomMinor(i: {
 }): number {
   if (!i.emergencyDone) return 0;
   const freeAfterSpend = i.remainingMinor - i.dailySpendMinor * i.daysLeft;
-  const room = Math.min(Math.floor(i.suggestedMinor * PULL_FORWARD_SHARE), freeAfterSpend);
+  // `remainingMinor` already nets this month's buys, so the excess only shrinks the half-suggestion cap.
   const excess = Math.max(0, i.investedMinor - i.suggestedMinor);
-  return Math.max(0, room - excess);
+  return Math.max(0, Math.min(Math.floor(i.suggestedMinor * PULL_FORWARD_SHARE) - excess, freeAfterSpend));
 }
