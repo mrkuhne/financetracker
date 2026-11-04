@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Screen } from '@/features/shell/Screen';
 import { Icon } from '@/features/shell/Icons';
 import { getSettings, updateSettings } from '@/data/settings';
-import { deviceName, pushSupport, sendTestPush, subscribePush, unsubscribePush, type PushSupport } from '@/data/push';
+import { currentSubscription, deviceName, pushSupport, sendTestPush, subscribePush, unsubscribePush, type PushSupport } from '@/data/push';
 import { collectNow, latestDigest, listSources, setSourceActive, todayUsage, type DigestRow, type SourceRow } from '@/data/news';
 import type { Settings } from '@/domain/types';
 import { HOUR_OPTIONS, INTERVAL_OPTIONS, aiLimitReached, normalizeHour, normalizeInterval } from './briefSettings';
@@ -15,9 +15,7 @@ const SUPPORT_TEXT: Record<Exclude<PushSupport, 'ok'>, string> = {
 
 async function hasDeviceSubscription(): Promise<boolean> {
   try {
-    if (!('serviceWorker' in navigator)) return false;
-    const reg = await navigator.serviceWorker.ready;
-    return (await reg.pushManager.getSubscription()) !== null;
+    return (await currentSubscription()) !== null;
   } catch {
     return false;
   }
@@ -83,16 +81,18 @@ export function BriefSettingsScreen() {
   function toggle() {
     if (!data) return;
     void run('toggle', async () => {
-      if (on) {
-        await unsubscribePush();
-        await updateSettings({ digest_enabled: false });
-        setData((d) => d && { ...d, subscribed: false, settings: { ...d.settings, digest_enabled: false } });
-      } else {
-        await subscribePush(deviceName());
-        await updateSettings({ digest_enabled: true });
-        setData((d) => d && { ...d, subscribed: true, settings: { ...d.settings, digest_enabled: true } });
+      try {
+        if (on) {
+          await unsubscribePush();
+          await updateSettings({ digest_enabled: false });
+        } else {
+          await subscribePush(deviceName());
+          await updateSettings({ digest_enabled: true });
+        }
+        setTestMsg(null);
+      } finally {
+        await load(); // show the real device + settings state, even after a partial failure
       }
-      setTestMsg(null);
     }, on ? 'Could not turn notifications off. Try again.' : 'Could not turn notifications on. Try again.');
   }
 

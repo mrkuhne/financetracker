@@ -58,3 +58,17 @@ describe('deviceName', () => {
     expect(deviceName('curl/8')).toBe('This device');
   });
 });
+
+describe('currentSubscription', () => {
+  it('resolves null without hanging when no service worker is registered', async () => {
+    const { currentSubscription } = await import('@/data/push');
+    vi.stubGlobal('navigator', { serviceWorker: { getRegistration: async () => undefined, ready: new Promise(() => {}) } });
+    expect(await currentSubscription()).toBeNull();
+  });
+  it('returns the registration subscription', async () => {
+    const { currentSubscription } = await import('@/data/push');
+    const sub = { endpoint: 'e' };
+    vi.stubGlobal('navigator', { serviceWorker: { getRegistration: async () => ({ pushManager: { getSubscription: async () => sub } }) } });
+    expect(await currentSubscription()).toBe(sub);
+  });
+});

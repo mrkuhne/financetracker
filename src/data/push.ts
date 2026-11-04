@@ -40,11 +40,31 @@ function keyToBytes(b64url: string): Uint8Array<ArrayBuffer> {
   return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 }
 
+/** `serviceWorker.ready` never resolves when no worker is registered, so give up after a while. */
+async function readyRegistration(ms = 3000): Promise<ServiceWorkerRegistration> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('no_service_worker')), ms);
+  });
+  try {
+    return await Promise.race([navigator.serviceWorker.ready, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** This device's push subscription, or null (also when there is no service worker; never hangs). */
+export async function currentSubscription(): Promise<PushSubscription | null> {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return null;
+  const reg = await navigator.serviceWorker.getRegistration();
+  return reg ? await reg.pushManager.getSubscription() : null;
+}
+
 /** Asks permission, subscribes this device and stores the subscription for the signed-in user. */
 export async function subscribePush(deviceName: string): Promise<void> {
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') throw new Error('permission_denied');
-  const reg = await navigator.serviceWorker.ready;
+  const reg = await readyRegistration();
   const sub =
     (await reg.pushManager.getSubscription()) ??
     (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyToBytes(VAPID_PUBLIC_KEY) }));
@@ -69,8 +89,7 @@ export async function subscribePush(deviceName: string): Promise<void> {
 
 /** Unsubscribes this device and deletes its stored row. */
 export async function unsubscribePush(): Promise<void> {
-  const reg = await navigator.serviceWorker.ready;
-  const sub = await reg.pushManager.getSubscription();
+  const sub = await currentSubscription();
   if (!sub) return;
   const endpoint = sub.endpoint;
   await sub.unsubscribe();
