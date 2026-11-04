@@ -46,3 +46,11 @@ export function digestPushStatus(
   if (results.every((r) => r === 'gone')) return { status: 'failed', error: 'subscription expired' };
   return { status: 'failed', error: failedError || 'push failed' };
 }
+
+/**
+ * push_status/push_error to create the digest with. When a push will follow, the row starts as an
+ * 'interrupted' failure and is overwritten after sending, so a run that dies mid-way never reads as 'skipped'.
+ */
+export function initialPushState(willPush: boolean): { push_status: 'failed' | 'skipped'; push_error: string | null } {
+  return willPush ? { push_status: 'failed', push_error: 'interrupted' } : { push_status: 'skipped', push_error: null };
+}

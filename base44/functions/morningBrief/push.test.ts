@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyPushResult, digestPushStatus, vapidJwks } from './pushResult.ts';
+import { classifyPushResult, digestPushStatus, initialPushState, vapidJwks } from './pushResult.ts';
 
 describe('classifyPushResult', () => {
   it('ok is sent', () => expect(classifyPushResult({ ok: true })).toBe('sent'));
@@ -36,4 +36,10 @@ describe('digestPushStatus', () => {
     expect(digestPushStatus(['failed'])).toEqual({ status: 'failed', error: 'push failed' });
     expect(digestPushStatus(['gone', 'failed'], 'push_500')).toEqual({ status: 'failed', error: 'push_500' });
   });
+});
+
+describe('initialPushState', () => {
+  it('a pending push starts as an interrupted failure', () =>
+    expect(initialPushState(true)).toEqual({ push_status: 'failed', push_error: 'interrupted' }));
+  it('no push is skipped', () => expect(initialPushState(false)).toEqual({ push_status: 'skipped', push_error: null }));
 });

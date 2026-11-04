@@ -33,7 +33,7 @@ import {
   type Payload,
 } from './logic.ts';
 import { classifyPushResult, sendPush } from './push.ts';
-import { digestPushStatus } from './pushResult.ts';
+import { digestPushStatus, initialPushState } from './pushResult.ts';
 
 // Log only safe fields, never payloads (no notification text, no news titles).
 const safeErr = (err: unknown) => {
@@ -288,6 +288,7 @@ export default async function (req: Request): Promise<Response> {
 
     // 5. Create the digest: never a second one for the same date. Re-check right before the create.
     if ((await readDigests(today)).length > 0) return json({ ...summary, ran: false, reason: 'exists' });
+    const willPush = me.digest_enabled === true && subs.length > 0;
     const created = (await db.DailyDigest.create({
       owner_id: ownerId,
       date: today,
@@ -299,8 +300,8 @@ export default async function (req: Request): Promise<Response> {
       news_ids: ai?.news_ids ?? [],
       incomplete: numbers.incomplete,
       ai_ok: ai !== null,
-      push_status: 'skipped',
-      push_error: null,
+      // Until the push completes the row says 'interrupted', so a run that dies mid-way never reads as 'skipped'.
+      ...initialPushState(willPush),
     })) as { id: string };
 
     // An overlapping run may have created one too: keep the oldest, delete the rest.
@@ -317,7 +318,7 @@ export default async function (req: Request): Promise<Response> {
     if (!kept) return json({ ...summary, reason: 'duplicate' });
 
     // 6. Push.
-    if (me.digest_enabled === true && subs.length > 0) {
+    if (willPush) {
       const vapid = await loadVapid();
       let status: { status: 'sent' | 'failed' | 'skipped'; error: string | null };
       if (!vapid) {
