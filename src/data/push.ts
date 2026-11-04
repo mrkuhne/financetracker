@@ -8,13 +8,21 @@ export type PushSupport = 'ok' | 'not_installed' | 'unsupported' | 'denied';
 /** iOS only allows Web Push from a Home Screen web app, so "not installed" is its own state. */
 export function pushSupport(): PushSupport {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return 'unsupported';
-  if (!('PushManager' in window) || !('serviceWorker' in navigator) || typeof Notification === 'undefined') return 'unsupported';
   const standalone =
     window.matchMedia?.('(display-mode: standalone)').matches === true ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  // iOS Safari (before 18.4) hides PushManager outside a Home Screen app, so check iOS first.
+  if (isIos() && !standalone) return 'not_installed';
+  if (!('PushManager' in window) || !('serviceWorker' in navigator) || typeof Notification === 'undefined') return 'unsupported';
   if (!standalone) return 'not_installed';
   if (Notification.permission === 'denied') return 'denied';
   return 'ok';
+}
+
+/** iPhone/iPad, including iPadOS which reports a Mac UA but has touch. */
+function isIos(): boolean {
+  const ua = navigator.userAgent ?? '';
+  return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && (navigator.maxTouchPoints ?? 0) > 1);
 }
 
 /** A short device label like "iPhone" for the subscription row. */
