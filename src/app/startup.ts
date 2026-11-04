@@ -2,7 +2,7 @@ import { ensureDefaultCategories } from '@/data/categories';
 import { getSettings } from '@/data/settings';
 import { todayInTz } from '@/domain/dates';
 import type { ISODate } from '@/domain/types';
-import { notifyTxnsChanged } from '@/features/transactions/events';
+import { TXNS_CHANGED, notifyTxnsChanged } from '@/features/transactions/events';
 import { refreshBriefSnapshot } from './briefSnapshot';
 import { runConvertSms } from './runConvertSms';
 import { runMaterialize } from './runMaterialize';
@@ -48,9 +48,20 @@ export async function resumeIfNewDay(): Promise<void> {
   }
 }
 
+/**
+ * Refresh the brief snapshot whenever transactions change in-app (expenses, buys, sells…), so tomorrow's brief
+ * never reads stale numbers. Bursts coalesce in refreshBriefSnapshot's single-flight. Returns an unsubscribe.
+ */
+export function wireSnapshotRefresh(target: EventTarget, refresh: () => Promise<void> = refreshBriefSnapshot): () => void {
+  const h = () => void refresh();
+  target.addEventListener(TXNS_CHANGED, h);
+  return () => target.removeEventListener(TXNS_CHANGED, h);
+}
+
 function listenForResume() {
   if (listening || typeof document === 'undefined') return;
   listening = true;
+  if (typeof window !== 'undefined') wireSnapshotRefresh(window);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
     void Promise.all([resumeIfNewDay(), convertSms()]).then(refreshBriefSnapshot);

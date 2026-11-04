@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HOUR_OPTIONS, aiLimitReached, normalizeHour, normalizeInterval } from './briefSettings';
+import { HOUR_OPTIONS, aiLimitReached, firstPushTomorrow, normalizeHour, normalizeInterval } from './briefSettings';
 
 describe('briefSettings', () => {
   it('offers 24 whole hours', () => {
@@ -25,5 +25,16 @@ describe('briefSettings', () => {
     expect(aiLimitReached({ collect: 9, brief: 1 })).toBe(false);
     expect(aiLimitReached({ collect: 10, brief: 0 })).toBe(true);
     expect(aiLimitReached({ collect: 0, brief: 2 })).toBe(true);
+  });
+});
+
+describe('firstPushTomorrow', () => {
+  const d = (date: string, push_status: 'sent' | 'skipped' | null) => ({ date, push_status });
+  it('only when on and today\'s digest was skipped', () => {
+    expect(firstPushTomorrow(true, d('2026-11-04', 'skipped'), '2026-11-04')).toBe(true);
+    expect(firstPushTomorrow(false, d('2026-11-04', 'skipped'), '2026-11-04')).toBe(false);
+    expect(firstPushTomorrow(true, d('2026-11-03', 'skipped'), '2026-11-04')).toBe(false);
+    expect(firstPushTomorrow(true, d('2026-11-04', 'sent'), '2026-11-04')).toBe(false);
+    expect(firstPushTomorrow(true, null, '2026-11-04')).toBe(false);
   });
 });

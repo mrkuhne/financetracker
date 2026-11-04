@@ -73,6 +73,7 @@ type NewsRow = {
 
 const MODEL = 'claude-sonnet-5';
 const ROW_LIMIT = 5000;
+const NEWS_LIMIT = 500;
 const UA = { 'user-agent': 'Mozilla/5.0', accept: 'application/json' };
 
 async function fetchJson(url: string): Promise<unknown> {
@@ -218,7 +219,8 @@ export default async function (req: Request): Promise<Response> {
     // FxRate is not upserted here: its rows are client-owned (RLS by created_by_id) and cache per-transaction-date
     // rates from frankfurter.dev; a service-role row may not be visible to (or match the semantics of) the client cache.
 
-    const news = (((await db.NewsItem.filter({ owner_id: ownerId }, '-created_date', ROW_LIMIT)) ?? []) as NewsRow[]).filter(
+    // The newest 500 cover far more than the 7 days pickNews looks at.
+    const news = (((await db.NewsItem.filter({ owner_id: ownerId }, '-created_date', NEWS_LIMIT)) ?? []) as NewsRow[]).filter(
       (r) => r.owner_id === ownerId,
     );
 

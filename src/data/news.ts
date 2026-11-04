@@ -1,5 +1,4 @@
 import { base44 } from '@/data/client';
-import { getSettings } from '@/data/settings';
 import { todayInTz } from '@/domain/dates';
 import type { ISODate } from '@/domain/types';
 import type { NewsRow } from '@/features/news/newsModel';
@@ -120,9 +119,10 @@ export async function briefNow(): Promise<Rec | null> {
   return body(await base44.functions.invoke('morningBrief', { action: 'now' }));
 }
 
-/** Today's AI credit use (the user's timezone), summed across rows. */
+/** Today's AI credit use, summed across rows. */
 export async function todayUsage(today?: ISODate): Promise<{ collect: number; brief: number }> {
-  const date = today ?? todayInTz((await getSettings()).timezone);
+  // The server writes AiUsage.date as the Budapest date (budapestDate), so read it the same way.
+  const date = today ?? todayInTz('Europe/Budapest');
   const rows = (await base44.entities.AiUsage.filter({ owner_id: await meId(), date }, '-created_date', 50)) as Rec[];
   const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
   return (rows ?? []).reduce<{ collect: number; brief: number }>(

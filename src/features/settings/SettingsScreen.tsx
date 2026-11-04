@@ -13,6 +13,7 @@ import { listRecentSms } from '@/data/smsMessages';
 import type { RiskProfile, Settings } from '@/domain/types';
 import { normalizeHour } from '@/features/settings/briefSettings';
 import { PROFILE_LABEL } from '@/features/invest/investModel';
+import { refreshBriefSnapshot } from '@/app/briefSnapshot';
 
 const STEP = 1_000_000; // 10 000 Ft in minor units
 const RISK_PROFILES: RiskProfile[] = ['cautious', 'balanced', 'bold'];
@@ -46,6 +47,8 @@ export function SettingsScreen() {
     setSaveError(false);
     chain.current = chain.current
       .then(() => updateSettings(p))
+      // Every setting on this screen feeds the brief snapshot (savings target, emergency months, timezone, investing).
+      .then(() => void refreshBriefSnapshot())
       .catch(async () => {
         setSaveError(true);
         try {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SEED_SOURCES } from '../../shared/news.ts';
 import {
   aiBatch,
+  continueExpiry,
   expiredIds,
   holdingsFromSnapshot,
   intervalHours,
@@ -148,6 +149,15 @@ describe('expiredIds', () => {
       { id: 'none' },
     ];
     expect(expiredIds(rows, NOW)).toEqual(['old', 'oldCreated']);
+  });
+});
+
+describe('continueExpiry', () => {
+  it('re-reads only after a full page that deleted something', () => {
+    expect(continueExpiry(500, 500, 500)).toBe(true);
+    expect(continueExpiry(500, 3, 500)).toBe(true);
+    expect(continueExpiry(500, 0, 500)).toBe(false);
+    expect(continueExpiry(120, 120, 500)).toBe(false);
   });
 });
 

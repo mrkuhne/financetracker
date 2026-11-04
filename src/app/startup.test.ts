@@ -7,7 +7,7 @@ const materialize = vi.fn(async (_today: string) => 0);
 vi.mock('./runMaterialize', () => ({ runMaterialize: (t: string) => materialize(t) }));
 vi.mock('@/data/settings', () => ({ getSettings: async () => ({ timezone: 'Europe/Budapest' }) }));
 const notify = vi.fn();
-vi.mock('@/features/transactions/events', () => ({ notifyTxnsChanged: () => notify() }));
+vi.mock('@/features/transactions/events', () => ({ TXNS_CHANGED: 'txns-changed', notifyTxnsChanged: () => notify() }));
 const today = vi.fn(() => '2026-11-01');
 const convert = vi.fn(async () => 0);
 vi.mock('./runConvertSms', () => ({ runConvertSms: () => convert() }));
@@ -70,5 +70,20 @@ describe('runStartup', () => {
     expect(notify).not.toHaveBeenCalled();
     finish(1);
     await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('wireSnapshotRefresh', () => {
+  it('refreshes the brief snapshot on each transaction change until unsubscribed', async () => {
+    const { wireSnapshotRefresh } = await import('./startup');
+    const target = new EventTarget();
+    const refresh = vi.fn(async () => {});
+    const off = wireSnapshotRefresh(target, refresh);
+    target.dispatchEvent(new Event('txns-changed'));
+    target.dispatchEvent(new Event('other'));
+    expect(refresh).toHaveBeenCalledTimes(1);
+    off();
+    target.dispatchEvent(new Event('txns-changed'));
+    expect(refresh).toHaveBeenCalledTimes(1);
   });
 });

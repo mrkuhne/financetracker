@@ -4,6 +4,7 @@ import {
   COLLECT_DAILY_CAP,
   FETCH_BATCH,
   aiBatch,
+  continueExpiry,
   expiredIds,
   holdingsFromSnapshot,
   intervalHours,
@@ -33,10 +34,15 @@ const safeErr = (err: unknown) => {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
-type Me = { id: string; digest_enabled?: boolean; news_interval_hours?: number; brief_snapshot?: unknown };
+type Me = { id: string; news_interval_hours?: number; brief_snapshot?: unknown };
 
-const MODEL = 'gemini_3_8_flash';
 const ROW_LIMIT = 5000;
+// Feeds only carry their recent items (typically the last days), so a link that can reappear in a feed was stored
+// within far fewer than the newest 2000 rows (~150-250 new items/day). Older rows can't collide with feed items.
+const KNOWN_LINKS_LIMIT = 2000;
+// Expiry walks the table oldest-first in pages, bounded per run; a backlog drains over the next runs.
+const EXPIRY_PAGE = 500;
+const EXPIRY_MAX_PAGES = 5;
 
 export default async function (req: Request): Promise<Response> {
   try {
@@ -65,11 +71,8 @@ export default async function (req: Request): Promise<Response> {
       (((await db.NewsSource.filter({ owner_id: ownerId }, 'created_date', ROW_LIMIT)) ?? []) as (SourceRow & { owner_id?: string })[]).filter(
         (s) => s.owner_id === ownerId,
       );
+    // Collect regardless of digest_enabled: the News tab promises news on its own (AI calls are capped per day).
     let sources: SourceRow[] = await readSources();
-
-    if (mode === 'scheduled' && me.digest_enabled !== true && sources.length === 0) {
-      return json({ ...summary, reason: 'disabled' });
-    }
 
     // 1. Seed: top up any missing seed urls, then drop newer duplicates (an overlapping run may have seeded too).
     const toSeed = missingSeeds(sources);
@@ -156,7 +159,7 @@ export default async function (req: Request): Promise<Response> {
 
     // 4. New items by link.
     const readItems = async () =>
-      (((await db.NewsItem.filter({ owner_id: ownerId }, '-created_date', ROW_LIMIT)) ?? []) as (ItemRow & { owner_id?: string })[]).filter(
+      (((await db.NewsItem.filter({ owner_id: ownerId }, '-created_date', KNOWN_LINKS_LIMIT)) ?? []) as (ItemRow & { owner_id?: string })[]).filter(
         (r) => r.owner_id === ownerId,
       );
     const mine = await readItems();
@@ -226,7 +229,7 @@ export default async function (req: Request): Promise<Response> {
             raw = await base44.asServiceRole.integrations.Core.InvokeLLM({
               prompt,
               response_json_schema: COLLECT_SCHEMA,
-              model: MODEL,
+              // No model: the Automatic preset is the cheap default the spec asks for.
             } as Parameters<typeof base44.asServiceRole.integrations.Core.InvokeLLM>[0]);
           } finally {
             // A call was made: count it even if it failed. Re-read to narrow the lost-update window.
@@ -257,14 +260,30 @@ export default async function (req: Request): Promise<Response> {
       console.error('news ai failed', safeErr(err));
     }
 
-    // 6. Delete expired items.
-    for (const id of expiredIds(mine, nowIso).filter((id) => !removed.has(id))) {
-      try {
-        await db.NewsItem.delete(id);
-        summary.deleted++;
-      } catch (err) {
-        console.error('news delete failed', safeErr(err));
+    // 6. Delete expired items: oldest first, re-reading while a full page still yields expired rows (bounded).
+    try {
+      for (let page = 0; page < EXPIRY_MAX_PAGES; page++) {
+        const raw = ((await db.NewsItem.filter({ owner_id: ownerId }, 'created_date', EXPIRY_PAGE)) ?? []) as (ItemRow & {
+          owner_id?: string;
+        })[];
+        const oldest = raw.filter((r) => r.owner_id === ownerId);
+        const ids = expiredIds(oldest, nowIso).filter((id) => !removed.has(id));
+        let failed = false;
+        for (const id of ids) {
+          try {
+            await db.NewsItem.delete(id);
+            removed.add(id);
+            summary.deleted++;
+          } catch (err) {
+            failed = true;
+            console.error('news delete failed', safeErr(err));
+          }
+        }
+        if (!continueExpiry(raw.length, ids.length, EXPIRY_PAGE) || failed) break;
       }
+    } catch (err) {
+      summary.errors++;
+      console.error('news expiry failed', safeErr(err));
     }
 
     console.log('collectNews done', { mode, ...summary });

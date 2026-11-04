@@ -5,7 +5,8 @@ import { getSettings, updateSettings } from '@/data/settings';
 import { currentSubscription, deviceName, pushSupport, sendTestPush, subscribePush, unsubscribePush, type PushSupport } from '@/data/push';
 import { collectNow, latestDigest, listSources, setSourceActive, todayUsage, type DigestRow, type SourceRow } from '@/data/news';
 import type { Settings } from '@/domain/types';
-import { HOUR_OPTIONS, INTERVAL_OPTIONS, aiLimitReached, normalizeHour, normalizeInterval } from './briefSettings';
+import { todayInTz } from '@/domain/dates';
+import { HOUR_OPTIONS, INTERVAL_OPTIONS, aiLimitReached, firstPushTomorrow, normalizeHour, normalizeInterval } from './briefSettings';
 
 const SUPPORT_TEXT: Record<Exclude<PushSupport, 'ok'>, string> = {
   not_installed: 'Add the app to your Home Screen to get notifications.',
@@ -166,6 +167,9 @@ export function BriefSettingsScreen() {
               </label>
             </div>
             {busy === 'toggle' && <p className="sub" role="status">Working…</p>}
+            {firstPushTomorrow(on, d.digest, todayInTz(d.settings.timezone)) && (
+              <span className="sub">Today's brief was already made — your first notification comes tomorrow.</span>
+            )}
             <span className="sub">{support === 'ok' ? 'Works only when the app is on your Home Screen.' : SUPPORT_TEXT[support]}</span>
           </div>
 

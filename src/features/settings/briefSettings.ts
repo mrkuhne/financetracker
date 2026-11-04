@@ -25,3 +25,11 @@ export const BRIEF_DAILY_CAP = 2;
 export function aiLimitReached(u: { collect: number; brief: number }): boolean {
   return u.collect >= COLLECT_DAILY_CAP || u.brief >= BRIEF_DAILY_CAP;
 }
+
+/**
+ * True when notifications are on but today's digest was already built without a push (one brief per day),
+ * so the first notification comes tomorrow. `today` is in the user's timezone, like the digest date.
+ */
+export function firstPushTomorrow(on: boolean, digest: { date: string; push_status: string | null } | null, today: string): boolean {
+  return on && !!digest && digest.date === today && digest.push_status === 'skipped';
+}

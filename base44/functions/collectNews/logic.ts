@@ -130,6 +130,15 @@ export function expiredIds(rows: ItemRow[], nowIso: string): string[] {
     .map((r) => r.id);
 }
 
+/**
+ * Whether expiry should re-read the oldest-first page: only when the page was full (more rows may follow) and this
+ * page deleted something (re-reading then reaches newer rows). A page with nothing expired means the rest is newer.
+ * A few unexpirable rows (e.g. a future published_at) can't stall it: each re-read still makes progress past them.
+ */
+export function continueExpiry(pageRows: number, expiredOnPage: number, pageSize: number): boolean {
+  return pageRows >= pageSize && expiredOnPage > 0;
+}
+
 /** Holdings from the User's brief_snapshot, reduced to identifiers for the prompt. */
 export function holdingsFromSnapshot(snapshot: unknown): PromptHolding[] {
   const list = (snapshot as { holdings?: unknown } | null | undefined)?.holdings;
