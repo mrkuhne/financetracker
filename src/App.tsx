@@ -9,6 +9,7 @@ import {
 import { BreakdownScreen } from '@/features/home/HomeScreen';
 import { AccountsScreen } from '@/features/accounts/AccountsScreen';
 import { SettingsScreen } from '@/features/settings/SettingsScreen';
+import { BriefSettingsScreen } from '@/features/settings/BriefSettingsScreen';
 import { SmsAutomationScreen } from '@/features/sms/SmsAutomationScreen';
 import { ReviewSmsScreen } from '@/features/sms/ReviewSmsScreen';
 import { PlanScreen } from '@/features/plan/PlanScreen';
@@ -52,6 +53,7 @@ export default function App() {
             <Route path="/review/:id" element={<ReviewSmsScreen />} />
             <Route path="/settings" element={<SettingsScreen />} />
             <Route path="/settings/sms" element={<SmsAutomationScreen />} />
+            <Route path="/settings/brief" element={<BriefSettingsScreen />} />
             <Route
               path="*"
               element={

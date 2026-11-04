@@ -51,7 +51,7 @@ describe('buildExportJson', () => {
     const o = JSON.parse(buildExportJson({
       accounts: [], categories: [], transactions: [base], recurring_rules: [], month_closes: [],
       purchase_plans: [], purchase_options: [], savings_goals: [], holdings: [], investment_transactions: [],
-      settings: { base_currency: 'HUF', monthly_savings_target_minor: 0, monthly_investment_amount_minor: null, emergency_fund_months: 3, week_start: 'monday', digest_time: '20:00', timezone: 'UTC', month_overrides: {}, has_expensive_debt: null, risk_profile: 'cautious', risk_checkin_at: null, invest_suggested_log: {} },
+      settings: { base_currency: 'HUF', monthly_savings_target_minor: 0, monthly_investment_amount_minor: null, emergency_fund_months: 3, week_start: 'monday', digest_time: '20:00', digest_enabled: false, news_interval_hours: 4, timezone: 'UTC', month_overrides: {}, has_expensive_debt: null, risk_profile: 'cautious', risk_checkin_at: null, invest_suggested_log: {} },
     }, now));
     expect(o.version).toBe(1);
     expect(o.exported_at).toBe('2026-11-01T10:00:00.000Z');

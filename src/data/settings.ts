@@ -8,6 +8,8 @@ export const DEFAULT_SETTINGS: Settings = {
   emergency_fund_months: 6,
   week_start: 'monday',
   digest_time: '07:00',
+  digest_enabled: false,
+  news_interval_hours: 4,
   timezone: 'Europe/Budapest',
   month_overrides: {},
   has_expensive_debt: null,
@@ -25,6 +27,8 @@ export async function getSettings(): Promise<Settings> {
   const log = me.invest_suggested_log;
   if (!log || typeof log !== 'object' || Array.isArray(log)) out.invest_suggested_log = {};
   if (!['cautious', 'balanced', 'bold'].includes(out.risk_profile as string)) out.risk_profile = 'cautious';
+  if (typeof out.digest_enabled !== 'boolean') out.digest_enabled = false;
+  if (![2, 4, 8, 12].includes(out.news_interval_hours as number)) out.news_interval_hours = 4;
   return out as unknown as Settings;
 }
 

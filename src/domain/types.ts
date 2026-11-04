@@ -46,6 +46,8 @@ export interface Settings {
   emergency_fund_months: number;
   week_start: 'monday';
   digest_time: string;
+  digest_enabled: boolean;
+  news_interval_hours: 2 | 4 | 8 | 12;
   timezone: string;
   month_overrides: Record<YearMonth, MonthOverride>;
   has_expensive_debt: boolean | null;
