@@ -53,9 +53,7 @@ function listenForResume() {
   listening = true;
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
-    void resumeIfNewDay();
-    void convertSms();
-    void refreshBriefSnapshot();
+    void Promise.all([resumeIfNewDay(), convertSms()]).then(refreshBriefSnapshot);
   });
 }
 
@@ -71,8 +69,8 @@ export function runStartup(): Promise<StartupResult> {
       console.error('Could not load settings for materialization', e);
     }
     // Not awaited: conversion can be slow (FX lookups) and notifies on its own when done.
-    void convertSms();
-    void refreshBriefSnapshot();
+    // The snapshot waits for conversion so it sees the same transactions Home does.
+    void convertSms().then(refreshBriefSnapshot);
     listenForResume();
     done = { ok: true };
     return done;
