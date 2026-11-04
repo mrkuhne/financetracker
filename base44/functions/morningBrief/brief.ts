@@ -34,9 +34,14 @@ export interface BriefNumbers {
   eurHuf: { rate: number; weekChange: number | null } | null;
   month: { suggestedMinor: number | null; investedMinor: number; leftMinor: number | null; pullForwardRoomMinor: number | null };
   incomplete: boolean;
-  /** Value-weighted week change of the market-priced holdings (bonds excluded); null when none has one. */
+  /** False when there is no snapshot: the holdings are unknown, not empty. */
+  holdingsKnown: boolean;
+  /**
+   * Value-weighted week change of the market-priced holdings (bonds excluded). Null when there are none,
+   * or when any of them lacks a week move (a subset figure would mislead).
+   */
   portfolioWeek: number | null;
-  /** World ETF move, only when the user has no holdings; null otherwise or when it is missing. */
+  /** World ETF move, only when the holdings are empty or unknown; null otherwise or when it is missing. */
   market: Move | null;
 }
 
@@ -49,6 +54,7 @@ export function briefNumbers(i: {
 }): BriefNumbers {
   const snap = i.snapshot;
   const stale = !snap || snap.month !== i.today.slice(0, 7);
+  const holdingsKnown = snap !== null;
   const source = snap?.holdings ?? [];
 
   const holdings = source.map((h) => {
@@ -59,15 +65,20 @@ export function briefNumbers(i: {
 
   let weighted = 0;
   let weight = 0;
+  let missingWeek = false;
   source.forEach((h, idx) => {
     const week = holdings[idx].week;
-    if (h.asset_type === 'bond' || week === null) return;
+    if (h.asset_type === 'bond') return;
+    if (week === null) {
+      missingWeek = true;
+      return;
+    }
     const w = h.valueMinor ?? h.costMinor;
     if (!(w > 0)) return;
     weighted += week * w;
     weight += w;
   });
-  const portfolioWeek = weight > 0 ? weighted / weight : null;
+  const portfolioWeek = !missingWeek && weight > 0 ? weighted / weight : null;
 
   const market = source.length === 0 ? (i.moves[WORLD_ETF_SYMBOL] ?? null) : null;
 
@@ -91,11 +102,12 @@ export function briefNumbers(i: {
         };
 
   const incomplete =
+    !holdingsKnown ||
     i.eurHuf === null ||
     holdings.some((h) => !h.fixed && h.day === null) ||
     (source.length === 0 && (market === null || market.day === null));
 
-  return { stale, holdings, eurHuf: i.eurHuf, month, incomplete, portfolioWeek, market };
+  return { stale, holdings, eurHuf: i.eurHuf, month, incomplete, holdingsKnown, portfolioWeek, market };
 }
 
 const PICK_TAGS = new Set(['rates', 'inflation', 'forint', 'markets']);
@@ -196,7 +208,10 @@ export function buildBriefPrompt(
     '',
     'Holdings (day / week change):',
   );
-  if (n.holdings.length === 0) {
+  if (!n.holdingsKnown) {
+    lines.push("- The user's holdings are unknown until they open the app. Do not say they have no investments.");
+    if (n.market) lines.push(`- World ETF (market reference): day ${opt(n.market.day)}, week ${opt(n.market.week)}`);
+  } else if (n.holdings.length === 0) {
     lines.push('- The user has no investments yet.');
     if (n.market) lines.push(`- World ETF (market reference): day ${opt(n.market.day)}, week ${opt(n.market.week)}`);
   } else {
@@ -278,17 +293,65 @@ const text = (v: unknown): string | null => {
   return t ? t : null;
 };
 
+/** Keep at most `max` sentences (a sentence ends at . ! ? followed by whitespace or the end). */
+export function firstSentences(s: string, max = 2): string {
+  const re = /[.!?]+(?=\s|$)/g;
+  let count = 0;
+  for (let m = re.exec(s); m; m = re.exec(s)) {
+    if (++count === max) return s.slice(0, m.index + m[0].length);
+  }
+  return s;
+}
+
+// A forint amount: "15 000 Ft", "15\u00a0000 HUF", "15.000 Ft", "1.5 million Ft", "HUF 20 000" (not "EUR/HUF 364.4").
+// \s covers the normal space, NBSP and narrow NBSP thousands separators.
+const AMOUNT_RE =
+  /(?<![/A-Za-z])(HUF\s?)?(\d{1,3}(?:[\s.,]\d{3})+|\d+)(?:[.,](\d{1,2}))?(?:\s?(million|mn|m)(?![A-Za-z]))?(?:\s?(Ft|HUF|forints?)(?![A-Za-z]))?/gi;
+
+/** Forint amounts mentioned in `s`, in HUF minor units. */
+export function hufAmountsMinor(s: string): number[] {
+  const out: number[] = [];
+  for (const m of s.matchAll(AMOUNT_RE)) {
+    const [, prefix, int, dec, mult, suffix] = m;
+    if (!prefix && !suffix) continue;
+    let major = Number(int.replace(/[\s.,]/g, '')) + (dec ? Number(`0.${dec}`) : 0);
+    if (mult) major *= 1_000_000;
+    out.push(Math.round(major * 100));
+  }
+  return out;
+}
+
+export type BriefLimits = { maxMinor: number | null; stale: boolean };
+
+/** Highest amount the AI may name: the larger of `left` and the pull-forward room; null when neither is known. */
+export function limitsFor(n: BriefNumbers): BriefLimits {
+  const { leftMinor, pullForwardRoomMinor: room } = n.month;
+  const maxMinor = leftMinor === null && room === null ? null : Math.max(leftMinor ?? 0, room ?? 0);
+  return { maxMinor, stale: n.stale };
+}
+
+/** Null when the text names a forint amount it may not: any amount when stale or no limit is known, else one above the limit. */
+function withinLimits(t: string | null, limits: BriefLimits): string | null {
+  if (t === null) return null;
+  const amounts = hufAmountsMinor(t);
+  if (amounts.length === 0) return t;
+  if (limits.stale || limits.maxMinor === null) return null;
+  return amounts.some((a) => a > limits.maxMinor!) ? null : t;
+}
+
 export function normalizeBrief(
   raw: unknown,
   allowedIds: Set<string>,
+  limits: BriefLimits,
 ): { notification: string | null; what_happened: string | null; this_month: string | null; news_ids: string[] } {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const note = text(r.notification);
   const ids = Array.isArray(r.news_ids) ? r.news_ids : [];
   return {
-    notification: note === null ? null : cutAtWord(note.replace(/\s+/g, ' ')),
+    notification: withinLimits(note === null ? null : cutAtWord(firstSentences(note.replace(/\s+/g, ' '), 2)), limits),
+    // what_happened explains the news, it is not money advice, so it is not amount-checked.
     what_happened: text(r.what_happened),
-    this_month: text(r.this_month),
+    this_month: withinLimits(text(r.this_month), limits),
     news_ids: [...new Set(ids.filter((id): id is string => typeof id === 'string' && allowedIds.has(id)))],
   };
 }
@@ -296,6 +359,7 @@ export function normalizeBrief(
 // ---- fallback notification (AI unavailable) ----
 
 export function fallbackNotification(n: BriefNumbers): string {
+  // Unknown holdings (no snapshot) are always stale, so they get the market/EUR-HUF lead and the update prompt.
   const hasHoldings = n.holdings.length > 0;
   const lead = hasHoldings
     ? n.portfolioWeek !== null ? `Portfolio ${pctText(n.portfolioWeek)} this week.` : null

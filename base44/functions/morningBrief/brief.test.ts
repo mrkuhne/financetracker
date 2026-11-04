@@ -1,6 +1,6 @@
 import {
   BRIEF_SCHEMA, WORLD_ETF_SYMBOL, briefCatalogNames, briefNumbers, buildBriefPrompt, cutAtWord, fallbackNotification,
-  hufText, normalizeBrief, pctText, pickNews, type BriefNumbers, type BriefSnapshot,
+  firstSentences, hufAmountsMinor, hufText, limitsFor, normalizeBrief, pctText, pickNews, type BriefNumbers, type BriefSnapshot,
 } from './brief.ts';
 
 const snap = (over: Partial<BriefSnapshot> = {}): BriefSnapshot => ({
@@ -72,6 +72,8 @@ describe('briefNumbers', () => {
   it('portfolioWeek is value-weighted (cost fallback), bonds excluded', () => {
     const n = briefNumbers({ snapshot: snap(), today: '2026-11-04', investedThisMonthMinor: 0, moves, eurHuf: fx });
     expect(n.portfolioWeek).toBeCloseTo((0.01 * 6_000_000 + 0.004 * 2_000_000) / 8_000_000, 12);
+    const missingWeek = briefNumbers({ snapshot: snap(), today: '2026-11-04', investedThisMonthMinor: 0, moves: { ...moves, AAPL: { day: 0.01, week: null } }, eurHuf: fx });
+    expect(missingWeek.portfolioWeek).toBeNull(); // no subset figure
     const bondsOnly = snap({ holdings: [snap().holdings[2]] });
     expect(briefNumbers({ snapshot: bondsOnly, today: '2026-11-04', investedThisMonthMinor: 0, moves, eurHuf: fx }).portfolioWeek).toBeNull();
   });
@@ -172,11 +174,12 @@ describe('buildBriefPrompt', () => {
 
 describe('normalizeBrief', () => {
   const allowed = new Set(['n1', 'n2']);
+  const LIM = { maxMinor: 1_500_000, stale: false };
 
   it('cuts a 300-char notification to <= 180 at a word boundary', () => {
     const long = Array.from({ length: 60 }, (_, i) => `word${i}`).join(' ');
     expect(long.length).toBeGreaterThan(300);
-    const out = normalizeBrief({ notification: long, what_happened: 'x', this_month: 'y', news_ids: [] }, allowed);
+    const out = normalizeBrief({ notification: long, what_happened: 'x', this_month: 'y', news_ids: [] }, allowed, LIM);
     expect(out.notification!.length).toBeLessThanOrEqual(180);
     expect(out.notification!.endsWith('…')).toBe(true);
     const body = out.notification!.slice(0, -1);
@@ -184,22 +187,89 @@ describe('normalizeBrief', () => {
   });
 
   it('drops unknown ids and dedupes', () => {
-    const out = normalizeBrief({ notification: 'Hi.', what_happened: 'a', this_month: 'b', news_ids: ['n1', 'zzz', 'n1', 5, 'n2'] }, allowed);
+    const out = normalizeBrief({ notification: 'Hi.', what_happened: 'a', this_month: 'b', news_ids: ['n1', 'zzz', 'n1', 5, 'n2'] }, allowed, LIM);
     expect(out.news_ids).toEqual(['n1', 'n2']);
   });
 
   it('missing or blank fields -> null (Review Focus 5)', () => {
-    expect(normalizeBrief({ notification: '  ', news_ids: 'n1' }, allowed)).toEqual({ notification: null, what_happened: null, this_month: null, news_ids: [] });
-    expect(normalizeBrief(null, allowed)).toEqual({ notification: null, what_happened: null, this_month: null, news_ids: [] });
+    expect(normalizeBrief({ notification: '  ', news_ids: 'n1' }, allowed, LIM)).toEqual({ notification: null, what_happened: null, this_month: null, news_ids: [] });
+    expect(normalizeBrief(null, allowed, LIM)).toEqual({ notification: null, what_happened: null, this_month: null, news_ids: [] });
   });
 
   it('trims and keeps short text as is', () => {
-    expect(normalizeBrief({ notification: '  Calm day.  ', what_happened: ' a ', this_month: 'b' }, allowed).notification).toBe('Calm day.');
+    expect(normalizeBrief({ notification: '  Calm day.  ', what_happened: ' a ', this_month: 'b' }, allowed, LIM).notification).toBe('Calm day.');
+  });
+
+  it('keeps at most two sentences before the 180-char cut', () => {
+    const out = normalizeBrief({ notification: 'Calm week, +0.8%. Nothing to do today! Third sentence here. Fourth?' }, allowed, LIM);
+    expect(out.notification).toBe('Calm week, +0.8%. Nothing to do today!');
+    expect(firstSentences('One. Two')).toBe('One. Two');
+  });
+
+  it('drops this_month / notification naming an amount above the limit; what_happened is untouched', () => {
+    const raw = {
+      notification: 'Markets calm. Put 50 000 Ft into ETFs.',
+      what_happened: 'A fund raised 200 000 Ft from savers.',
+      this_month: 'Put the 15 000 Ft left into ETFs.',
+    };
+    const out = normalizeBrief(raw, allowed, LIM);
+    expect(out.notification).toBeNull();
+    expect(out.this_month).toBe('Put the 15 000 Ft left into ETFs.');
+    expect(out.what_happened).toBe(raw.what_happened);
+    expect(normalizeBrief({ this_month: 'Invest 15\u202f001 HUF.' }, allowed, LIM).this_month).toBeNull();
+  });
+
+  it('stale or no limit: any amount nulls the field; text without amounts stays', () => {
+    const raw = { notification: 'EUR/HUF 364.4. Portfolio +0.8% this week.', this_month: 'You could invest 1 000 Ft.' };
+    const stale = normalizeBrief(raw, allowed, { maxMinor: 1_500_000, stale: true });
+    expect(stale.this_month).toBeNull();
+    expect(stale.notification).toBe(raw.notification); // a rate is not an amount
+    expect(normalizeBrief(raw, allowed, { maxMinor: null, stale: false }).this_month).toBeNull();
+    expect(normalizeBrief({ this_month: 'Open the app to update.' }, allowed, { maxMinor: null, stale: true }).this_month).toBe('Open the app to update.');
+  });
+
+  it('hufAmountsMinor reads the common forint spellings', () => {
+    expect(hufAmountsMinor('15 000 Ft, 15\u00a0000 HUF, 15\u202f000 Ft, 15.000 Ft, 15,000 forints')).toEqual(Array(5).fill(1_500_000));
+    expect(hufAmountsMinor('HUF 20 000 and 1.5 million Ft and 99,50 Ft')).toEqual([2_000_000, 150_000_000, 9_950]);
+    expect(hufAmountsMinor('EUR/HUF 364.4, +0.8%, 2026')).toEqual([]);
   });
 
   it('cutAtWord hard-cuts a single giant word', () => {
     const out = cutAtWord('x'.repeat(400));
     expect(out).toHaveLength(180);
+  });
+});
+
+describe('limitsFor', () => {
+  it('takes the larger of left and room, null when neither is known', () => {
+    const n = briefNumbers({ snapshot: snap(), today: '2026-11-04', investedThisMonthMinor: 4_000_000, moves, eurHuf: fx });
+    expect(limitsFor(n)).toEqual({ maxMinor: 2_000_000, stale: false });
+    const part = briefNumbers({ snapshot: snap(), today: '2026-11-04', investedThisMonthMinor: 2_500_000, moves, eurHuf: fx });
+    expect(limitsFor(part)).toEqual({ maxMinor: 2_000_000, stale: false }); // room 2M > left 1.5M
+    const st = briefNumbers({ snapshot: snap({ month: '2026-10' }), today: '2026-11-01', investedThisMonthMinor: 0, moves, eurHuf: fx });
+    expect(limitsFor(st)).toEqual({ maxMinor: null, stale: true });
+  });
+});
+
+describe('unknown holdings (no snapshot)', () => {
+  const n = briefNumbers({ snapshot: null, today: '2026-11-04', investedThisMonthMinor: 0, moves: { [WORLD_ETF_SYMBOL]: { day: 0.006, week: null } }, eurHuf: fx });
+
+  it('marks holdings unknown and incomplete', () => {
+    expect(n.holdingsKnown).toBe(false);
+    expect(n.incomplete).toBe(true);
+    expect(briefNumbers({ snapshot: snap(), today: '2026-11-04', investedThisMonthMinor: 0, moves, eurHuf: fx }).holdingsKnown).toBe(true);
+  });
+
+  it('prompt says unknown, not "no investments"', () => {
+    const p = buildBriefPrompt(n, [], null, []);
+    expect(p).toMatch(/holdings are unknown until they open the app/);
+    expect(p).not.toContain('The user has no investments yet.');
+  });
+
+  it('fallback uses the market sentence and the update prompt', () => {
+    expect(fallbackNotification(n)).toBe("Markets: world ETF +0.6% today. Open the app to update this month's numbers.");
+    const noMarket = briefNumbers({ snapshot: null, today: '2026-11-04', investedThisMonthMinor: 0, moves: {}, eurHuf: fx });
+    expect(fallbackNotification(noMarket)).toBe("EUR/HUF 364.4. Open the app to update this month's numbers.");
   });
 });
 
@@ -210,6 +280,7 @@ describe('fallbackNotification', () => {
     eurHuf: { rate: 364.42, weekChange: null },
     month: { suggestedMinor: 4_000_000, investedMinor: 2_500_000, leftMinor: 1_500_000, pullForwardRoomMinor: 0 },
     incomplete: false,
+    holdingsKnown: true,
     portfolioWeek: 0.008,
     market: null,
   };
