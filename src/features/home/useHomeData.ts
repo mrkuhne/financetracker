@@ -16,6 +16,25 @@ export interface HomeData {
   accounts: Account[]; model: HomeModel; pending: YearMonth[];
 }
 
+/** Loads everything Home/Breakdown need and builds the model. Throws when a load fails. */
+export async function loadHomeData(): Promise<HomeData> {
+  const [settings, rules, txns, closes, accounts] = await Promise.all([
+    getSettings(), listRules(), listAllTransactions(), listMonthCloses(), listAccounts(),
+  ]);
+  const today = todayInTz(settings.timezone);
+  // Non-HUF accounts are valued at today's rate; a failed lookup just values that account at 0.
+  const rates: Record<string, number> = {};
+  for (const c of new Set(accounts.filter((a) => !a.archived && a.currency !== 'HUF').map((a) => a.currency))) {
+    try { rates[c] = await getHufPerUnit(c, today); } catch { /* leave unvalued */ }
+  }
+  const earliest = txns.length ? monthOf(txns.reduce((m, t) => (t.date < m ? t.date : m), txns[0].date)) : null;
+  return {
+    today, rules, txns, settings, closes, accounts,
+    model: buildHomeModel({ today, rules, txns, settings, closes, accounts, rates }),
+    pending: monthsToClose(today, earliest, closes),
+  };
+}
+
 /** Loads everything Home/Breakdown need; reloads on `txns-changed` and via `reload()`. */
 export function useHomeData() {
   const [data, setData] = useState<HomeData | null>(null);
@@ -25,22 +44,9 @@ export function useHomeData() {
   const reload = useCallback(async () => {
     const id = ++reqId.current;
     try {
-      const [settings, rules, txns, closes, accounts] = await Promise.all([
-        getSettings(), listRules(), listAllTransactions(), listMonthCloses(), listAccounts(),
-      ]);
-      const today = todayInTz(settings.timezone);
-      // Non-HUF accounts are valued at today's rate; a failed lookup just values that account at 0.
-      const rates: Record<string, number> = {};
-      for (const c of new Set(accounts.filter((a) => !a.archived && a.currency !== 'HUF').map((a) => a.currency))) {
-        try { rates[c] = await getHufPerUnit(c, today); } catch { /* leave unvalued */ }
-      }
+      const loaded = await loadHomeData();
       if (id !== reqId.current) return;
-      const earliest = txns.length ? monthOf(txns.reduce((m, t) => (t.date < m ? t.date : m), txns[0].date)) : null;
-      setData({
-        today, rules, txns, settings, closes, accounts,
-        model: buildHomeModel({ today, rules, txns, settings, closes, accounts, rates }),
-        pending: monthsToClose(today, earliest, closes),
-      });
+      setData(loaded);
       setFailed(false);
     } catch {
       if (id === reqId.current) setFailed(true);

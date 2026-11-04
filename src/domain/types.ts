@@ -55,6 +55,21 @@ export interface Settings {
   invest_suggested_log: Record<YearMonth, number>;
 }
 
+/** Numbers the server's morning brief reads; written by the client on every app start/resume. */
+export interface BriefSnapshot {
+  month: YearMonth;
+  computed_at: string;
+  suggestion: { kind: 'no_data' | 'nothing_spare' | 'amount'; amountMinor: number | null; source: 'computed' | 'setting' | null };
+  split: Record<AssetType, number> | null;
+  emergencyDone: boolean;
+  remainingMinor: number;
+  dailySpendMinor: number;
+  holdings: {
+    holding_id: string; name: string; asset_type: AssetType; quote_symbol: string | null; currency: string;
+    costMinor: number; valueMinor: number | null;
+  }[];
+}
+
 export interface MonthClose {
   id: string;
   month: YearMonth;

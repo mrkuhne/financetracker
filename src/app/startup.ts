@@ -3,6 +3,7 @@ import { getSettings } from '@/data/settings';
 import { todayInTz } from '@/domain/dates';
 import type { ISODate } from '@/domain/types';
 import { notifyTxnsChanged } from '@/features/transactions/events';
+import { refreshBriefSnapshot } from './briefSnapshot';
 import { runConvertSms } from './runConvertSms';
 import { runMaterialize } from './runMaterialize';
 
@@ -54,6 +55,7 @@ function listenForResume() {
     if (document.visibilityState !== 'visible') return;
     void resumeIfNewDay();
     void convertSms();
+    void refreshBriefSnapshot();
   });
 }
 
@@ -70,6 +72,7 @@ export function runStartup(): Promise<StartupResult> {
     }
     // Not awaited: conversion can be slow (FX lookups) and notifies on its own when done.
     void convertSms();
+    void refreshBriefSnapshot();
     listenForResume();
     done = { ok: true };
     return done;

@@ -40,6 +40,9 @@
     "invest_suggested_log": {
       "type": "object"
     },
+    "brief_snapshot": {
+      "type": ["object", "null"]
+    },
     "has_expensive_debt": {
       "type": [
         "boolean",

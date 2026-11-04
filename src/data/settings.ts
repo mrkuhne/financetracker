@@ -1,5 +1,5 @@
 import { base44 } from '@/data/client';
-import type { GuideCache, InvestCache, Settings } from '@/domain/types';
+import type { BriefSnapshot, GuideCache, InvestCache, Settings } from '@/domain/types';
 
 export const DEFAULT_SETTINGS: Settings = {
   base_currency: 'HUF',
@@ -54,4 +54,8 @@ export async function getInvestCache(): Promise<InvestCache | null> {
 
 export async function saveInvestCache(c: InvestCache): Promise<void> {
   await base44.auth.updateMe({ invest_cache: c });
+}
+
+export async function saveBriefSnapshot(s: BriefSnapshot, suggestedLog?: Record<string, number>): Promise<void> {
+  await base44.auth.updateMe(suggestedLog ? { brief_snapshot: s, invest_suggested_log: suggestedLog } : { brief_snapshot: s });
 }

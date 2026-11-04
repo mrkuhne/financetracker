@@ -12,6 +12,25 @@ import { buildInvestCore, isEmergencyDone, quoteSymbolsFor, sharedCall, type Inv
 
 export interface InvestModel extends InvestCore { home: HomeData }
 
+/** Holdings, investment txns, quotes and the month's suggestion for loaded Home data. Throws when a load fails. */
+export async function loadInvestCore(home: HomeData): Promise<InvestCore> {
+  const [goals, holdings, txns] = await Promise.all([listGoals(), listHoldings(), listInvestmentTxns()]);
+  // A quote failure leaves holdings unpriced rather than failing the screen.
+  const quotes = await refreshQuotes(quoteSymbolsFor(holdings), home.today).catch(() => []);
+  const hufPerUnit: Record<string, number | null> = {};
+  for (const c of new Set(quotes.map((q) => q.currency).filter((c) => c !== 'HUF'))) {
+    try { hufPerUnit[c] = await getHufPerUnit(c, home.today); } catch { hufPerUnit[c] = null; }
+  }
+  const planning = buildPlanningModel({ today: home.today, rules: home.rules, txns: home.txns, settings: home.settings, closes: home.closes });
+  const balances: Record<string, number> = {};
+  for (const a of home.model.accounts) balances[a.account.id] = a.balanceHufMinor;
+  const emergencyDone = isEmergencyDone(goals, balances, home.settings.emergency_fund_months, planning.avgExpensesMinor);
+  return buildInvestCore({
+    today: home.today, settings: home.settings, monthly: home.model.monthly, planning, emergencyDone,
+    holdings, txns, quotes, hufPerUnit,
+  });
+}
+
 /** Home data plus holdings, investment txns, quotes and the month's suggestion; reloads whenever Home data reloads. */
 export function useInvestData() {
   const { data: home, failed: homeFailed, reload: reloadHome } = useHomeData();
@@ -24,25 +43,9 @@ export function useInvestData() {
     const id = ++reqId.current;
     void (async () => {
       try {
-        const [goals, holdings, txns] = await Promise.all([listGoals(), listHoldings(), listInvestmentTxns()]);
-        // A quote failure leaves holdings unpriced rather than failing the screen.
-        const quotes = await refreshQuotes(quoteSymbolsFor(holdings), home.today).catch(() => []);
-        const hufPerUnit: Record<string, number | null> = {};
-        for (const c of new Set(quotes.map((q) => q.currency).filter((c) => c !== 'HUF'))) {
-          try { hufPerUnit[c] = await getHufPerUnit(c, home.today); } catch { hufPerUnit[c] = null; }
-        }
+        const core = await loadInvestCore(home);
         if (id !== reqId.current) return;
-        const planning = buildPlanningModel({ today: home.today, rules: home.rules, txns: home.txns, settings: home.settings, closes: home.closes });
-        const balances: Record<string, number> = {};
-        for (const a of home.model.accounts) balances[a.account.id] = a.balanceHufMinor;
-        const emergencyDone = isEmergencyDone(goals, balances, home.settings.emergency_fund_months, planning.avgExpensesMinor);
-        setData({
-          home,
-          ...buildInvestCore({
-            today: home.today, settings: home.settings, monthly: home.model.monthly, planning, emergencyDone,
-            holdings, txns, quotes, hufPerUnit,
-          }),
-        });
+        setData({ home, ...core });
         setFailed(false);
       } catch {
         if (id === reqId.current) setFailed(true);
