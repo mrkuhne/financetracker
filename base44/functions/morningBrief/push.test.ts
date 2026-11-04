@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyPushResult, vapidJwks } from './pushResult.ts';
+import { classifyPushResult, digestPushStatus, vapidJwks } from './pushResult.ts';
 
 describe('classifyPushResult', () => {
   it('ok is sent', () => expect(classifyPushResult({ ok: true })).toBe('sent'));
@@ -24,5 +24,16 @@ describe('vapidJwks', () => {
   it('rejects malformed keys', () => {
     expect(() => vapidJwks('abc', priv)).toThrow();
     expect(() => vapidJwks(pub, 'abc')).toThrow();
+  });
+});
+
+describe('digestPushStatus', () => {
+  it('no subscriptions is skipped', () => expect(digestPushStatus([])).toEqual({ status: 'skipped', error: null }));
+  it('any sent is sent', () => expect(digestPushStatus(['failed', 'sent', 'gone'])).toEqual({ status: 'sent', error: null }));
+  it('all gone is failed with subscription expired', () =>
+    expect(digestPushStatus(['gone', 'gone'])).toEqual({ status: 'failed', error: 'subscription expired' }));
+  it('failed or mixed failed/gone is failed', () => {
+    expect(digestPushStatus(['failed'])).toEqual({ status: 'failed', error: 'push failed' });
+    expect(digestPushStatus(['gone', 'failed'], 'push_500')).toEqual({ status: 'failed', error: 'push_500' });
   });
 });

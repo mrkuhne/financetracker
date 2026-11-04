@@ -2,9 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { SEED_SOURCES } from '../../shared/news.ts';
 import {
   aiBatch,
-  budapestDate,
-  chunk,
-  duplicateIds,
   expiredIds,
   holdingsFromSnapshot,
   intervalHours,
@@ -16,9 +13,10 @@ import {
   planFetch,
   readCappedText,
   selectNewItems,
-  usageTotals,
   type SourceRow,
 } from './logic.ts';
+import { budapestDate } from '../../shared/chart.ts';
+import { chunk, duplicateIds, usageTotals } from '../../shared/rows.ts';
 
 const NOW = '2026-11-04T12:00:00.000Z';
 

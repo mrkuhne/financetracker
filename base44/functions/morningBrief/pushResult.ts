@@ -32,3 +32,17 @@ export function vapidJwks(publicKey: string, privateKey: string): { publicKey: J
   const base = { kty: 'EC', crv: 'P-256', x, y, ext: true };
   return { publicKey: { ...base }, privateKey: { ...base, d: b64urlEncode(d) } };
 }
+
+/**
+ * Digest-level push outcome: nothing to send is skipped, any delivery is sent, otherwise failed —
+ * 'subscription expired' when every subscription is gone, else `failedError` (or 'push failed').
+ */
+export function digestPushStatus(
+  results: ('sent' | 'gone' | 'failed')[],
+  failedError?: string,
+): { status: 'sent' | 'failed' | 'skipped'; error: string | null } {
+  if (results.length === 0) return { status: 'skipped', error: null };
+  if (results.includes('sent')) return { status: 'sent', error: null };
+  if (results.every((r) => r === 'gone')) return { status: 'failed', error: 'subscription expired' };
+  return { status: 'failed', error: failedError || 'push failed' };
+}
