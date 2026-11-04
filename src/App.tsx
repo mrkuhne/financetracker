@@ -21,6 +21,8 @@ import { SavingsScreen } from '@/features/plan/SavingsScreen';
 import { InvestScreen } from '@/features/invest/InvestScreen';
 import { AssetTypeScreen } from '@/features/invest/AssetTypeScreen';
 import { HoldingScreen } from '@/features/invest/HoldingScreen';
+import { NewsScreen } from '@/features/news/NewsScreen';
+import { BriefScreen } from '@/features/news/BriefScreen';
 import { Screen } from '@/features/shell/Screen';
 
 export default function App() {
@@ -44,6 +46,8 @@ export default function App() {
             <Route path="/invest" element={<InvestScreen />} />
             <Route path="/invest/type/:type" element={<AssetTypeScreen />} />
             <Route path="/invest/holding/:id" element={<HoldingScreen />} />
+            <Route path="/news" element={<NewsScreen />} />
+            <Route path="/brief/:date" element={<BriefScreen />} />
             <Route path="/accounts" element={<AccountsScreen />} />
             <Route path="/review/:id" element={<ReviewSmsScreen />} />
             <Route path="/settings" element={<SettingsScreen />} />

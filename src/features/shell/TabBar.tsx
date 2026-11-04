@@ -7,6 +7,7 @@ const TABS = [
   { to: '/transactions', label: 'Activity', icon: 'list', roots: ['/transactions', '/recurring'] },
   { to: '/plan', label: 'Plan', icon: 'target', roots: ['/plan', '/savings', '/budgets', '/guide'] },
   { to: '/invest', label: 'Invest', icon: 'chart', roots: ['/invest'] },
+  { to: '/news', label: 'News', icon: 'news', roots: ['/news', '/brief'] },
 ] as const;
 
 export function TabBar() {
