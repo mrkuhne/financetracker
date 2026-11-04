@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plan 5 screens</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Schibsted+Grotesk:wght@400;500;600&display=swap">
+<style>
+:root{--page:#EEE9F0;--bg:#F8F5F9;--surf:#FFF;--surf2:#F1ECF3;--ink:#1E1724;--sub:#655A6E;--faint:#958A9C;--hair:rgba(30,23,36,.10);
+--accent:#B05F26;--ai:#5B4BC4;--good:#2F8A5B;--warn:#A87A12;--bad:#C2453B;
+--display:"Instrument Serif",Georgia,serif;--body:"Schibsted Grotesk",-apple-system,system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:14px/1.45 var(--body);padding:24px max(16px,env(safe-area-inset-left)) 60px}
+h1{font:400 34px/1.1 var(--display);margin:0 0 6px}
+.lead{color:var(--sub);max-width:70ch;margin:0 0 22px}
+.row{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.col{display:flex;flex-direction:column;gap:10px;width:340px;max-width:100%}
+.cap{font-weight:600}.cap small{display:block;font-weight:400;color:var(--sub)}
+.phone{background:var(--bg);border:10px solid #2A2230;border-radius:38px;overflow:hidden;min-height:640px;display:flex;flex-direction:column}
+.top{padding:14px 18px 6px;display:flex;align-items:center;gap:10px}
+.top .t{font:400 28px var(--display)}
+.back{color:var(--accent);font-weight:500}
+.body{padding:6px 14px 14px;display:flex;flex-direction:column;gap:10px;flex:1}
+.card{background:var(--surf);border-radius:16px;padding:14px;box-shadow:0 1px 0 var(--hair)}
+.lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:600;margin-bottom:6px}
+.ai{border-left:3px solid var(--ai)}
+.ai .lbl{color:var(--ai)}
+.num{font-variant-numeric:tabular-nums}
+.line{display:flex;justify-content:space-between;gap:8px;padding:5px 0}
+.up{color:var(--good)}.down{color:var(--bad)}.sub{color:var(--sub)}.faint{color:var(--faint);font-size:12px}
+.chip{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;background:var(--surf2);color:var(--sub);margin-right:4px}
+.chip.mine{background:#F3E4D8;color:var(--accent);font-weight:600}
+.news{padding:10px 0;border-top:1px solid var(--hair)}.news:first-child{border-top:0}
+.news b{font-weight:600}
+.tabs{display:flex;justify-content:space-around;padding:10px 6px 16px;border-top:1px solid var(--hair);background:var(--surf);font-size:11px;color:var(--faint)}
+.tabs .on{color:var(--accent);font-weight:600}
+.btn{background:var(--accent);color:#fff;border-radius:12px;padding:11px;text-align:center;font-weight:600}
+.toggle{width:42px;height:24px;border-radius:99px;background:var(--good);position:relative;flex:0 0 auto}.toggle:after{content:"";position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+.notif{background:rgba(255,255,255,.85);border-radius:16px;padding:10px 12px;margin:12px;box-shadow:0 4px 20px rgba(0,0,0,.12);font-size:13px}
+.notif .h{display:flex;justify-content:space-between;color:var(--faint);font-size:11px;margin-bottom:3px}
+.lock{background:linear-gradient(160deg,#6b5a7a,#2a2230);min-height:200px;border-radius:28px;padding:8px 0 16px;border:10px solid #2A2230}
+.lock .time{color:#fff;text-align:center;font:300 54px/1 var(--body);padding:16px 0 4px}
+h2{font:400 26px var(--display);margin:40px 0 4px}
+.options{display:flex;flex-wrap:wrap;gap:14px}
+.option{background:var(--surf);border:2px solid var(--hair);border-radius:16px;padding:14px;width:340px;max-width:100%;cursor:pointer}
+.option.selected{border-color:var(--accent)}
+.option h3{margin:0 0 4px;font-size:15px}
+.letter{display:inline-block;width:24px;height:24px;border-radius:50%;background:var(--surf2);text-align:center;line-height:24px;font-weight:600;margin-bottom:6px}
+</style></head><body>
+<h1>Plan 5: news and morning brief</h1>
+<p class="lead">Sample data only (you have no investments yet). Four views: the notification on the lock screen, the brief it opens, the news list, and the settings. Below them, one choice: where the news lives in the app.</p>
+
+<div class="row">
+ <div class="col">
+  <div class="cap">1 · The 7:00 notification<small>Two sentences. Tapping it opens the brief.</small></div>
+  <div class="lock">
+   <div class="time">7:00</div>
+   <div class="notif"><div class="h"><span>FINANCE</span><span>now</span></div>
+    <b>Morning brief</b><br>Your portfolio is up 0.8% this week, which is a normal swing. You have 15 000 Ft left to invest this month, and buying ETF this week is fine.</div>
+  </div>
+ </div>
+
+ <div class="col">
+  <div class="cap">2 · Morning brief<small>Your holdings, the AI's read, and what to do with this month's money.</small></div>
+  <div class="phone">
+   <div class="top"><span class="back">‹ Home</span></div>
+   <div class="top" style="padding-top:0"><span class="t">Wed 4 Nov</span></div>
+   <div class="body">
+    <div class="card">
+     <div class="lbl">Your investments</div>
+     <div class="line"><span>Global ETF (VWCE)</span><span class="num"><span class="up">+0.6%</span> day · <span class="up">+1.9%</span> week</span></div>
+     <div class="line"><span>Gov bond (PMÁP)</span><span class="num sub">fixed · +0.02% day</span></div>
+     <div class="line"><span>EUR/HUF</span><span class="num">364.4 · <span class="down">−0.4%</span> week</span></div>
+     <div class="faint">Prices: Yahoo, ECB · closing prices from yesterday</div>
+    </div>
+    <div class="card ai">
+     <div class="lbl">What happened</div>
+     US tech stocks rose after the Fed held rates, and your ETF followed. The forint got slightly stronger, which trims your euro gains a little. Nothing here needs action.
+     <div class="faint" style="margin-top:6px">Based on 3 news items · CNBC, ECB, BBJ</div>
+    </div>
+    <div class="card ai">
+     <div class="lbl">This month's money</div>
+     <div class="line"><span>Planned for November</span><span class="num">40 000 Ft</span></div>
+     <div class="line"><span>Already bought</span><span class="num">25 000 Ft</span></div>
+     <div class="line"><b>Left</b><b class="num">15 000 Ft</b></div>
+     Put the 15 000 Ft into the ETF this week; the past week was calm, so there is no reason to wait. <span class="sub">(If nothing were left, this card would say whether pulling money forward from December is worth it, only when your allowance and emergency fund stay safe.)</span>
+    </div>
+    <div class="faint">Educational, not financial advice. You decide and record the buy.</div>
+   </div>
+  </div>
+ </div>
+
+ <div class="col">
+  <div class="cap">3 · News list<small>English sources, newest first. Items that touch your money are marked.</small></div>
+  <div class="phone">
+   <div class="top"><span class="t">News</span></div>
+   <div class="body">
+    <div><span class="chip mine">Mine</span><span class="chip">All</span><span class="chip">Rates</span><span class="chip">Forint</span><span class="chip">Markets</span><span class="chip">Housing</span></div>
+    <div class="card">
+     <div class="news"><span class="chip mine">Your ETF</span><span class="faint">CNBC · 2 h</span><br><b>Stocks climb as Fed holds rates steady</b><div class="sub">Markets read the pause as a sign cuts may come in spring.</div></div>
+     <div class="news"><span class="chip mine">Forint</span><span class="faint">BBJ · 5 h</span><br><b>Forint firms against euro ahead of MNB meeting</b><div class="sub">Traders expect the base rate to stay at 6.5%.</div></div>
+     <div class="news"><span class="chip">Inflation</span><span class="faint">ECB · 9 h</span><br><b>Euro area inflation eases to 2.1% in October</b><div class="sub">Flash estimate, down from 2.3% in September.</div></div>
+     <div class="news"><span class="chip">Housing</span><span class="faint">Hungary Today · 1 d</span><br><b>Budapest flat prices up 9% year on year</b><div class="sub">Growth slowed for the second quarter in a row.</div></div>
+    </div>
+    <div class="faint">Each item opens the original article. One-line summaries are written by AI.</div>
+   </div>
+   <div class="tabs"><span>Home</span><span>Activity</span><span>Plan</span><span>Invest</span><span class="on">News</span></div>
+  </div>
+ </div>
+
+ <div class="col">
+  <div class="cap">4 · Settings → Morning brief<small>Turn it on with a tap (iPhone asks for permission here).</small></div>
+  <div class="phone">
+   <div class="top"><span class="back">‹ Settings</span></div>
+   <div class="top" style="padding-top:0"><span class="t">Morning brief</span></div>
+   <div class="body">
+    <div class="card">
+     <div class="line"><span>Notifications on this phone</span><span class="toggle"></span></div>
+     <div class="line"><span>Time</span><span class="num">07:00</span></div>
+     <div class="faint">Works only when the app is on your Home Screen.</div>
+    </div>
+    <div class="card">
+     <div class="line"><span>Collect news</span><span>every 4 hours</span></div>
+     <div class="faint">Each round uses a few Base44 AI credits.</div>
+    </div>
+    <div class="card">
+     <div class="lbl">Last brief</div>
+     <div class="line"><span>Today 7:00</span><span class="up">sent</span></div>
+     <div class="faint">If a send fails, the reason shows here.</div>
+    </div>
+    <div class="btn">Send a test notification</div>
+   </div>
+  </div>
+ </div>
+</div>
+
+<h2>Where should News live?</h2>
+<p class="lead">Click one (or tell me in the chat).</p>
+<div class="options">
+ <div class="option" data-choice="tab" onclick="toggleSelect(this)"><div class="letter">A</div><h3>Its own tab</h3>A fifth tab at the bottom: Home · Activity · Plan · Invest · News (as in screen 3). One tap to the news any time.</div>
+ <div class="option" data-choice="home" onclick="toggleSelect(this)"><div class="letter">B</div><h3>From Home</h3>Home gets a "Morning brief" card at the top; News opens from there. The bottom bar stays at four tabs.</div>
+</div>
+</body></html>
