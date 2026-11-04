@@ -1,4 +1,5 @@
 import type { AssetType, Holding, InvestmentTxn, ISODate, PriceQuote, RiskProfile } from './types';
+import { OVERSPEND_CAP_SHARE, leftThisMonthMinor } from '@shared/brief';
 import { addMonths, compareDates, daysBetweenInclusive, daysInMonth, monthOf } from './dates';
 
 export const ASSET_TYPES: AssetType[] = ['bond', 'etf', 'stock', 'crypto'];
@@ -24,6 +25,8 @@ export type Suggestion =
 export function suggestInvestment(i: {
   trackedMonths: number; avgIncomeMinor: number; avgExpensesMinor: number; savingsTargetMinor: number;
   freeBeforeInvestMinor: number; emergencyDone: boolean; settingMinor: number | null;
+  /** Last month's buys above what was suggested; trims a computed amount (up to the cap share). */
+  prevExcessMinor: number;
 }): Suggestion {
   if (i.settingMinor !== null && i.settingMinor > 0) {
     return { kind: 'amount', amountMinor: i.settingMinor, source: 'setting', emergencyDone: i.emergencyDone };
@@ -34,7 +37,10 @@ export function suggestInvestment(i: {
   if (available <= 0) return { kind: 'nothing_spare' };
   const share = i.emergencyDone ? INVEST_RULES.shareAfterEmergency : INVEST_RULES.shareBeforeEmergency;
   const step = INVEST_RULES.roundToMinor;
-  const amountMinor = Math.floor((available * share) / step) * step;
+  const raw = available * share;
+  const excess = Number.isFinite(i.prevExcessMinor) ? Math.max(0, i.prevExcessMinor) : 0;
+  const trim = Math.min(excess, Math.floor(raw * OVERSPEND_CAP_SHARE));
+  const amountMinor = Math.floor((raw - trim) / step) * step;
   if (amountMinor <= 0) return { kind: 'nothing_spare' };
   return { kind: 'amount', amountMinor, source: 'computed', emergencyDone: i.emergencyDone };
 }
@@ -201,6 +207,6 @@ export function monthCard(suggestedMinor: number, investedThisMonthMinor: number
   return {
     suggestedMinor,
     investedMinor: investedThisMonthMinor,
-    leftMinor: Math.max(0, suggestedMinor - investedThisMonthMinor),
+    leftMinor: leftThisMonthMinor(suggestedMinor, investedThisMonthMinor),
   };
 }

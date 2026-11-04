@@ -7,7 +7,7 @@ import type { AssetType, Holding, InvestmentTxn, PriceQuote } from './types';
 
 const base = {
   trackedMonths: 3, avgIncomeMinor: 60_000_000, avgExpensesMinor: 40_000_000, savingsTargetMinor: 5_000_000,
-  freeBeforeInvestMinor: 30_000_000, emergencyDone: false, settingMinor: null as number | null,
+  freeBeforeInvestMinor: 30_000_000, emergencyDone: false, settingMinor: null as number | null, prevExcessMinor: 0,
 };
 
 describe('suggestInvestment', () => {
@@ -234,4 +234,17 @@ describe('monthCard', () => {
     expect(monthCard(5_000_000, 6_000_000)).toEqual({ suggestedMinor: 5_000_000, investedMinor: 6_000_000, leftMinor: 0 });
     expect(monthCard(5_000_000, 2_000_000).leftMinor).toBe(3_000_000);
   });
+});
+
+describe('suggestInvestment overspend trim', () => {
+  const raw4m = { ...base, avgIncomeMinor: 61_000_000, freeBeforeInvestMinor: 16_000_000 }; // raw 4_000_000
+  it('caps the trim at half of the raw amount', () =>
+    expect(suggestInvestment({ ...raw4m, prevExcessMinor: 3_000_000 })).toMatchObject({ amountMinor: 2_000_000 }));
+  it('trims by a smaller excess in full', () =>
+    expect(suggestInvestment({ ...raw4m, prevExcessMinor: 500_000 })).toMatchObject({ amountMinor: 3_500_000 }));
+  it('ignores a negative excess', () =>
+    expect(suggestInvestment({ ...raw4m, prevExcessMinor: -9 })).toMatchObject({ amountMinor: 4_000_000 }));
+  it('does not touch a fixed setting', () =>
+    expect(suggestInvestment({ ...raw4m, settingMinor: 4_000_000, prevExcessMinor: 3_000_000 }))
+      .toMatchObject({ amountMinor: 4_000_000, source: 'setting' }));
 });

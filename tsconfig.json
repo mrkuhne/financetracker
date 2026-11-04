@@ -12,8 +12,9 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "types": ["vite/client", "vitest/globals", "vite-plugin-pwa/client"],
-    "paths": { "@/*": ["./src/*"] }
+    "allowImportingTsExtensions": true,
+    "paths": { "@/*": ["./src/*"], "@shared/*": ["./base44/shared/*"] }
   },
-  "include": ["src", "vite.config.ts", "vitest.config.ts"],
+  "include": ["src", "base44/shared", "vite.config.ts", "vitest.config.ts"],
   "exclude": ["src/sw.ts"]
 }

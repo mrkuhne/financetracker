@@ -3,7 +3,7 @@ import {
   type PortfolioSummary, type Position, type Split, type Suggestion, type Valuation,
 } from '@/domain/invest';
 import type { MonthlyAllowance } from '@/domain/allowance';
-import { compareDates, firstDay, monthOf } from '@/domain/dates';
+import { addMonths, compareDates, firstDay, monthOf } from '@/domain/dates';
 import { allocateGoals, emergencyTargetMinor } from '@/domain/savings';
 import type { AssetType, Holding, InvestCache, InvestmentTxn, ISODate, Platform, PriceQuote, RiskProfile, SavingsGoal, Settings, Txn, YearMonth } from '@/domain/types';
 import { huf } from '@/features/home/fmt';
@@ -109,6 +109,10 @@ export function buildInvestCore(i: {
     summary: portfolioSummary(prePositions.map((p) => ({ type: p.holding.asset_type, v: value(p) }))),
     costByType: costByType(prePositions),
   };
+  const prevMonth = addMonths(month, -1);
+  const prevSuggested = i.settings.invest_suggested_log?.[prevMonth];
+  const prevExcessMinor = typeof prevSuggested === 'number'
+    ? Math.max(0, investedThisMonthMinor(i.txns, prevMonth) - prevSuggested) : 0;
   const suggestion = suggestInvestment({
     trackedMonths: i.planning.trackedMonths,
     avgIncomeMinor: i.planning.avgIncomeMinor,
@@ -117,6 +121,7 @@ export function buildInvestCore(i: {
     freeBeforeInvestMinor: freeBeforeInvestMinor(i.monthly),
     emergencyDone: i.emergencyDone,
     settingMinor: i.settings.monthly_investment_amount_minor,
+    prevExcessMinor,
   });
   const amount = suggestion.kind === 'amount' ? suggestion.amountMinor : null;
   const split = amount !== null ? splitInvestment(amount, i.settings.risk_profile, basis.summary.byType) : null;

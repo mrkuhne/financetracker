@@ -33,6 +33,16 @@ export function completeMonthTotals(txns: Txn[], today: ISODate): MonthTotals[] 
   return out;
 }
 
+/** Expected daily spend: the larger of this month's pace so far and the complete-month average per 30 days; 0 with no data. */
+export function dailySpendMinor(txns: Txn[], today: ISODate): number {
+  const month = monthOf(today);
+  const soFar = sum(txns.filter((t) => monthOf(t.date) === month && isSpend(t)).map((t) => t.amount_huf_minor));
+  const paceNow = Math.ceil(soFar / Number(today.slice(8, 10)));
+  const months = completeMonthTotals(txns, today);
+  const paceHistory = months.length > 0 ? Math.ceil(sum(months.map((m) => m.spendMinor)) / months.length / 30) : 0;
+  return Math.max(paceNow, paceHistory);
+}
+
 function recentAverage(months: MonthTotals[], pick: (m: MonthTotals) => number): number {
   const recent = months.slice(-RECENT_MONTHS);
   return Math.floor(sum(recent.map(pick)) / recent.length);

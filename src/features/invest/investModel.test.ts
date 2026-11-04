@@ -8,7 +8,7 @@ import {
 const settings: Settings = {
   base_currency: 'HUF', monthly_savings_target_minor: 5_000_000, monthly_investment_amount_minor: null, emergency_fund_months: 6,
   week_start: 'monday', digest_time: '07:00', timezone: 'Europe/Budapest', month_overrides: {}, has_expensive_debt: null,
-  risk_profile: 'cautious', risk_checkin_at: null,
+  risk_profile: 'cautious', risk_checkin_at: null, invest_suggested_log: {},
 };
 const monthly: MonthlyAllowance = {
   month: '2026-11', recurringIncomeMinor: 50_000_000, oneOffIncomeMinor: 0, recurringExpensesMinor: 20_000_000,

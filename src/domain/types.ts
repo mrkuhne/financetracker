@@ -51,6 +51,8 @@ export interface Settings {
   has_expensive_debt: boolean | null;
   risk_profile: RiskProfile;
   risk_checkin_at: ISODate | null;
+  /** Suggested investment amount recorded per month, to measure next month's overspend. */
+  invest_suggested_log: Record<YearMonth, number>;
 }
 
 export interface MonthClose {

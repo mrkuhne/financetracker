@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
-  averageMonthlyExpensesMinor, averageMonthlyIncomeMinor, buildPlanningModel, completeMonthTotals,
+  averageMonthlyExpensesMinor, averageMonthlyIncomeMinor, buildPlanningModel, completeMonthTotals, dailySpendMinor,
   emergencyAfterMinor, simulateOption, typicalMonthlySpendMinor,
 } from './planning';
 import type { RecurringRule, Settings, Txn } from './types';
@@ -18,7 +18,7 @@ const rule = (o: Partial<RecurringRule>): RecurringRule => ({
 const SETTINGS: Settings = {
   base_currency: 'HUF', monthly_savings_target_minor: 0, monthly_investment_amount_minor: 0,
   emergency_fund_months: 3, week_start: 'monday', digest_time: '20:00', timezone: 'Europe/Budapest',
-  month_overrides: {}, has_expensive_debt: null, risk_profile: 'cautious', risk_checkin_at: null,
+  month_overrides: {}, has_expensive_debt: null, risk_profile: 'cautious', risk_checkin_at: null, invest_suggested_log: {},
 };
 
 const hist = [txn('2026-09-01', 'expense', 30_000_000), txn('2026-09-05', 'expense', 20_000_000, 'r1'),
@@ -128,4 +128,17 @@ describe('emergencyAfterMinor', () => {
     expect(emergencyAfterMinor({ ...ea, option: inst(13_000_000), plannedMonth: '2026-11', cutsMinor: 0 })).toBe(112_000_000));
   test('never below zero', () =>
     expect(emergencyAfterMinor({ ...ea, emergencySavedMinor: 1_000_000, option: one(90_000_000), plannedMonth: '2026-11', cutsMinor: 0 })).toBe(0));
+});
+
+describe('dailySpendMinor', () => {
+  test('no data is 0', () => expect(dailySpendMinor([], '2026-11-03')).toBe(0));
+  test('takes the larger of this month\'s pace and the complete-month average per 30 days', () => {
+    const t = [txn('2026-10-02', 'expense', 6_000_000), txn('2026-11-01', 'expense', 100_000), txn('2026-11-02', 'expense', 500_000)];
+    // November: 600_000 over 3 days = 200_000; October: 6_000_000 / 30 = 200_000 -> use a heavier month
+    const heavy = [...t, txn('2026-11-03', 'expense', 600_000)]; // 1_200_000 / 3 = 400_000 > 200_000
+    expect(dailySpendMinor(t, '2026-11-03')).toBe(200_000);
+    expect(dailySpendMinor(heavy, '2026-11-03')).toBe(400_000);
+  });
+  test('recurring-linked expenses do not count', () =>
+    expect(dailySpendMinor([txn('2026-11-01', 'expense', 9_000_000, 'r1')], '2026-11-03')).toBe(0));
 });

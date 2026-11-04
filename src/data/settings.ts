@@ -13,6 +13,7 @@ export const DEFAULT_SETTINGS: Settings = {
   has_expensive_debt: null,
   risk_profile: 'cautious',
   risk_checkin_at: null,
+  invest_suggested_log: {},
 };
 
 export async function getSettings(): Promise<Settings> {
@@ -21,6 +22,8 @@ export async function getSettings(): Promise<Settings> {
   for (const k of Object.keys(DEFAULT_SETTINGS)) if (me[k] !== undefined && me[k] !== null) out[k] = me[k];
   const mo = me.month_overrides;
   if (!mo || typeof mo !== 'object' || Array.isArray(mo)) out.month_overrides = {};
+  const log = me.invest_suggested_log;
+  if (!log || typeof log !== 'object' || Array.isArray(log)) out.invest_suggested_log = {};
   if (!['cautious', 'balanced', 'bold'].includes(out.risk_profile as string)) out.risk_profile = 'cautious';
   return out as unknown as Settings;
 }

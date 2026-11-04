@@ -37,6 +37,9 @@
     "month_overrides": {
       "type": "object"
     },
+    "invest_suggested_log": {
+      "type": "object"
+    },
     "has_expensive_debt": {
       "type": [
         "boolean",
