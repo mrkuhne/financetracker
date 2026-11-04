@@ -1,0 +1,15 @@
+{
+  "name": "briefProbe",
+  "entry": "entry.ts",
+  "automations": [
+    {
+      "type": "scheduled",
+      "name": "probe_every_15",
+      "schedule_mode": "recurring",
+      "schedule_type": "simple",
+      "repeat_unit": "minutes",
+      "repeat_interval": 15,
+      "function_args": { "source": "schedule" }
+    }
+  ]
+}
