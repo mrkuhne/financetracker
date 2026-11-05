@@ -56,7 +56,14 @@ export function NewsScreen() {
       ) : (
         <div className="card" style={{ display: 'grid', gap: 6 }}>
           <span className="ov">Morning brief</span>
-          <span className="sub">{firstBriefCopy(settings.digest_time, settings.timezone, new Date(), !digest)}</span>
+          {settings.digest_enabled ? (
+            <span className="sub">{firstBriefCopy(settings.digest_time, settings.timezone, new Date(), !digest)}</span>
+          ) : (
+            <>
+              <span className="sub">The morning brief is off.</span>
+              <Link className="link" to="/settings/brief">Turn it on in Settings</Link>
+            </>
+          )}
           {digest && digest.date && (
             <Link className="link" to={`/brief/${digest.date}`}>Open the last brief ({briefTitle(digest.date)})</Link>
           )}
