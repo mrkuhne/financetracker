@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COLLECT_SCHEMA, SEED_SOURCES, buildCollectPrompt, collectDue, isExpired, newItems, normalizeCollect, parseFeed } from './news';
+import { COLLECT_SCHEMA, SEED_SOURCES, articleHostsFor, buildCollectPrompt, collectDue, isExpired, newItems, normalizeCollect, parseFeed } from './news';
 
 const rss = `<?xml version="1.0"?><rss><channel><title>CNBC</title>
 <item><title><![CDATA[Fed holds <b>rates</b> & stocks rally]]></title><link>https://cnbc.com/a</link><pubDate>Tue, 04 Nov 2026 10:00:00 GMT</pubDate></item>
@@ -94,5 +94,12 @@ describe('Hungarian labels', () => {
     expect(out[1]?.title_hu).toBeNull();
     expect(out[2]?.title_hu).toBeNull();
     expect(out[3]?.title_hu).toHaveLength(160);
+  });
+});
+
+describe('articleHostsFor', () => {
+  it('knows MarketWatch article host', () => {
+    expect(articleHostsFor('https://feeds.content.dowjones.io/public/rss/mw_topstories')).toEqual(['marketwatch.com']);
+    expect(articleHostsFor('https://example.com/rss')).toEqual([]);
   });
 });

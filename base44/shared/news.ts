@@ -3,16 +3,21 @@
 
 export const NEWS_TAGS = ['markets', 'etf', 'stocks', 'bonds', 'crypto', 'rates', 'inflation', 'forint', 'hungary', 'housing', 'economy'] as const;
 
-export const SEED_SOURCES: { name: string; url: string; default_tags: string[] }[] = [
-  { name: 'CNBC Top News', url: 'https://www.cnbc.com/id/100003114/device/rss/rss.html', default_tags: ['markets'] },
-  { name: 'CNBC Economy', url: 'https://www.cnbc.com/id/20910258/device/rss/rss.html', default_tags: ['economy'] },
-  { name: 'MarketWatch Top Stories', url: 'https://feeds.content.dowjones.io/public/rss/mw_topstories', default_tags: ['markets'] },
-  { name: 'BBC Business', url: 'https://feeds.bbci.co.uk/news/business/rss.xml', default_tags: ['economy'] },
-  { name: 'FT Markets', url: 'https://www.ft.com/markets?format=rss', default_tags: ['markets'] },
-  { name: 'ECB press', url: 'https://www.ecb.europa.eu/rss/press.html', default_tags: ['rates', 'inflation'] },
-  { name: 'Budapest Business Journal', url: 'https://bbj.hu/rss', default_tags: ['hungary', 'forint'] },
-  { name: 'Hungary Today', url: 'https://hungarytoday.hu/feed/', default_tags: ['hungary'] },
+export const SEED_SOURCES: { name: string; url: string; default_tags: string[]; article_hosts: string[] }[] = [
+  { name: 'CNBC Top News', url: 'https://www.cnbc.com/id/100003114/device/rss/rss.html', default_tags: ['markets'], article_hosts: ['cnbc.com'] },
+  { name: 'CNBC Economy', url: 'https://www.cnbc.com/id/20910258/device/rss/rss.html', default_tags: ['economy'], article_hosts: ['cnbc.com'] },
+  { name: 'MarketWatch Top Stories', url: 'https://feeds.content.dowjones.io/public/rss/mw_topstories', default_tags: ['markets'], article_hosts: ['marketwatch.com'] },
+  { name: 'BBC Business', url: 'https://feeds.bbci.co.uk/news/business/rss.xml', default_tags: ['economy'], article_hosts: ['bbc.co.uk', 'bbc.com'] },
+  { name: 'FT Markets', url: 'https://www.ft.com/markets?format=rss', default_tags: ['markets'], article_hosts: ['ft.com'] },
+  { name: 'ECB press', url: 'https://www.ecb.europa.eu/rss/press.html', default_tags: ['rates', 'inflation'], article_hosts: ['ecb.europa.eu'] },
+  { name: 'Budapest Business Journal', url: 'https://bbj.hu/rss', default_tags: ['hungary', 'forint'], article_hosts: ['bbj.hu'] },
+  { name: 'Hungary Today', url: 'https://hungarytoday.hu/feed/', default_tags: ['hungary'], article_hosts: ['hungarytoday.hu'] },
 ];
+
+/** Article hosts the AI may fetch for a seed source (looked up by feed URL); [] for an unknown source. */
+export function articleHostsFor(sourceUrl: string): string[] {
+  return SEED_SOURCES.find((s) => s.url === sourceUrl)?.article_hosts ?? [];
+}
 
 export type ParsedItem = { title: string; link: string; published_at: string | null };
 
