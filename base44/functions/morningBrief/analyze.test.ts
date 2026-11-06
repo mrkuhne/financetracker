@@ -119,6 +119,34 @@ describe('handleAnalyze', () => {
     expect(await handleAnalyze(deps)).toEqual({ status: 'error' });
     expect(calls.usageUpdate).toHaveLength(1);
   });
+
+  test('malformed id (Base44 400 on the NewsItem read): not_found, no LLM, no usage write', async () => {
+    const { deps, calls } = setup();
+    deps.db.NewsItem.filter = async () => {
+      throw Object.assign(new Error('Invalid query: id is not a valid record ID'), { status: 400 });
+    };
+    expect(await handleAnalyze(deps)).toEqual({ status: 'not_found' });
+    expect(calls.llm).toBe(0);
+    expect(calls.usageCreate + calls.usageUpdate.length + calls.newsUpdate.length).toBe(0);
+  });
+
+  test('NewsItem read failing with a 500 still propagates', async () => {
+    const { deps } = setup();
+    deps.db.NewsItem.filter = async () => {
+      throw Object.assign(new Error('server down'), { status: 500 });
+    };
+    await expect(handleAnalyze(deps)).rejects.toThrow('server down');
+  });
+
+  test('NewsSource read with a 400: source missing, summary used, LLM still called', async () => {
+    const { deps, calls } = setup();
+    deps.db.NewsSource.filter = async () => {
+      throw Object.assign(new Error('Invalid query: id is not a valid record ID'), { status: 400 });
+    };
+    expect(await handleAnalyze(deps)).toMatchObject({ status: 'ok', analysis: { from_summary: true } });
+    expect(calls.fetch).toBe(0);
+    expect(calls.llm).toBe(1);
+  });
 });
 
 test('validAnalysis rejects bad shapes', () => {

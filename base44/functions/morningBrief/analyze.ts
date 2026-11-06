@@ -63,11 +63,23 @@ const safeErr = (err: unknown) => {
   return { name: e?.name, status: e?.status ?? e?.response?.status, message: String(e?.message ?? '').slice(0, 200) };
 };
 
+/** Base44 answers a malformed record id with a 400; anything else is a real failure and must propagate. */
+const isBadRequest = (err: unknown) => {
+  const e = err as { status?: number; response?: { status?: number } } | null;
+  return (e?.status ?? e?.response?.status) === 400;
+};
+
 export async function handleAnalyze(d: AnalyzeDeps): Promise<AnalyzeResponse> {
   const body = parseAnalyzeBody(d.body);
   if (!body) return { status: 'not_found' };
 
-  const rows = ((await d.db.NewsItem.filter({ owner_id: d.ownerId, id: body.id }, undefined, 5)) ?? []) as Row[];
+  let rows: Row[];
+  try {
+    rows = ((await d.db.NewsItem.filter({ owner_id: d.ownerId, id: body.id }, undefined, 5)) ?? []) as Row[];
+  } catch (err) {
+    if (isBadRequest(err)) return { status: 'not_found' };
+    throw err;
+  }
   const row = rows.find((r) => r.id === body.id) as (Row & { id: string; owner_id?: string }) | undefined;
   if (!row || !canAnalyze(row, d.ownerId)) return { status: 'not_found' };
 
@@ -100,7 +112,12 @@ export async function handleAnalyze(d: AnalyzeDeps): Promise<AnalyzeResponse> {
   // The source row gives the allowed article hosts; without it the fetch is refused and the summary is used.
   let hosts: string[] = [];
   if (isStr(row.source_id)) {
-    const sources = ((await d.db.NewsSource.filter({ owner_id: d.ownerId, id: row.source_id }, undefined, 5)) ?? []) as Row[];
+    let sources: Row[] = [];
+    try {
+      sources = ((await d.db.NewsSource.filter({ owner_id: d.ownerId, id: row.source_id }, undefined, 5)) ?? []) as Row[];
+    } catch (err) {
+      if (!isBadRequest(err)) throw err; // a malformed source id means the source is missing: no hosts
+    }
     const source = sources.find((s) => s.id === row.source_id && s.owner_id === d.ownerId);
     if (source && isStr(source.url)) hosts = articleHostsFor(source.url);
   }
