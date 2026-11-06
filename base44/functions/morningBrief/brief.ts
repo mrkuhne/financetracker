@@ -307,7 +307,7 @@ export function firstSentences(s: string, max = 2): string {
 // A forint amount: "15 000 Ft", "15\u00a0000 HUF", "15.000 Ft", "1.5 million Ft", "HUF 20 000" (not "EUR/HUF 364.4").
 // \s covers the normal space, NBSP and narrow NBSP thousands separators.
 const AMOUNT_RE =
-  /(?<![/A-Za-z])(HUF\s?)?(\d{1,3}(?:[\s.,]\d{3})+|\d+)(?:[.,](\d{1,2}))?(?:\s?(million|millió|millio|mn|m|ezer|e)(?![A-Za-z\u00C0-\u017F]))?(?:\s?(Ft|HUF|forint[a-záéíóöőúüű]*)(?![A-Za-z\u00C0-\u017F]))?/gi;
+  /(?<![/A-Za-z])(HUF\s?)?(\d{1,3}(?:[\s.,]\d{3})+|\d+)(?:[.,](\d{1,2}))?(?:\s?(milliárd|milliard|mrd|million|millió|millio|mill\.?|mn|m|ezer|e)(?![A-Za-z\u00C0-\u017F]))?(?:\s?(Ft|HUF|forint[a-záéíóöőúüű]*)(?![A-Za-z\u00C0-\u017F]))?/gi;
 
 /** Forint amounts mentioned in `s`, in HUF minor units. */
 export function hufAmountsMinor(s: string): number[] {
@@ -316,7 +316,10 @@ export function hufAmountsMinor(s: string): number[] {
     const [, prefix, int, dec, mult, suffix] = m;
     if (!prefix && !suffix) continue;
     let major = Number(int.replace(/[\s.,]/g, '')) + (dec ? Number(`0.${dec}`) : 0);
-    if (mult) major *= /^(e|ezer)$/i.test(mult) ? 1_000 : 1_000_000;
+    if (mult) {
+      const k = mult.toLowerCase();
+      major *= /^(e|ezer)$/.test(k) ? 1_000 : /^(milliárd|milliard|mrd)$/.test(k) ? 1_000_000_000 : 1_000_000;
+    }
     out.push(Math.round(major * 100));
   }
   return out;

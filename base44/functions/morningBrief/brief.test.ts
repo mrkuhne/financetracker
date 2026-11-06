@@ -322,6 +322,9 @@ describe('Hungarian amounts and copy', () => {
     expect(hufAmountsMinor('10 000 forint')).toEqual([1_000_000]);
     expect(hufAmountsMinor('10 000 forintot')).toEqual([1_000_000]);
     expect(hufAmountsMinor('15 000 Ft-ot')).toEqual([1_500_000]);
+    expect(hufAmountsMinor('2 milliárd Ft')).toEqual([200_000_000_000]);
+    expect(hufAmountsMinor('2 Mrd Ft')).toEqual([200_000_000_000]);
+    expect(hufAmountsMinor('3 mill. Ft')).toEqual([300_000_000]);
     expect(hufAmountsMinor('4,25%-on hagyta')).toEqual([]);
     expect(hufAmountsMinor('2026-ban 10 ezerből')).toEqual([]);
   });
