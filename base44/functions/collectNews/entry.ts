@@ -245,7 +245,7 @@ export default async function (req: Request): Promise<Response> {
             const e = entries[i];
             if (!e) continue;
             try {
-              await db.NewsItem.update(batch[i].id, { summary: e.summary, tags: e.tags, affects_portfolio: e.affects_portfolio, ai_done: true });
+              await db.NewsItem.update(batch[i].id, { title_hu: e.title_hu, summary: e.summary, tags: e.tags, affects_portfolio: e.affects_portfolio, ai_done: true });
               summary.summarized++;
             } catch (err) {
               console.error('news label update failed', safeErr(err));

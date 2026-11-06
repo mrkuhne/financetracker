@@ -6,7 +6,7 @@ import { todayInTz } from '@/domain/dates';
 import type { Settings } from '@/domain/types';
 import { Icon } from '@/features/shell/Icons';
 import { Screen } from '@/features/shell/Screen';
-import { NEWS_FILTERS, ago, briefTitle, filterNews, firstBriefCopy, newsChip, safeLink, type NewsFilter, type NewsRow } from './newsModel';
+import { NEWS_FILTERS, ago, briefTitle, displayTitle, filterNews, firstBriefCopy, newsChip, safeLink, type NewsFilter, type NewsRow } from './newsModel';
 
 interface NewsData { settings: Settings; digest: DigestRow | null; news: NewsRow[] }
 
@@ -103,7 +103,7 @@ function NewsItemRow({ n, nowIso }: { n: NewsRow; nowIso: string }) {
         {chip && <span className={`pill${chip.mine ? ' ai' : ''}`} style={{ marginLeft: 0 }}>{chip.label}</span>}
         <span>{meta}</span>
       </span>
-      <strong>{n.title || 'Untitled'}</strong>
+      <strong>{displayTitle(n)}</strong>
       {n.summary && <span className="sub">{n.summary}</span>}
     </>
   );

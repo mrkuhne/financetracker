@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import {
-  NEWS_FILTERS, ago, briefTitle, filterNews, firstBriefCopy, newsChip, parseNumbers, pctLabel, safeLink, type NewsRow,
+  NEWS_FILTERS, ago, briefTitle, displayTitle, filterNews, firstBriefCopy, newsChip, parseNumbers, pctLabel, safeLink, type NewsRow,
 } from './newsModel';
 
 const item = (id: string, tags: string[], affects = false): NewsRow => ({
-  id, source_id: 's', source_name: 'CNBC', title: id, link: 'https://x', published_at: null, summary: null, tags, affects_portfolio: affects,
+  id, source_id: 's', source_name: 'CNBC', title: id, title_hu: null, link: 'https://x', published_at: null, summary: null, tags, affects_portfolio: affects,
 });
 
 const ITEMS = [
@@ -119,5 +119,14 @@ describe('helpers', () => {
     expect(newsChip(item('a', ['forint'], true))).toEqual({ label: 'Yours', mine: true });
     expect(newsChip(item('a', ['inflation']))).toEqual({ label: 'Inflation', mine: false });
     expect(newsChip(item('a', []))).toBeNull();
+  });
+});
+
+describe('displayTitle', () => {
+  test('prefers title_hu and falls back to the English title', () => {
+    expect(displayTitle({ title: 'Fed holds', title_hu: 'A Fed kivár' })).toBe('A Fed kivár');
+    expect(displayTitle({ title: 'Fed holds', title_hu: null })).toBe('Fed holds');
+    expect(displayTitle({ title: 'Fed holds', title_hu: ' ' })).toBe('Fed holds');
+    expect(displayTitle({ title: '', title_hu: null })).toBe('Untitled');
   });
 });

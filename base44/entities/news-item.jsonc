@@ -8,6 +8,7 @@
     "title": { "type": "string" },
     "link": { "type": "string" },
     "published_at": { "type": ["string", "null"], "format": "date-time" },
+    "title_hu": { "type": ["string", "null"] },
     "summary": { "type": ["string", "null"] },
     "tags": { "type": "array", "items": { "type": "string" } },
     "affects_portfolio": { "type": "boolean" },

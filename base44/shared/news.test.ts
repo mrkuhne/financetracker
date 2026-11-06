@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SEED_SOURCES, buildCollectPrompt, collectDue, isExpired, newItems, normalizeCollect, parseFeed } from './news';
+import { COLLECT_SCHEMA, SEED_SOURCES, buildCollectPrompt, collectDue, isExpired, newItems, normalizeCollect, parseFeed } from './news';
 
 const rss = `<?xml version="1.0"?><rss><channel><title>CNBC</title>
 <item><title><![CDATA[Fed holds <b>rates</b> & stocks rally]]></title><link>https://cnbc.com/a</link><pubDate>Tue, 04 Nov 2026 10:00:00 GMT</pubDate></item>
@@ -39,7 +39,7 @@ describe('normalizeCollect', () => {
   it('drops unknown tags, nulls missing entries, honours count', () => {
     const r = normalizeCollect({ items: [{ i: 0, summary: '  Hi  ', tags: ['weather', 'forint', 'forint'], affects_portfolio: true }, { i: 5, summary: 'x', tags: [], affects_portfolio: false }, { i: 2, summary: 'y'.repeat(300), tags: [], affects_portfolio: 'yes' }, 'junk'] }, 3);
     expect(r).toHaveLength(3);
-    expect(r[0]).toEqual({ summary: 'Hi', tags: ['forint'], affects_portfolio: true });
+    expect(r[0]).toEqual({ title_hu: null, summary: 'Hi', tags: ['forint'], affects_portfolio: true });
     expect(r[1]).toBeNull();
     expect(r[2]?.summary).toHaveLength(160);
     expect(r[2]?.affects_portfolio).toBe(false);
@@ -70,3 +70,29 @@ describe('collectDue / isExpired', () => {
 });
 
 describe('SEED_SOURCES', () => it('has 8 feeds', () => expect(SEED_SOURCES).toHaveLength(8)));
+
+describe('Hungarian labels', () => {
+  it('collect schema requires a Hungarian title', () => {
+    const props = COLLECT_SCHEMA.properties.items.items;
+    expect(props.properties.title_hu).toEqual({ type: 'string' });
+    expect(props.required).toContain('title_hu');
+  });
+  it('prompt asks for Hungarian title and summary', () => {
+    const p = buildCollectPrompt([{ i: 0, title: 'Fed holds', source: 'CNBC' }], []);
+    expect(p).toContain('title_hu');
+    expect(p).toMatch(/Hungarian sentence of at most 160 characters/);
+    expect(p).not.toMatch(/plain English sentence/);
+  });
+  it('normalizeCollect keeps title_hu, cut to 160, null when missing or blank', () => {
+    const out = normalizeCollect({ items: [
+      { i: 0, title_hu: 'A Fed nem változtatott', summary: 'Összefoglaló.', tags: [], affects_portfolio: false },
+      { i: 1, title_hu: '  ', summary: 'S.', tags: [], affects_portfolio: false },
+      { i: 2, summary: 'S.', tags: [], affects_portfolio: false },
+      { i: 3, title_hu: 'x'.repeat(200), summary: 'S.', tags: [], affects_portfolio: false },
+    ] }, 4);
+    expect(out[0]?.title_hu).toBe('A Fed nem változtatott');
+    expect(out[1]?.title_hu).toBeNull();
+    expect(out[2]?.title_hu).toBeNull();
+    expect(out[3]?.title_hu).toHaveLength(160);
+  });
+});

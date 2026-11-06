@@ -38,6 +38,7 @@ const toNews = (r: Rec): NewsRow => ({
   source_id: str(r.source_id) ?? '',
   source_name: str(r.source_name) ?? '',
   title: str(r.title) ?? '',
+  title_hu: str(r.title_hu),
   link: str(r.link) ?? '',
   published_at: str(r.published_at),
   summary: str(r.summary),

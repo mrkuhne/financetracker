@@ -3,11 +3,17 @@ export interface NewsRow {
   source_id: string;
   source_name: string;
   title: string;
+  title_hu: string | null;
   link: string;
   published_at: string | null;
   summary: string | null;
   tags: string[];
   affects_portfolio: boolean;
+}
+
+/** Hungarian title when the AI produced one, else the English headline. */
+export function displayTitle(n: Pick<NewsRow, 'title' | 'title_hu'>): string {
+  return n.title_hu?.trim() || n.title || 'Untitled';
 }
 
 export const NEWS_FILTERS = ['Mine', 'All', 'Rates', 'Forint', 'Markets', 'Housing'] as const;
