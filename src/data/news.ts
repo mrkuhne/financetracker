@@ -1,7 +1,7 @@
 import { base44 } from '@/data/client';
 import { todayInTz } from '@/domain/dates';
 import type { ISODate } from '@/domain/types';
-import type { NewsRow } from '@/features/news/newsModel';
+import type { NewsRow, Verdict } from '@/features/news/newsModel';
 
 type Rec = Record<string, unknown>;
 
@@ -130,4 +130,70 @@ export async function todayUsage(today?: ISODate): Promise<{ collect: number; br
     (acc, r) => ({ collect: acc.collect + n(r.collect), brief: acc.brief + n(r.brief) }),
     { collect: 0, brief: 0 },
   );
+}
+
+/** Mirrors `Analysis` in base44/functions/morningBrief/analysis.ts. */
+export interface NewsAnalysis {
+  month: string;
+  verdict: Verdict;
+  amount_minor: number | null;
+  product: string | null;
+  about: string;
+  impact: string;
+  reason: string;
+  from_summary: boolean;
+  made_at: string;
+}
+
+/** Mirrors `AnalyzeResponse` in base44/functions/morningBrief/analyze.ts. */
+export type AnalyzeResult =
+  | { status: 'ok'; analysis: NewsAnalysis; stale: boolean; left_minor: number | null; money_known: boolean }
+  | { status: 'cap' }
+  | { status: 'not_found' }
+  | { status: 'error' };
+
+const finiteOrNull = (v: unknown): number | null | undefined => (v === null ? null : typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+
+/** Anything that is not a well-formed server answer becomes `{ status: 'error' }`. */
+export function parseAnalyzeResult(raw: unknown): AnalyzeResult {
+  const b = body(raw);
+  if (!b) return { status: 'error' };
+  if (b.status === 'cap') return { status: 'cap' };
+  if (b.status === 'not_found') return { status: 'not_found' };
+  if (b.status !== 'ok') return { status: 'error' };
+  const a = b.analysis as Rec | null | undefined;
+  const left = finiteOrNull(b.left_minor);
+  const amount = a ? finiteOrNull(a.amount_minor) : undefined;
+  if (
+    !a || typeof a !== 'object' ||
+    (a.verdict !== 'buy' && a.verdict !== 'wait' && a.verdict !== 'none') ||
+    typeof a.about !== 'string' || typeof a.impact !== 'string' || typeof a.reason !== 'string' ||
+    typeof b.stale !== 'boolean' || typeof b.money_known !== 'boolean' ||
+    left === undefined || amount === undefined
+  ) return { status: 'error' };
+  return {
+    status: 'ok',
+    stale: b.stale,
+    left_minor: left,
+    money_known: b.money_known,
+    analysis: {
+      month: str(a.month) ?? '',
+      verdict: a.verdict,
+      amount_minor: amount,
+      product: str(a.product),
+      about: a.about,
+      impact: a.impact,
+      reason: a.reason,
+      from_summary: a.from_summary === true,
+      made_at: str(a.made_at) ?? '',
+    },
+  };
+}
+
+export async function analyzeNews(id: string, refresh = false): Promise<AnalyzeResult> {
+  try {
+    return parseAnalyzeResult(await base44.functions.invoke('morningBrief', { action: 'analyze', id, refresh }));
+  } catch {
+    return { status: 'error' };
+  }
 }

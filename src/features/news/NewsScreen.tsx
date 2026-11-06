@@ -6,7 +6,7 @@ import { todayInTz } from '@/domain/dates';
 import type { Settings } from '@/domain/types';
 import { Icon } from '@/features/shell/Icons';
 import { Screen } from '@/features/shell/Screen';
-import { NEWS_FILTERS, ago, briefTitle, displayTitle, filterNews, firstBriefCopy, newsChip, safeLink, type NewsFilter, type NewsRow } from './newsModel';
+import { NEWS_FILTERS, ago, briefTitle, displayTitle, filterNews, firstBriefCopy, newsChip, type NewsFilter, type NewsRow } from './newsModel';
 
 interface NewsData { settings: Settings; digest: DigestRow | null; news: NewsRow[] }
 
@@ -88,7 +88,7 @@ export function NewsScreen() {
         </div>
       )}
 
-      <p className="note"><Icon name="info" />Each item opens the original article. One-line summaries are written by AI.</p>
+      <p className="note"><Icon name="info" />Tap an item for its AI analysis. Summaries and analyses are written by AI.</p>
     </Screen>
   );
 }
@@ -107,8 +107,5 @@ function NewsItemRow({ n, nowIso }: { n: NewsRow; nowIso: string }) {
       {n.summary && <span className="sub">{n.summary}</span>}
     </>
   );
-  const href = safeLink(n.link);
-  return href
-    ? <a className="newsrow" href={href} target="_blank" rel="noopener noreferrer">{content}</a>
-    : <div className="newsrow">{content}</div>;
+  return <Link className="newsrow" to={`/news/${n.id}`}>{content}</Link>;
 }

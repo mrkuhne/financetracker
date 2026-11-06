@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
-  NEWS_FILTERS, ago, briefTitle, displayTitle, filterNews, firstBriefCopy, newsChip, parseNumbers, pctLabel, safeLink, type NewsRow,
+  NEWS_FILTERS, ago, briefTitle, displayTitle, filterNews, firstBriefCopy, newsChip, parseNumbers, pctLabel, safeLink, VERDICT_LABEL, type NewsRow,
 } from './newsModel';
 
 const item = (id: string, tags: string[], affects = false): NewsRow => ({
@@ -130,3 +130,5 @@ describe('displayTitle', () => {
     expect(displayTitle({ title: '', title_hu: null })).toBe('Untitled');
   });
 });
+
+test('verdict labels', () => expect(VERDICT_LABEL).toEqual({ buy: 'Vehetsz', wait: 'Várj', none: 'Nincs teendő' }));

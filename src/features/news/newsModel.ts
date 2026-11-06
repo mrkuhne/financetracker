@@ -149,3 +149,6 @@ export function parseNumbers(raw: unknown): NumbersView | null {
       : null,
   };
 }
+
+export type Verdict = 'buy' | 'wait' | 'none';
+export const VERDICT_LABEL: Record<Verdict, string> = { buy: 'Vehetsz', wait: 'Várj', none: 'Nincs teendő' };

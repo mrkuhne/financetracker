@@ -24,6 +24,7 @@ import { AssetTypeScreen } from '@/features/invest/AssetTypeScreen';
 import { HoldingScreen } from '@/features/invest/HoldingScreen';
 import { NewsScreen } from '@/features/news/NewsScreen';
 import { BriefScreen } from '@/features/news/BriefScreen';
+import { NewsItemScreen } from '@/features/news/NewsItemScreen';
 import { Screen } from '@/features/shell/Screen';
 
 export default function App() {
@@ -48,6 +49,7 @@ export default function App() {
             <Route path="/invest/type/:type" element={<AssetTypeScreen />} />
             <Route path="/invest/holding/:id" element={<HoldingScreen />} />
             <Route path="/news" element={<NewsScreen />} />
+            <Route path="/news/:id" element={<NewsItemScreen />} />
             <Route path="/brief/:date" element={<BriefScreen />} />
             <Route path="/accounts" element={<AccountsScreen />} />
             <Route path="/review/:id" element={<ReviewSmsScreen />} />
