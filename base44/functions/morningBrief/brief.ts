@@ -193,7 +193,7 @@ export function buildBriefPrompt(
   const n = numbers;
   const lines: string[] = [];
   lines.push(
-    'You write the morning brief of a personal finance app for one person in Hungary. Write in English.',
+    'You write the morning brief of a personal finance app for one person in Hungary. Write in Hungarian (magyarul).',
     '',
     'Rules:',
     '- Calm, plain tone. Normal market swings are normal: say so instead of sounding alarmed.',
@@ -303,10 +303,11 @@ export function firstSentences(s: string, max = 2): string {
   return s;
 }
 
+// Hungarian forms too: "1,5 millió Ft", "10 ezer Ft", "10e Ft", "2 M Ft", "forintot"; "Ft-ot" still ends at the hyphen.
 // A forint amount: "15 000 Ft", "15\u00a0000 HUF", "15.000 Ft", "1.5 million Ft", "HUF 20 000" (not "EUR/HUF 364.4").
 // \s covers the normal space, NBSP and narrow NBSP thousands separators.
 const AMOUNT_RE =
-  /(?<![/A-Za-z])(HUF\s?)?(\d{1,3}(?:[\s.,]\d{3})+|\d+)(?:[.,](\d{1,2}))?(?:\s?(million|mn|m)(?![A-Za-z]))?(?:\s?(Ft|HUF|forints?)(?![A-Za-z]))?/gi;
+  /(?<![/A-Za-z])(HUF\s?)?(\d{1,3}(?:[\s.,]\d{3})+|\d+)(?:[.,](\d{1,2}))?(?:\s?(million|millió|millio|mn|m|ezer|e)(?![A-Za-z\u00C0-\u017F]))?(?:\s?(Ft|HUF|forint[a-záéíóöőúüű]*)(?![A-Za-z\u00C0-\u017F]))?/gi;
 
 /** Forint amounts mentioned in `s`, in HUF minor units. */
 export function hufAmountsMinor(s: string): number[] {
@@ -315,7 +316,7 @@ export function hufAmountsMinor(s: string): number[] {
     const [, prefix, int, dec, mult, suffix] = m;
     if (!prefix && !suffix) continue;
     let major = Number(int.replace(/[\s.,]/g, '')) + (dec ? Number(`0.${dec}`) : 0);
-    if (mult) major *= 1_000_000;
+    if (mult) major *= /^(e|ezer)$/i.test(mult) ? 1_000 : 1_000_000;
     out.push(Math.round(major * 100));
   }
   return out;
@@ -362,16 +363,16 @@ export function fallbackNotification(n: BriefNumbers): string {
   // Unknown holdings (no snapshot) are always stale, so they get the market/EUR-HUF lead and the update prompt.
   const hasHoldings = n.holdings.length > 0;
   const lead = hasHoldings
-    ? n.portfolioWeek !== null ? `Portfolio ${pctText(n.portfolioWeek)} this week.` : null
-    : n.market?.day != null ? `Markets: world ETF ${pctText(n.market.day)} today.` : null;
+    ? n.portfolioWeek !== null ? `Portfólió ${pctText(n.portfolioWeek)} ezen a héten.` : null
+    : n.market?.day != null ? `Piacok: világ-ETF ${pctText(n.market.day)} ma.` : null;
   const fx = n.eurHuf ? `EUR/HUF ${n.eurHuf.rate.toFixed(1)}.` : null;
   const left = n.month.leftMinor;
   const money =
-    left === null ? null : left > 0 ? `${hufText(left)} left to invest this month.` : "This month's investing is done.";
+    left === null ? null : left > 0 ? `${hufText(left)} befektethető még ebben a hónapban.` : 'A havi befektetés kész.';
 
   let sentences: (string | null)[];
-  if (n.stale) sentences = [lead ?? fx, "Open the app to update this month's numbers."];
+  if (n.stale) sentences = [lead ?? fx, 'Nyisd meg az appot a havi számok frissítéséhez.'];
   else sentences = (hasHoldings ? [lead, money, fx] : [lead, fx, money]).filter(Boolean).slice(0, 2);
   const out = sentences.filter(Boolean).join(' ');
-  return cutAtWord(out || 'Your morning brief is ready.');
+  return cutAtWord(out || 'Elkészült a reggeli összefoglalód.');
 }

@@ -147,7 +147,7 @@ describe('buildBriefPrompt', () => {
     expect(p).toMatch(/Never invent numbers/);
     expect(p).toMatch(/untrusted/);
     expect(p).toMatch(/180 characters/);
-    expect(p).toMatch(/English/);
+    expect(p).toMatch(/Write in Hungarian/);
     expect(p).toContain('Left to invest this month: 15 000 Ft');
     expect(p).toContain('ETFs (index funds): 30 000 Ft');
     expect(p).toContain('id=n1');
@@ -267,9 +267,9 @@ describe('unknown holdings (no snapshot)', () => {
   });
 
   it('fallback uses the market sentence and the update prompt', () => {
-    expect(fallbackNotification(n)).toBe("Markets: world ETF +0.6% today. Open the app to update this month's numbers.");
+    expect(fallbackNotification(n)).toBe('Piacok: világ-ETF +0.6% ma. Nyisd meg az appot a havi számok frissítéséhez.');
     const noMarket = briefNumbers({ snapshot: null, today: '2026-11-04', investedThisMonthMinor: 0, moves: {}, eurHuf: fx });
-    expect(fallbackNotification(noMarket)).toBe("EUR/HUF 364.4. Open the app to update this month's numbers.");
+    expect(fallbackNotification(noMarket)).toBe('EUR/HUF 364.4. Nyisd meg az appot a havi számok frissítéséhez.');
   });
 });
 
@@ -287,28 +287,57 @@ describe('fallbackNotification', () => {
 
   it('holdings variant', () => {
     const s = fallbackNotification(base);
-    expect(s).toBe('Portfolio +0.8% this week. 15 000 Ft left to invest this month.');
+    expect(s).toBe('Portfólió +0.8% ezen a héten. 15 000 Ft befektethető még ebben a hónapban.');
     expect(s.length).toBeLessThanOrEqual(180);
   });
 
   it('no-holdings variant', () => {
     const s = fallbackNotification({ ...base, holdings: [], portfolioWeek: null, market: { day: 0.006, week: null } });
-    expect(s).toBe('Markets: world ETF +0.6% today. EUR/HUF 364.4.');
+    expect(s).toBe('Piacok: világ-ETF +0.6% ma. EUR/HUF 364.4.');
     expect(s.length).toBeLessThanOrEqual(180);
   });
 
   it('stale variant ends with the update prompt', () => {
     const s = fallbackNotification({ ...base, stale: true, month: { suggestedMinor: null, investedMinor: 0, leftMinor: null, pullForwardRoomMinor: null } });
-    expect(s).toBe("Portfolio +0.8% this week. Open the app to update this month's numbers.");
-    expect(s.endsWith("Open the app to update this month's numbers.")).toBe(true);
+    expect(s).toBe('Portfólió +0.8% ezen a héten. Nyisd meg az appot a havi számok frissítéséhez.');
+    expect(s.endsWith('Nyisd meg az appot a havi számok frissítéséhez.')).toBe(true);
     expect(s.length).toBeLessThanOrEqual(180);
   });
 
   it('negative week and nothing known still give a short text', () => {
-    expect(fallbackNotification({ ...base, portfolioWeek: -0.012 })).toBe('Portfolio −1.2% this week. 15 000 Ft left to invest this month.');
+    expect(fallbackNotification({ ...base, portfolioWeek: -0.012 })).toBe('Portfólió −1.2% ezen a héten. 15 000 Ft befektethető még ebben a hónapban.');
     const empty = fallbackNotification({ ...base, holdings: [], portfolioWeek: null, eurHuf: null, month: { ...base.month, leftMinor: null } });
-    expect(empty).toBe('Your morning brief is ready.');
+    expect(empty).toBe('Elkészült a reggeli összefoglalód.');
     const huge = fallbackNotification({ ...base, month: { ...base.month, leftMinor: 1e20 } });
     expect(huge.length).toBeLessThanOrEqual(180);
+  });
+});
+
+describe('Hungarian amounts and copy', () => {
+  it('Hungarian amount forms are detected', () => {
+    expect(hufAmountsMinor('1,5 millió Ft')).toEqual([150_000_000]);
+    expect(hufAmountsMinor('10 ezer Ft')).toEqual([1_000_000]);
+    expect(hufAmountsMinor('10e Ft')).toEqual([1_000_000]);
+    expect(hufAmountsMinor('2 M Ft')).toEqual([200_000_000]);
+    expect(hufAmountsMinor('10 000 forint')).toEqual([1_000_000]);
+    expect(hufAmountsMinor('10 000 forintot')).toEqual([1_000_000]);
+    expect(hufAmountsMinor('15 000 Ft-ot')).toEqual([1_500_000]);
+    expect(hufAmountsMinor('4,25%-on hagyta')).toEqual([]);
+    expect(hufAmountsMinor('2026-ban 10 ezerből')).toEqual([]);
+  });
+  it('guard rejects a Hungarian amount above the limit', () => {
+    const r = normalizeBrief({ notification: 'Tegyél be 1,5 millió Ft-ot.', news_ids: [] }, new Set(), { maxMinor: 1_500_000, stale: false });
+    expect(r.notification).toBeNull();
+  });
+  it('fallback notification is Hungarian', () => {
+    const base: BriefNumbers = {
+      stale: false, holdings: [{ name: 'VWCE', asset_type: 'etf', day: 0.002, week: 0.008, fixed: false }],
+      eurHuf: null, month: { suggestedMinor: 4_000_000, investedMinor: 2_500_000, leftMinor: 1_500_000, pullForwardRoomMinor: 0 },
+      incomplete: false, holdingsKnown: true, portfolioWeek: null, market: null,
+    };
+    expect(fallbackNotification({ ...base, stale: true })).toContain('Nyisd meg az appot a havi számok frissítéséhez.');
+    expect(fallbackNotification(base)).toContain('15 000 Ft befektethető még ebben a hónapban.');
+    expect(fallbackNotification({ ...base, month: { ...base.month, leftMinor: 0 } })).toContain('A havi befektetés kész.');
+    expect(fallbackNotification({ ...base, holdings: [], month: { ...base.month, leftMinor: null } })).toBe('Elkészült a reggeli összefoglalód.');
   });
 });
