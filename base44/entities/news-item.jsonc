@@ -12,7 +12,8 @@
     "summary": { "type": ["string", "null"] },
     "tags": { "type": "array", "items": { "type": "string" } },
     "affects_portfolio": { "type": "boolean" },
-    "ai_done": { "type": "boolean" }
+    "ai_done": { "type": "boolean" },
+    "analysis": { "type": ["object", "null"] }
   },
   "required": ["owner_id", "source_id", "title", "link"],
   "rls": { "create": false, "read": { "data.owner_id": "{{user.id}}" }, "update": false, "delete": false }

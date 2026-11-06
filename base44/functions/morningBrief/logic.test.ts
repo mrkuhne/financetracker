@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { BriefSnapshot } from './brief.ts';
 import {
   asSnapshot,
+  canAnalyze,
+  parseAnalyzeBody,
   frankfurterUrls,
   fxFromRates,
   latestDigest,
@@ -130,5 +132,20 @@ describe('latestDigest / testPayload', () => {
     expect(testPayload(latestDigest(rows))).toEqual({ title: 'Morning brief', body: 'New.', url: '/brief/2026-11-04' });
     expect(testPayload(null)).toEqual({ title: 'Morning brief', body: 'Test notification from Finance Tracker.', url: '/news' });
     expect(testPayload({ id: 'x', date: '2026-11-04', notification: '' }).url).toBe('/news');
+  });
+});
+
+describe('analyze parsing', () => {
+  it('parseBriefAction knows analyze', () => expect(parseBriefAction({ action: 'analyze', id: 'x' })).toBe('analyze'));
+  it('parseAnalyzeBody', () => {
+    expect(parseAnalyzeBody({ action: 'analyze', id: 'n1' })).toEqual({ id: 'n1', refresh: false });
+    expect(parseAnalyzeBody({ action: 'analyze', id: 'n1', refresh: true })).toEqual({ id: 'n1', refresh: true });
+    expect(parseAnalyzeBody({ action: 'analyze' })).toBeNull();
+    expect(parseAnalyzeBody({ action: 'analyze', id: 42 })).toBeNull();
+  });
+  it('canAnalyze only for own rows', () => {
+    expect(canAnalyze({ id: 'n1', owner_id: 'u1' }, 'u1')).toBe(true);
+    expect(canAnalyze({ id: 'n1', owner_id: 'u2' }, 'u1')).toBe(false);
+    expect(canAnalyze(null, 'u1')).toBe(false);
   });
 });

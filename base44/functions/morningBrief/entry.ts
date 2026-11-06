@@ -32,6 +32,7 @@ import {
   type DigestRow,
   type Payload,
 } from './logic.ts';
+import { handleAnalyze } from './analyze.ts';
 import { classifyPushResult, sendPush } from './push.ts';
 import { digestPushStatus, initialPushState } from './pushResult.ts';
 
@@ -177,6 +178,38 @@ export default async function (req: Request): Promise<Response> {
       (((await db.DailyDigest.filter(date ? { owner_id: ownerId, date } : { owner_id: ownerId }, '-created_date', date ? 50 : 20)) ??
         []) as (DigestRow & { owner_id?: string })[]).filter((r) => r.owner_id === ownerId && (!date || r.date === date));
 
+    /** This month's own buys total (InvestmentTransaction rows are client-created: monthBuysMinor trusts created_by_id). */
+    const readInvestedThisMonth = async (month: string) => {
+      const buys = ((await db.InvestmentTransaction.filter({ created_by_id: ownerId, side: 'buy' }, '-date', ROW_LIMIT)) ?? []) as {
+        created_by_id?: string;
+        side?: unknown;
+        date?: unknown;
+        amount_huf_minor?: unknown;
+      }[];
+      return monthBuysMinor(buys, ownerId, month);
+    };
+
+    // ---- {action:'analyze'}: the stored or freshly built Hungarian analysis of one news item ----
+    if (mode === 'analyze') {
+      const nowIso = new Date().toISOString();
+      const result = await handleAnalyze({
+        body,
+        ownerId,
+        snapshot: asSnapshot(me.brief_snapshot),
+        nowIso,
+        db: db as unknown as Parameters<typeof handleAnalyze>[0]['db'],
+        investedThisMonthMinor: () => readInvestedThisMonth(budapestDate(nowIso).slice(0, 7)),
+        invokeLLM: (prompt, schema) =>
+          base44.asServiceRole.integrations.Core.InvokeLLM({
+            prompt,
+            response_json_schema: schema,
+            model: MODEL,
+          } as Parameters<typeof base44.asServiceRole.integrations.Core.InvokeLLM>[0]),
+        fetchImpl: fetch,
+      });
+      return json(result);
+    }
+
     // ---- {action:'test'}: resend the latest digest (or a fixed text) to every subscription ----
     if (mode === 'test') {
       const vapid = await loadVapid();
@@ -203,13 +236,7 @@ export default async function (req: Request): Promise<Response> {
     summary.ran = true;
 
     // 1. Inputs: this month's buys, market moves, FX, news.
-    const buys = ((await db.InvestmentTransaction.filter({ created_by_id: ownerId, side: 'buy' }, '-date', ROW_LIMIT)) ?? []) as {
-      created_by_id?: string;
-      side?: unknown;
-      date?: unknown;
-      amount_huf_minor?: unknown;
-    }[];
-    const investedThisMonthMinor = monthBuysMinor(buys, ownerId, today.slice(0, 7));
+    const investedThisMonthMinor = await readInvestedThisMonth(today.slice(0, 7));
 
     const [moves, eurHuf, usdHuf] = await Promise.all([
       fetchMoves(marketSymbols(snapshot)),

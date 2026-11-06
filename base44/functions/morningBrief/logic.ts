@@ -8,12 +8,25 @@ export const FETCH_BATCH = 6;
 export type Payload = { title: string; body: string; url: string };
 export const TEST_PAYLOAD: Payload = { title: 'Morning brief', body: 'Test notification from Finance Tracker.', url: '/news' };
 
-/** Empty body or no action -> scheduled; 'test' and 'now' as named; anything else -> null (400). */
-export function parseBriefAction(body: unknown): 'scheduled' | 'test' | 'now' | null {
+/** Empty body or no action -> scheduled; 'test', 'now' and 'analyze' as named; anything else -> null (400). */
+export function parseBriefAction(body: unknown): 'scheduled' | 'test' | 'now' | 'analyze' | null {
   if (body == null || typeof body !== 'object') return 'scheduled';
   const action = (body as { action?: unknown }).action;
   if (action === undefined || action === null) return 'scheduled';
-  return action === 'test' || action === 'now' ? action : null;
+  return action === 'test' || action === 'now' || action === 'analyze' ? action : null;
+}
+
+/** {action:'analyze', id, refresh?}: the news item id, or null when it is missing or not a non-empty string. */
+export function parseAnalyzeBody(body: unknown): { id: string; refresh: boolean } | null {
+  if (!body || typeof body !== 'object') return null;
+  const b = body as { id?: unknown; refresh?: unknown };
+  if (typeof b.id !== 'string' || !b.id) return null;
+  return { id: b.id, refresh: b.refresh === true };
+}
+
+/** A news row may be analysed only by its owner (NewsItem is never client-creatable, so owner_id is trustworthy). */
+export function canAnalyze(row: { id?: string; owner_id?: string } | null | undefined, ownerId: string): boolean {
+  return !!row && row.owner_id === ownerId;
 }
 
 /** The User's brief_snapshot when it has the shape briefNumbers relies on, else null. */
