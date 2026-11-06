@@ -4,10 +4,10 @@ import { fetchArticle } from '../../shared/article.ts';
 import { articleHostsFor } from '../../shared/news.ts';
 import { usageTotals, type UsageRow } from '../../shared/rows.ts';
 import {
-  ANALYSIS_SCHEMA, ANALYZE_DAILY_CAP, analysisStale, buildAnalysisPrompt, forDisplay, normalizeAnalysis, productNames,
+  ANALYSIS_SCHEMA, analysisLimits, ANALYZE_DAILY_CAP, analysisStale, buildAnalysisPrompt, forDisplay, normalizeAnalysis, productNames,
   type Analysis,
 } from './analysis.ts';
-import { briefNumbers, limitsFor, type BriefSnapshot } from './brief.ts';
+import { briefNumbers, type BriefSnapshot } from './brief.ts';
 import { canAnalyze, parseAnalyzeBody } from './logic.ts';
 
 export type AnalyzeResponse =
@@ -81,7 +81,7 @@ export async function handleAnalyze(d: AnalyzeDeps): Promise<AnalyzeResponse> {
     moves: {},
     eurHuf: null,
   });
-  const limits = limitsFor(numbers);
+  const limits = analysisLimits(numbers);
   const products = productNames(snapshot?.split ?? null, (snapshot?.holdings ?? []).map((h) => h.name));
   const live = { left_minor: numbers.month.leftMinor, money_known: numbers.holdingsKnown && !numbers.stale };
 

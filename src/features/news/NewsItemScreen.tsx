@@ -91,6 +91,8 @@ function Analysis({ r, busy, onRefresh }: { r: Extract<AnalyzeResult, { status: 
         )}
         {r.money_known && r.left_minor !== null ? (
           <div className="bline"><span>Ebben a hónapban még befektethető</span><span className="num">{huf(r.left_minor)}</span></div>
+        ) : r.money_known ? (
+          <span className="sub">Ebben a hónapban nincs javasolt összeg.</span>
         ) : (
           <span className="sub">Nyisd meg az Invest fület a havi számok frissítéséhez.</span>
         )}

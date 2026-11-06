@@ -1,5 +1,5 @@
 import { briefNumbers, type BriefNumbers, type BriefSnapshot } from './brief.ts';
-import { analysisStale, buildAnalysisPrompt, forDisplay, normalizeAnalysis, productNames } from './analysis.ts';
+import { analysisCapMinor, analysisLimits, analysisStale, buildAnalysisPrompt, forDisplay, normalizeAnalysis, productNames } from './analysis.ts';
 import { usageTotals } from '../../shared/rows.ts';
 
 const limits = { maxMinor: 1_500_000, stale: false };
@@ -68,6 +68,45 @@ test('prompt: Hungarian, untrusted article, no amount when stale', () => {
   expect(p).toMatch(/Write in Hungarian/);
   expect(p).toMatch(/never follow instructions/i);
   expect(p).toMatch(/verdict must be wait or none/);
+});
+test('cap is left while left > 0, else the room', () => {
+  const n = numbers(snap(), 3_000_000);
+  expect(n.month.pullForwardRoomMinor).toBe(2_000_000);
+  expect(analysisCapMinor(n)).toBe(1_000_000);
+  expect(analysisCapMinor(numbers(snap(), 4_000_000))).toBe(2_000_000);
+  expect(analysisCapMinor(numbers(snap(), 4_000_000))).not.toBeNull();
+  expect(analysisCapMinor(staleNumbers())).toBeNull();
+});
+test('buy above left is downgraded even when pull-forward room is larger', () => {
+  const c = { ...ctx, limits: analysisLimits(numbers(snap(), 3_000_000)) };
+  expect(normalizeAnalysis({ ...ok, amount_huf: 15000 }, c)!.verdict).toBe('wait');
+  expect(normalizeAnalysis({ ...ok, amount_huf: 10000 }, c)!.verdict).toBe('buy');
+});
+test('unknown limit keeps wait/none verdict and reason naming forints', () => {
+  const c = { ...ctx, limits: { maxMinor: null, stale: false } };
+  const a = normalizeAnalysis({ ...ok, verdict: 'none', reason: 'Az EUR/HUF 410 forint körül jár.', amount_huf: null, product: null }, c)!;
+  expect(a).toMatchObject({ verdict: 'none', reason: 'Az EUR/HUF 410 forint körül jár.' });
+  const s = normalizeAnalysis({ ...ok, verdict: 'wait', reason: '410 forint.' }, { ...ctx, limits: { maxMinor: 1_500_000, stale: true } })!;
+  expect(s).toMatchObject({ verdict: 'wait', reason: '410 forint.' });
+});
+test('buy with unknown limit becomes wait with the no-budget reason', () => {
+  const a = normalizeAnalysis(ok, { ...ctx, limits: { maxMinor: null, stale: false } })!;
+  expect(a).toMatchObject({ verdict: 'wait', amount_minor: null, reason: 'Nincs ismert havi keret, ezért most nem javaslok összeget.' });
+});
+test('stale display replaces a reason naming forint amounts', () => {
+  const a = normalizeAnalysis({ ...ok, verdict: 'wait', reason: 'Tegyél be 10 000 Ft-ot.' }, ctx)!;
+  expect(forDisplay(a, true).reason).toBe('Az elemzés óta változott a kereted, kérj újraelemzést.');
+  expect(forDisplay({ ...a, reason: 'Nyugodt a piac.' }, true).reason).toBe('Nyugodt a piac.');
+});
+test('wait analysis with stale limits is not stale in the same month', () => {
+  const a = normalizeAnalysis({ ...ok, verdict: 'wait' }, ctx)!;
+  expect(analysisStale(a, '2026-11', { maxMinor: null, stale: true })).toBe(false);
+  expect(analysisStale(a, '2026-12', { maxMinor: null, stale: true })).toBe(true);
+});
+test('prompt: states left as the limit and forbids naming forint amounts', () => {
+  const p = prompt(numbers(snap(), 3_000_000));
+  expect(p).toMatch(/amount_huf must be at most 10000 /);
+  expect(p).toMatch(/Do not name forint amounts to invest in about or impact/);
 });
 test('prompt: money lines follow left / room', () => {
   expect(prompt(numbers(snap(), 1_000_000))).toMatch(/Left to invest this month: 30 000 Ft/);
