@@ -227,7 +227,7 @@ describe('missingSeeds', () => {
 
 describe('usageTotals', () => {
   it('sums duplicate day rows and picks the oldest to write', () => {
-    expect(usageTotals([])).toEqual({ primary: null, collect: 0, brief: 0 });
+    expect(usageTotals([])).toEqual({ primary: null, collect: 0, brief: 0, analyze: 0 });
     const t = usageTotals([
       { id: 'n', created_date: '2026-11-04T10:00:01Z', collect: 2, brief: 1 },
       { id: 'o', created_date: '2026-11-04T10:00:00Z', collect: 7 },

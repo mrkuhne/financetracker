@@ -25,18 +25,20 @@ export function duplicateIds<T extends Dated>(rows: T[], key: (r: T) => unknown)
   return out;
 }
 
-export type UsageRow = { id: string; created_date?: string; collect?: number; brief?: number };
+export type UsageRow = { id: string; created_date?: string; collect?: number; brief?: number; analyze?: number };
 
 /** Several AiUsage rows for one day (from overlapping runs) count as one: summed totals, the oldest row is written. */
-export function usageTotals(rows: UsageRow[]): { primary: UsageRow | null; collect: number; brief: number } {
+export function usageTotals(rows: UsageRow[]): { primary: UsageRow | null; collect: number; brief: number; analyze: number } {
   const sorted = [...rows].sort(byAge);
   let collect = 0;
   let brief = 0;
+  let analyze = 0;
   for (const r of sorted) {
     collect += typeof r.collect === 'number' ? r.collect : 0;
     brief += typeof r.brief === 'number' ? r.brief : 0;
+    analyze += typeof r.analyze === 'number' ? r.analyze : 0;
   }
-  return { primary: sorted[0] ?? null, collect, brief };
+  return { primary: sorted[0] ?? null, collect, brief, analyze };
 }
 
 export function chunk<T>(arr: T[], size: number): T[][] {

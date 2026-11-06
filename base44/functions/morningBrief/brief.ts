@@ -164,7 +164,7 @@ export function pctText(ratio: number): string {
   return `${v > 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}%`;
 }
 
-const TYPE_LABEL: Record<AssetType, string> = {
+export const TYPE_LABEL: Record<AssetType, string> = {
   bond: 'Government bonds',
   etf: 'ETFs (index funds)',
   stock: 'Stocks',
